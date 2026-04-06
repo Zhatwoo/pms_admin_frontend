@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { NavGroup } from "@/types";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
@@ -19,9 +20,16 @@ export function AppLayout({
   onLogout,
   children,
 }: AppLayoutProps) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar navGroups={navGroups} onLogout={onLogout} />
+      <Sidebar
+        navGroups={navGroups}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+        onLogout={onLogout}
+      />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header
           userInitials={userInitials}
