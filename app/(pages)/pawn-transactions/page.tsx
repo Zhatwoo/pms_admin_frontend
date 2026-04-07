@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { TransactionActions } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
@@ -26,22 +26,28 @@ const branches = ["All Branches", "Makati Main Branch", "Taguig Branch", "Cebu B
 
 export default function PawnTransactionsPage() {
   const [selectedBranch, setSelectedBranch] = useState("All Branches");
+  const [currentStats, setCurrentStats] = useState({ pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0, startingBalance: 0, endingBalance: 0 });
+  const [currentTransactions, setCurrentTransactions] = useState<TransactionRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // TODO: Replace with real fetched data
-  const currentStats = useMemo(() => {
-    return { 
-      pawnedToday: 0, 
-      buyBack: 0, 
-      renewed: 0, 
-      soldItem: 0, 
-      startingBalance: 0, 
-      endingBalance: 0 
-    };
-  }, [selectedBranch]);
-
-  // TODO: Replace with real fetched data
-  const currentTransactions = useMemo(() => {
-    return [] as TransactionRow[];
+  // FULL-STACK INTEGRATION: Fetching real data from Backend PostgreSQL API
+  useEffect(() => {
+    async function fetchTransactions() {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/transactions?branch=${encodeURIComponent(selectedBranch)}`);
+        const data = await res.json();
+        if (data) {
+          setCurrentStats(data.stats || { pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0, startingBalance: 0, endingBalance: 0 });
+          setCurrentTransactions(data.transactions || []);
+        }
+      } catch (error) {
+        console.error("Failed to load transactions API", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchTransactions();
   }, [selectedBranch]);
 
   return (
