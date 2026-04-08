@@ -18,7 +18,17 @@ class ApiClient {
     if (!res.ok) {
       if (res.status === 401) {
         document.cookie = "pms_token=; path=/; max-age=0";
-        window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          const currentPath = `${window.location.pathname}${window.location.search}`;
+          const loginUrl = new URL("/login", window.location.origin);
+
+          // Preserve where the user was so login can return them there.
+          if (window.location.pathname !== "/login") {
+            loginUrl.searchParams.set("redirect", currentPath);
+          }
+
+          window.location.href = loginUrl.toString();
+        }
         throw new Error("Unauthorized");
       }
       const error = await res.json().catch(() => ({ message: "Request failed" }));

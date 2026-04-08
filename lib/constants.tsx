@@ -102,32 +102,32 @@ const ADMIN_NAV: NavGroup[] = [
 
 const BRANCH_NAV: NavGroup[] = [
   {
-    section: "MAIN",
-    items: [
-      { label: "Dashboard", href: "/dashboard", icon: <DashboardIcon /> },
-    ],
-  },
-  {
     section: "TRANSACTION",
     items: [
-      { label: "Pawn Transactions", href: "/pawn-transactions", icon: <PawnTransactionIcon /> },
-      { label: "Pawn Ticket", href: "/pawn-ticket", icon: <PawnTicketIcon /> },
-      { label: "Customers", href: "/customers", icon: <CustomersIcon /> },
+      { label: "Pawn Transactions", href: "/employee/pawn-transaction", icon: <PawnTransactionIcon /> },
+      { label: "Pawn Ticket", href: "/employee/pawn-ticket", icon: <PawnTicketIcon /> },
     ],
   },
   {
-    section: "INVENTORY",
+    section: "MANAGEMENT",
     items: [
+      { label: "Customers", href: "/employee/customers", icon: <CustomersIcon /> },
       {
         label: "Inventory",
-        href: "/inventory",
+        href: "/employee/inventory",
         icon: <InventoryIcon />,
         subItems: [
-          { label: "Pawned Items", href: "/inventory/pawned-items" },
-          { label: "Items For Sale", href: "/inventory/items-for-sale" },
+          { label: "Pawned Items", href: "/employee/inventory/pawned-items" },
+          { label: "Items For Sale", href: "/employee/inventory/items-for-sale" },
         ],
       },
-      { label: "Expiration Monitoring", href: "/expiration-monitoring", icon: <ExpirationIcon /> },
+    ],
+  },
+  {
+    section: "SYSTEM",
+    items: [
+      { label: "Settings", href: "/employee/settings", icon: <SettingsIcon /> },
+      { label: "Audit Logs", href: "/employee/audit-logs", icon: <AuditLogIcon /> },
     ],
   },
 ];

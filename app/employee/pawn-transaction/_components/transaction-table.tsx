@@ -52,8 +52,6 @@ interface TransactionTableProps {
   data?: TransactionRow[];
 }
 
-
-
 export function TransactionTable({ data = [] }: TransactionTableProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
