@@ -12,7 +12,7 @@ interface BranchFormData {
 interface BranchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: BranchFormData) => Promise<void> | void;
+  onSubmit: (data: BranchFormData) => Promise<boolean> | boolean;
   initialData?: BranchFormData | null;
   mode: "create" | "edit";
   nextBranchCode: string;
@@ -67,13 +67,16 @@ export function BranchModal({
     if (!validate()) return;
     setIsSubmitting(true);
     try {
-      await onSubmit({
+      const success = await onSubmit({
         branchId: generatedId,
         name: name.trim(),
         location: location.trim(),
         status,
       });
-      onClose();
+
+      if (success) {
+        onClose();
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -209,10 +209,12 @@ export default function BranchesPage() {
         setSuccessMessage("Branch details updated successfully!");
       }
       setErrorMessage(null);
+      return true;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : `Failed to ${modalMode} branch`;
       setErrorMessage(message);
+      return false;
     }
   }
 
