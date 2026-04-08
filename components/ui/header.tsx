@@ -7,6 +7,7 @@ import { ClockIcon, BellIcon } from "@/lib/icons";
 interface HeaderProps {
   userInitials?: string;
   notificationCount?: number;
+  branchName?: string;
 }
 
 function formatDateTime(): string {
@@ -34,6 +35,7 @@ function getPageTitle(pathname: string): string {
 export function Header({
   userInitials = "U",
   notificationCount = 0,
+  branchName,
 }: HeaderProps) {
   const pathname = usePathname();
   const [time, setTime] = useState("");
@@ -44,11 +46,16 @@ export function Header({
     return () => clearInterval(interval);
   }, []);
 
-  const title = getPageTitle(pathname);
+  const title = getPageTitle(pathname || "");
 
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-3">
-      <h1 className="text-2xl font-bold text-zinc-900">{title}</h1>
+      <div className="flex flex-col">
+        <h1 className="text-2xl font-bold text-zinc-900 leading-none">{title}</h1>
+        {branchName && (
+          <p className="mt-1 text-sm font-medium text-zinc-500">{branchName}</p>
+        )}
+      </div>
 
       <div className="flex items-center gap-4">
         {/* Clock */}

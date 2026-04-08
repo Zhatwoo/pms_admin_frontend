@@ -25,11 +25,11 @@ function NavItemComponent({
   pathname: string;
 }) {
   const hasSubItems = item.subItems && item.subItems.length > 0;
-  
+
   // For parent item, check if itself or any subitem is active
-  const isSelfActive = pathname === item.href || pathname.startsWith(item.href + "/");
+  const isSelfActive = pathname === item.href || pathname.startsWith((item.href ?? "") + "/");
   const isAnySubActive = hasSubItems && item.subItems?.some(
-    (sub) => pathname === sub.href || pathname.startsWith(sub.href + "/")
+    (sub) => pathname === sub.href || pathname.startsWith((sub.href ?? "") + "/")
   );
   const isParentActive = isSelfActive || isAnySubActive;
 
@@ -65,16 +65,16 @@ function NavItemComponent({
             </svg>
           )}
         </button>
-        
+
         {expanded && !collapsed && (
           <div className="ml-9 space-y-1">
-            {item.subItems?.map((sub) => {
+            {item.subItems?.map((sub, subIdx) => {
               const isSubActive =
-                pathname === sub.href || pathname.startsWith(sub.href + "/");
+                pathname === sub.href || pathname.startsWith((sub.href ?? "") + "/");
               return (
                 <Link
-                  key={sub.href}
-                  href={sub.href}
+                  key={`${item.href ?? item.label}-sub-${subIdx}-${sub.href ?? sub.label}`}
+                  href={sub.href ?? "#"}
                   className={`block rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
                     isSubActive
                       ? "bg-pawn-gold text-zinc-900"
@@ -94,7 +94,7 @@ function NavItemComponent({
   // Regular non-nested link
   return (
     <Link
-      href={item.href}
+      href={item.href ?? "#"}
       title={collapsed ? item.label : undefined}
       className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
         collapsed ? "justify-center" : ""
@@ -148,7 +148,10 @@ export function Sidebar({ navGroups, collapsed, onToggle, onLogout }: SidebarPro
       {/* Navigation */}
       <nav className="scrollbar-hide flex-1 overflow-y-auto px-2 py-2">
         {navGroups.map((group, groupIdx) => (
-          <div key={group.section} className={groupIdx === 0 ? "mt-2" : "mt-5"}>
+          <div
+            key={`${group.section}-${groupIdx}`}
+            className={groupIdx === 0 ? "mt-2" : "mt-5"}
+          >
             {!collapsed && (
               <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-pawn-section">
                 {group.section}
@@ -158,9 +161,9 @@ export function Sidebar({ navGroups, collapsed, onToggle, onLogout }: SidebarPro
               <div className="mx-auto mb-2 h-px w-8 bg-white/10" />
             )}
             <div className="space-y-0.5">
-              {group.items.map((item) => (
+              {group.items.map((item, itemIdx) => (
                 <NavItemComponent
-                  key={item.href ?? item.label}
+                  key={`${group.section}-${groupIdx}-item-${itemIdx}-${item.href ?? item.label}`}
                   item={item}
                   collapsed={collapsed}
                   pathname={pathname}
