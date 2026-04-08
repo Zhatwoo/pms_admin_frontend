@@ -38,7 +38,7 @@ export function AppLayout({
           notificationCount={notificationCount}
           branchName={branchName}
         />
-        <main className="flex-1 overflow-y-auto bg-pawn-content p-6">
+        <main className="flex-1 overflow-y-auto bg-pawn-content p-6 transition-colors duration-300">
           {children}
         </main>
       </div>
