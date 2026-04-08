@@ -9,6 +9,7 @@ interface AppLayoutProps {
   navGroups: NavGroup[];
   userInitials?: string;
   notificationCount?: number;
+  branchName?: string;
   onLogout?: () => void;
   children: React.ReactNode;
 }
@@ -17,6 +18,7 @@ export function AppLayout({
   navGroups,
   userInitials,
   notificationCount,
+  branchName,
   onLogout,
   children,
 }: AppLayoutProps) {
@@ -34,6 +36,7 @@ export function AppLayout({
         <Header
           userInitials={userInitials}
           notificationCount={notificationCount}
+          branchName={branchName}
         />
         <main className="flex-1 overflow-y-auto bg-pawn-content p-6 transition-colors duration-300">
           {children}

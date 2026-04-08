@@ -52,13 +52,11 @@ interface TransactionTableProps {
   data?: TransactionRow[];
 }
 
-
-
 export function TransactionTable({ data = [] }: TransactionTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300">
-      <div className="flex items-center justify-between bg-surface px-4 py-3">
-        <h3 className="text-sm font-bold text-text-primary">Daily Transactions</h3>
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <div className="flex items-center justify-between bg-white px-4 py-3">
+        <h3 className="text-sm font-bold text-zinc-800">Daily Transactions</h3>
       </div>
 
       <div className="overflow-x-auto">
@@ -80,7 +78,7 @@ export function TransactionTable({ data = [] }: TransactionTableProps) {
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-4 text-center text-sm text-text-tertiary">
+                <td colSpan={11} className="py-4 text-center text-sm text-zinc-500">
                   No transactions found
                 </td>
               </tr>
@@ -91,16 +89,16 @@ export function TransactionTable({ data = [] }: TransactionTableProps) {
               return (
                 <tr
                   key={row.transactionNo}
-                  className={`border-t border-border-subtle ${
+                  className={`border-t border-zinc-100 ${
                     isStartRow
-                      ? "border-l-4 border-l-emerald-700 bg-emerald-surface"
+                      ? "border-l-4 border-l-emerald-700 bg-emerald-50/60"
                       : idx % 2 === 0
-                        ? "bg-surface"
-                        : "bg-surface-secondary"
+                        ? "bg-white"
+                        : "bg-zinc-50"
                   }`}
                 >
                   {/* Transaction # */}
-                  <td className="whitespace-nowrap px-3 py-2 text-xs font-medium text-text-secondary">
+                  <td className="whitespace-nowrap px-3 py-2 text-xs font-medium text-zinc-700">
                     {row.transactionNo}
                   </td>
 
@@ -113,42 +111,42 @@ export function TransactionTable({ data = [] }: TransactionTableProps) {
                   </td>
 
                   {/* Date */}
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-600">
                     {row.date}
                   </td>
 
                   {/* Time */}
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-600">
                     {row.time}
                   </td>
 
                   {/* Cash In */}
-                  <td className="whitespace-nowrap px-3 py-1.5 text-right text-xs text-text-secondary">
+                  <td className="whitespace-nowrap px-3 py-1.5 text-right text-xs text-zinc-700">
                     <input 
                       type="text" 
                       defaultValue={row.cashIn}
                       placeholder="0"
-                      className="w-16 ml-auto block text-right border-b border-border-main outline-none focus:border-emerald-500 bg-transparent text-xs py-0.5"
+                      className="w-16 ml-auto block text-right border-b border-zinc-200 outline-none focus:border-emerald-500 bg-transparent text-xs py-0.5"
                     />
                   </td>
 
                   {/* Cash Out */}
-                  <td className="whitespace-nowrap px-3 py-1.5 text-right text-xs text-text-secondary">
+                  <td className="whitespace-nowrap px-3 py-1.5 text-right text-xs text-zinc-700">
                     {row.cashOut}
                   </td>
 
                   {/* Return */}
-                  <td className="whitespace-nowrap px-3 py-2 text-right text-xs text-text-secondary">
+                  <td className="whitespace-nowrap px-3 py-2 text-right text-xs text-zinc-700">
                     {row.returnVal}
                   </td>
 
                   {/* Unit */}
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-700">
                     {row.unit}
                   </td>
 
                   {/* Unit Code */}
-                  <td className="whitespace-nowrap px-3 py-1.5 text-xs text-text-tertiary">
+                  <td className="whitespace-nowrap px-3 py-1.5 text-xs text-zinc-500">
                     {row.unitCode}
                   </td>
 
@@ -157,7 +155,7 @@ export function TransactionTable({ data = [] }: TransactionTableProps) {
                     {isHighlightedPawn(row.pawn) ? (
                       <span className="font-bold text-purple-700">{row.pawn}</span>
                     ) : (
-                      <span className="text-text-secondary">{row.pawn}</span>
+                      <span className="text-zinc-700">{row.pawn}</span>
                     )}
                   </td>
 
@@ -166,7 +164,7 @@ export function TransactionTable({ data = [] }: TransactionTableProps) {
                     {isHighlightedStorage(row.storage) ? (
                       <span className="font-bold text-purple-700">{row.storage}</span>
                     ) : (
-                      <span className="text-text-secondary">{row.storage}</span>
+                      <span className="text-zinc-700">{row.storage}</span>
                     )}
                   </td>
                 </tr>

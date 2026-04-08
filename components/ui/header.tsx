@@ -9,6 +9,7 @@ import { useTheme } from "@/contexts/theme-context";
 interface HeaderProps {
   userInitials?: string;
   notificationCount?: number;
+  branchName?: string;
 }
 
 function formatDateTime(): string {
@@ -96,6 +97,7 @@ function ThemeToggleButton() {
 export function Header({
   userInitials = "U",
   notificationCount = 0,
+  branchName,
 }: HeaderProps) {
   const pathname = usePathname();
   const [time, setTime] = useState("");
@@ -106,11 +108,16 @@ export function Header({
     return () => clearInterval(interval);
   }, []);
 
-  const title = getPageTitle(pathname);
+  const title = getPageTitle(pathname || "");
 
   return (
     <header className="flex items-center justify-between border-b border-border-main bg-header-bg px-6 py-3 transition-colors duration-300">
-      <h1 className="text-2xl font-bold text-text-primary">{title}</h1>
+      <div className="flex flex-col">
+        <h1 className="text-2xl font-bold text-text-primary leading-none">{title}</h1>
+        {branchName && (
+          <p className="mt-1 text-sm font-medium text-zinc-500">{branchName}</p>
+        )}
+      </div>
 
       <div className="flex items-center gap-3">
         {/* Branch Selector – only visible to Super Admins */}
