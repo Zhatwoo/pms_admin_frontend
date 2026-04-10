@@ -43,6 +43,7 @@ interface TransactionActionsProps {
   onExportCSV?: () => void;
   onPrintReport?: () => void;
   onNewPawn?: () => void;
+  onBuyBack?: () => void;
   onStartDay?: () => void;
   onEndDay?: () => void;
 }
@@ -63,6 +64,8 @@ export function TransactionActions({
   onRenewClick, 
   onExportCSV, 
   onPrintReport,
+  onNewPawn,
+  onBuyBack,
   onStartDay,
   onEndDay
 }: TransactionActionsProps) {
@@ -77,6 +80,10 @@ export function TransactionActions({
             onClick={() => {
               if (f === "Renew" && onRenewClick) {
                 onRenewClick();
+              } else if (f === "New Pawn" && onNewPawn) {
+                onNewPawn();
+              } else if (f === "Buy Back" && onBuyBack) {
+                onBuyBack();
               } else {
                 onFilterChange?.(activeFilter === f ? "All" : f);
               }

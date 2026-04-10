@@ -85,7 +85,9 @@ export function BuyBackForm({ onCancel }: BuyBackFormProps) {
     period: "",
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingItem, setPendingItem] = useState<PawnedSearchItem | null>(null);
   const [selectedItem, setSelectedItem] = useState<PawnedSearchItem | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
@@ -105,24 +107,37 @@ export function BuyBackForm({ onCancel }: BuyBackFormProps) {
   }, [searchQuery]);
 
   const handleSelectItem = (item: PawnedSearchItem) => {
-    setSelectedItem(item);
+    setPendingItem(item);
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmItem = () => {
+    if (!pendingItem) return;
+    setSelectedItem(pendingItem);
     setForm((prev) => ({
       ...prev,
-      name: item.name,
-      unitCode: item.unitCode,
-      unit: item.unit,
-      serialNumber: item.serialNumber,
-      itemsIncluded: item.itemsIncluded,
-      condition: item.condition,
-      memory: item.memory,
-      barcodeId: item.barcodeId,
-      category: item.category,
-      purchasedDate: item.purchasedDate,
-      amount: item.amount,
-      storageFee: item.storageFee,
-      contactNumber: item.contactNumber,
-      status: item.status,
+      name: pendingItem.name,
+      unitCode: pendingItem.unitCode,
+      unit: pendingItem.unit,
+      serialNumber: pendingItem.serialNumber,
+      itemsIncluded: pendingItem.itemsIncluded,
+      condition: pendingItem.condition,
+      memory: pendingItem.memory,
+      barcodeId: pendingItem.barcodeId,
+      category: pendingItem.category,
+      purchasedDate: pendingItem.purchasedDate,
+      amount: pendingItem.amount,
+      storageFee: pendingItem.storageFee,
+      contactNumber: pendingItem.contactNumber,
+      status: pendingItem.status,
     }));
+    setPendingItem(null);
+    setIsModalOpen(false);
+  };
+
+  const handleCancelModal = () => {
+    setPendingItem(null);
+    setIsModalOpen(false);
   };
 
   return (
@@ -183,301 +198,164 @@ export function BuyBackForm({ onCancel }: BuyBackFormProps) {
               )}
             </div>
 
-            {selectedItem && (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Selected item</p>
-                    <h4 className="mt-1 text-base font-semibold text-zinc-900">{selectedItem.unit}</h4>
-                    <p className="text-sm text-zinc-600">{selectedItem.unitCode}</p>
+            {isModalOpen && pendingItem && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Selected pawned item</p>
+                      <h3 className="mt-2 text-xl font-semibold text-zinc-900">{pendingItem.unit}</h3>
+                      <p className="text-sm text-zinc-500">{pendingItem.unitCode}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelModal}
+                      className="rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                    >
+                      Close
+                    </button>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Amount</p>
-                    <p className="mt-1 text-lg font-bold text-zinc-900">₱{selectedItem.amount}</p>
+
+                  <div className="mt-6 rounded-3xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <p className="text-sm font-semibold uppercase tracking-[0.15em] text-zinc-700">Item & Loan Details</p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Purchased Date</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.purchasedDate}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Storage Fee</p>
+                        <p className="text-sm font-semibold text-zinc-900">₱{pendingItem.storageFee}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Amount</p>
+                        <p className="text-sm font-semibold text-zinc-900">₱{pendingItem.amount}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Barcode ID</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.barcodeId || "—"}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Memory</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.memory}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Status</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.status}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Condition</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.condition}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Items Included</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.itemsIncluded}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Serial Number</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.serialNumber}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Category</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.category}</p>
+                      </div>
+                      <div className="space-y-1 rounded-2xl bg-white p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Unit Code</p>
+                        <p className="text-sm font-semibold text-zinc-900">{pendingItem.unitCode}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 rounded-3xl border border-zinc-200 bg-white p-4">
+                      <div className="mb-4">
+                        <p className="text-sm font-semibold uppercase tracking-[0.15em] text-zinc-700">Customer Information</p>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Name</p>
+                          <p className="text-sm font-semibold text-zinc-900">{pendingItem.name}</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Unit Code</p>
+                          <p className="text-sm font-semibold text-zinc-900">{pendingItem.unitCode}</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Date</p>
+                          <p className="text-sm font-semibold text-zinc-900">{pendingItem.purchasedDate}</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Contact Number</p>
+                          <p className="text-sm font-semibold text-zinc-900">{pendingItem.contactNumber}</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Remarks</p>
+                          <p className="text-sm font-semibold text-zinc-900">—</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Storage Fee</p>
+                          <p className="text-sm font-semibold text-zinc-900">₱{pendingItem.storageFee}</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Parking Fee</p>
+                          <p className="text-sm font-semibold text-zinc-900">—</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Purchased Date</p>
+                          <p className="text-sm font-semibold text-zinc-900">{pendingItem.purchasedDate}</p>
+                        </div>
+                        <div className="space-y-1 rounded-2xl bg-zinc-50 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Amount</p>
+                          <p className="text-sm font-semibold text-zinc-900">₱{pendingItem.amount}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-xl bg-white p-3">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Serial</p>
-                    <p className="mt-1 text-sm text-zinc-700">{selectedItem.serialNumber}</p>
-                  </div>
-                  <div className="rounded-xl bg-white p-3">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Customer</p>
-                    <p className="mt-1 text-sm text-zinc-700">{selectedItem.name}</p>
+
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCancelModal}
+                      className="rounded-lg border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmItem}
+                      className="rounded-lg bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                    >
+                      Confirm selection
+                    </button>
                   </div>
                 </div>
               </div>
             )}
+
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
-          <div className="space-y-6 rounded-3xl border border-zinc-200 bg-zinc-50 p-6">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-zinc-900">Customer Information</h3>
-              <p className="text-sm text-zinc-500">Search and enter customer details for the buyback.</p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Name</span>
-                <input
-                  type="text"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  placeholder="Customer Name"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Unit Code</span>
-                <input
-                  type="text"
-                  name="unitCode"
-                  value={form.unitCode}
-                  onChange={handleChange}
-                  placeholder="Unit Code"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Date</span>
-                <input
-                  type="date"
-                  name="date"
-                  value={form.date}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Contact Number</span>
-                <input
-                  type="tel"
-                  name="contactNumber"
-                  value={form.contactNumber}
-                  onChange={handleChange}
-                  placeholder="09XX-XXX-XXXX"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Remarks</span>
-                <input
-                  type="text"
-                  name="remarks"
-                  value={form.remarks}
-                  onChange={handleChange}
-                  placeholder="Remarks"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Storage Fee</span>
-                <input
-                  type="number"
-                  name="storageFee"
-                  value={form.storageFee}
-                  onChange={handleChange}
-                  placeholder="Storage Fee"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Parking Fee</span>
-                <input
-                  type="number"
-                  name="parkingFee"
-                  value={form.parkingFee}
-                  onChange={handleChange}
-                  placeholder="Parking Fee"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Purchased Date</span>
-                <input
-                  type="date"
-                  name="purchasedDate"
-                  value={form.purchasedDate}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Amount</span>
-                <input
-                  type="number"
-                  name="amount"
-                  value={form.amount}
-                  onChange={handleChange}
-                  placeholder="Amount"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-6 rounded-3xl border border-zinc-200 bg-white p-6">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-zinc-900">Item & Loan Details</h3>
-              <p className="text-sm text-zinc-500">Enter the pawned item details for buyback processing.</p>
-            </div>
-
-            <div className="grid gap-4">
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Unit</span>
-                <input
-                  type="text"
-                  name="unit"
-                  value={form.unit}
-                  onChange={handleChange}
-                  placeholder="Unit"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Serial Number</span>
-                <input
-                  type="text"
-                  name="serialNumber"
-                  value={form.serialNumber}
-                  onChange={handleChange}
-                  placeholder="Serial Number"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Items Included</span>
-                <input
-                  type="text"
-                  name="itemsIncluded"
-                  value={form.itemsIncluded}
-                  onChange={handleChange}
-                  placeholder="Items Included"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Condition</span>
-                <input
-                  type="text"
-                  name="condition"
-                  value={form.condition}
-                  onChange={handleChange}
-                  placeholder="Condition"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Memory</span>
-                <input
-                  type="text"
-                  name="memory"
-                  value={form.memory}
-                  onChange={handleChange}
-                  placeholder="Memory"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Barcode ID</span>
-                <input
-                  type="text"
-                  name="barcodeId"
-                  value={form.barcodeId}
-                  onChange={handleChange}
-                  placeholder="Barcode ID"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Category</span>
-                <input
-                  type="text"
-                  name="category"
-                  value={form.category}
-                  onChange={handleChange}
-                  placeholder="Category"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Prepared By</span>
-                <input
-                  type="text"
-                  name="preparedBy"
-                  value={form.preparedBy}
-                  onChange={handleChange}
-                  placeholder="Prepared By"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Status</span>
-                <input
-                  type="text"
-                  name="status"
-                  value={form.status}
-                  onChange={handleChange}
-                  placeholder="Status"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Times Renewed</span>
-                <input
-                  type="text"
-                  name="timesRenewed"
-                  value={form.timesRenewed}
-                  onChange={handleChange}
-                  placeholder="Times Renewed"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="space-y-2 text-sm text-zinc-700">
-                <span>Period</span>
-                <input
-                  type="text"
-                  name="period"
-                  value={form.period}
-                  onChange={handleChange}
-                  placeholder="Period"
-                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 flex justify-end">
+        <div className="lg:col-span-2 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
+            onClick={onCancel}
+            className="mt-4 inline-flex justify-center rounded-lg border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {}}
+            className="mt-4 inline-flex justify-center rounded-lg border border-emerald-700 bg-white px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+          >
+            View Breakdown
+          </button>
+          <button
+            type="button"
+            onClick={() => {}}
             className="mt-4 inline-flex justify-center rounded-lg bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
           >
-            Done
+            Proceed to Payment
           </button>
         </div>
       </div>
