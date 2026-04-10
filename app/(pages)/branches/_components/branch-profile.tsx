@@ -247,6 +247,7 @@ interface BranchProfileProps {
     name: string;
     location: string;
     status: string;
+    createdAt?: string;
   };
 }
 
@@ -299,7 +300,15 @@ export function BranchProfile({ branch }: BranchProfileProps) {
               <span className="text-emerald-400"><IconCalendar /></span>
               <div>
                 <p className="text-[10px] font-medium uppercase text-emerald-400/70">Created</p>
-                <p className="text-xs font-semibold text-white">Jan 15, 2024</p>
+                <p className="text-xs font-semibold text-white">
+                  {branch.createdAt
+                    ? new Date(branch.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2.5 backdrop-blur-sm">
