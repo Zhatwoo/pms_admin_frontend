@@ -132,6 +132,7 @@ export default function EmployeePawnTransactionsPage() {
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
         onNewPawn={openNewPawnForm}
+        onBuyBack={openBuyBackForm}
         onStartDay={() => setBalanceModal({ open: true, type: "starting" })}
         onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
       />
