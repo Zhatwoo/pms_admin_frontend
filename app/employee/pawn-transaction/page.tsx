@@ -5,7 +5,7 @@ import { TransactionActions } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
 import { NewPawnForm } from "./_components/new-pawn-form";
-import { BuyBackForm } from "./_components/buy-back-form";
+import { DailyBalanceConfirmation } from "@/components/shared/daily-balance-confirmation";
 
 type PurposeType = "Start" | "Buy Back" | "Renew" | "Sold Item" | "Pawn";
 type FilterType = "All" | "Renew" | "Redeem" | "New Pawn" | "Sales / Transfer" | "Buy Back";
@@ -45,6 +45,10 @@ export default function EmployeePawnTransactionsPage() {
   });
   const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [balanceModal, setBalanceModal] = useState<{ open: boolean; type: "starting" | "ending" }>({
+    open: false,
+    type: "starting",
+  });
 
   useEffect(() => {
     async function fetchTransactions() {
@@ -123,7 +127,8 @@ export default function EmployeePawnTransactionsPage() {
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
         onNewPawn={openNewPawnForm}
-        onBuyBack={openBuyBackForm}
+        onStartDay={() => setBalanceModal({ open: true, type: "starting" })}
+        onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
       />
 
       {activeForm === "newPawn" ? (
@@ -136,6 +141,17 @@ export default function EmployeePawnTransactionsPage() {
           <TransactionTable data={filteredTransactions} />
         </>
       )}
+
+      <DailyBalanceConfirmation
+        isOpen={balanceModal.open}
+        type={balanceModal.type}
+        currentCash={balanceModal.type === "starting" ? "10000" : "25000"}
+        onClose={() => setBalanceModal((p) => ({ ...p, open: false }))}
+        onConfirm={(amt) => {
+          console.log(`Employee confirmed ${balanceModal.type} cash:`, amt);
+          setBalanceModal((p) => ({ ...p, open: false }));
+        }}
+      />
     </div>
   );
 }
