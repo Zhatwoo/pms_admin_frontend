@@ -56,7 +56,8 @@ const SUPERADMIN_NAV: NavGroup[] = [
         href: "/branches",
         icon: <BranchesIcon />,
         subItems: [
-          { label: "Branch Finance", href: "/branch-finance" },
+          { label: "Overview", href: "/branch-overview" },
+          { label: "Finance", href: "/branch-finance" },
         ],
       },
       { label: "User Management", href: "/users", icon: <UserManagementIcon /> },
@@ -105,7 +106,8 @@ const ADMIN_NAV: NavGroup[] = [
         href: "/admin/branches",
         icon: <BranchesIcon />,
         subItems: [
-          { label: "Branch Finance", href: "/branch-finance" },
+          { label: "Overview", href: "/branch-overview" },
+          { label: "Finance", href: "/branch-finance" },
         ],
       },
       { label: "User Management", href: "/admin/users", icon: <UserManagementIcon /> },
