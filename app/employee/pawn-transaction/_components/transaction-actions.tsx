@@ -39,6 +39,7 @@ type FilterType = "All" | "Renew" | "Redeem" | "New Pawn" | "Sales / Transfer" |
 interface TransactionActionsProps {
   activeFilter?: FilterType;
   onFilterChange?: (filter: FilterType) => void;
+  onRenewClick?: () => void;
   onExportCSV?: () => void;
   onPrintReport?: () => void;
   onNewPawn?: () => void;
@@ -56,15 +57,7 @@ const filterVariantMap: Record<string, string> = {
   "Buy Back": "buyback",
 };
 
-export function TransactionActions({ 
-  activeFilter = "All", 
-  onFilterChange, 
-  onExportCSV, 
-  onPrintReport, 
-  onNewPawn,
-  onStartDay,
-  onEndDay
-}: TransactionActionsProps) {
+export function TransactionActions({ activeFilter = "All", onFilterChange, onRenewClick, onExportCSV, onPrintReport }: TransactionActionsProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -74,15 +67,11 @@ export function TransactionActions({
             variant={filterVariantMap[f] as any}
             className={activeFilter === f ? "ring-2 ring-offset-1 ring-emerald-600 opacity-100" : "opacity-70 hover:opacity-100"}
             onClick={() => {
-              if (f === "New Pawn") {
-                onNewPawn?.();
-                return;
+              if (f === "Renew" && onRenewClick) {
+                onRenewClick();
+              } else {
+                onFilterChange?.(activeFilter === f ? "All" : f);
               }
-              if (f === "Buy Back") {
-                onBuyBack?.();
-                return;
-              }
-              onFilterChange?.(activeFilter === f ? "All" : f);
             }}
           >
             {f}
