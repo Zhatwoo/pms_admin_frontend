@@ -5,6 +5,7 @@ import { TransactionActions } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
 import { ManualTransactionModal } from "./_components/manual-transaction-modal";
+import { DailyBalanceConfirmation } from "@/components/shared/daily-balance-confirmation";
 
 type PurposeType = "Start" | "Buy Back" | "Renew" | "Sold Item" | "Pawn";
 type FilterType = "All" | "Renew" | "Redeem" | "New Pawn" | "Sales / Transfer" | "Buy Back";
@@ -50,6 +51,10 @@ export default function PawnTransactionsPage() {
   const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [balanceModal, setBalanceModal] = useState<{ open: boolean; type: "starting" | "ending" }>({
+    open: false,
+    type: "starting",
+  });
 
   // Fetch data from NestJS backend
   useEffect(() => {
@@ -162,6 +167,8 @@ export default function PawnTransactionsPage() {
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
         onManualInput={() => setIsManualModalOpen(true)}
+        onStartDay={() => setBalanceModal({ open: true, type: "starting" })}
+        onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
       />
       <TransactionStats data={currentStats} />
       <TransactionTable data={filteredTransactions} />
@@ -172,6 +179,17 @@ export default function PawnTransactionsPage() {
         onSubmit={handleManualSubmit}
         branches={branches}
         currentBranch={selectedBranch}
+      />
+
+      <DailyBalanceConfirmation
+        isOpen={balanceModal.open}
+        type={balanceModal.type}
+        currentCash="15000"
+        onClose={() => setBalanceModal((p) => ({ ...p, open: false }))}
+        onConfirm={(amt) => {
+          console.log(`Confirmed ${balanceModal.type} cash:`, amt);
+          setBalanceModal((p) => ({ ...p, open: false }));
+        }}
       />
     </div>
   );
