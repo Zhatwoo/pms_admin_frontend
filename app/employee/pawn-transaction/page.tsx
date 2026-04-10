@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { TransactionActions } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
+import { RenewModal } from "./_components/renew-modal";
+import { useBranch } from "@/contexts/branch-context";
 
 type PurposeType = "Start" | "Buy Back" | "Renew" | "Sold Item" | "Pawn";
 type FilterType = "All" | "Renew" | "Redeem" | "New Pawn" | "Sales / Transfer" | "Buy Back";
@@ -33,7 +35,8 @@ const filterToPurpose: Record<FilterType, PurposeType | null> = {
 };
 
 export default function EmployeePawnTransactionsPage() {
-  const [selectedBranch] = useState("Makati Main Branch");
+  const { selectedBranch } = useBranch();
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const [currentStats, setCurrentStats] = useState({
     pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0,
@@ -46,7 +49,7 @@ export default function EmployeePawnTransactionsPage() {
     async function fetchTransactions() {
       setIsLoading(true);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/transactions?branch=${encodeURIComponent(selectedBranch)}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/transactions?branch=${encodeURIComponent(selectedBranch.name)}`);
         const data = await res.json();
         if (data) {
           setCurrentStats(data.stats || {
@@ -82,7 +85,7 @@ export default function EmployeePawnTransactionsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `transactions_${selectedBranch.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `transactions_${selectedBranch.name.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }, [filteredTransactions, selectedBranch]);
@@ -102,11 +105,18 @@ export default function EmployeePawnTransactionsPage() {
       <TransactionActions
         activeFilter={activeFilter}
         onFilterChange={(f) => setActiveFilter(f)}
+        onRenewClick={() => setIsRenewModalOpen(true)}
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
       />
       <TransactionStats data={currentStats} />
       <TransactionTable data={filteredTransactions} />
+
+      <RenewModal 
+        isOpen={isRenewModalOpen} 
+        onClose={() => setIsRenewModalOpen(false)} 
+        branchName={selectedBranch.name}
+      />
     </div>
   );
 }
