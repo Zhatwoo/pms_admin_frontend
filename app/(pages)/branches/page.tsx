@@ -20,6 +20,7 @@ interface BranchApiItem {
   name: string;
   location: string;
   status: string;
+  created_at: string;
 }
 
 type BranchFormData = {
@@ -36,6 +37,7 @@ function toBranchRow(branch: BranchApiItem): BranchRow {
     branchId: branch.branch_code,
     name: branch.name,
     location: branch.location,
+    createdAt: branch.created_at,
     status: branch.status,
     pawnedItems: 0,
     forSaleItems: 0,
@@ -311,6 +313,7 @@ export default function BranchesPage() {
             name: profileBranch.name,
             location: profileBranch.location,
             status: profileBranch.status,
+            createdAt: profileBranch.createdAt,
           }}
         />
       ) : (

@@ -17,6 +17,7 @@ const columns: Column[] = [
   { key: "branchId", label: "Branch ID" },
   { key: "name", label: "Branch Name" },
   { key: "location", label: "Location" },
+  { key: "createdAt", label: "Date Created" },
   { key: "status", label: "Status" },
   { key: "inventorySummary", label: "Inventory", align: "center" },
   { key: "actions", label: "Actions", align: "center" },
@@ -27,6 +28,7 @@ export interface BranchRow {
   branchId: string;
   name: string;
   location: string;
+  createdAt: string;
   status: string;
   pawnedItems: number;
   forSaleItems: number;
@@ -184,6 +186,20 @@ export function BranchTable({
               >
                 {value}
               </button>
+            );
+          }
+          if (key === "createdAt") {
+            const raw = row.createdAt as string;
+            if (!raw) return <span className="text-text-muted">—</span>;
+            const date = new Date(raw);
+            return (
+              <span className="text-xs text-text-secondary">
+                {date.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
             );
           }
           if (key === "status") {
