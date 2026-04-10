@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { TransactionActions } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
+import { ManualTransactionModal } from "./_components/manual-transaction-modal";
 
 type PurposeType = "Start" | "Buy Back" | "Renew" | "Sold Item" | "Pawn";
 type FilterType = "All" | "Renew" | "Redeem" | "New Pawn" | "Sales / Transfer" | "Buy Back";
@@ -48,6 +49,7 @@ export default function PawnTransactionsPage() {
   });
   const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
   // Fetch data from NestJS backend
   useEffect(() => {
@@ -103,6 +105,28 @@ export default function PawnTransactionsPage() {
     window.print();
   }, []);
 
+  const handleManualSubmit = (data: any) => {
+    // In a real app, this would hit the API
+    const newTransaction: TransactionRow = {
+      transactionNo: data.transactionNo,
+      branch: selectedBranch,
+      purpose: "Start", // Or map to a new purpose if needed
+      date: data.date,
+      time: data.time,
+      cashIn: data.type === "Cash In" ? data.amount.toString() : "0",
+      cashOut: data.type === "Cash Transfer" ? data.amount.toString() : "0",
+      returnVal: "0",
+      unit: "Manual Entry",
+      unitCode: data.type,
+      pawn: "0",
+      storage: "0",
+    };
+    
+    setAllTransactions(prev => [newTransaction, ...prev]);
+    // TODO: POST to backend
+    console.log("Manual transaction submitted:", data);
+  };
+
   return (
     <div className="space-y-3 pb-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -137,9 +161,18 @@ export default function PawnTransactionsPage() {
         onFilterChange={(f) => setActiveFilter(f)}
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
+        onManualInput={() => setIsManualModalOpen(true)}
       />
       <TransactionStats data={currentStats} />
       <TransactionTable data={filteredTransactions} />
+
+      <ManualTransactionModal 
+        isOpen={isManualModalOpen} 
+        onClose={() => setIsManualModalOpen(false)} 
+        onSubmit={handleManualSubmit}
+        branches={branches}
+        currentBranch={selectedBranch}
+      />
     </div>
   );
 }
