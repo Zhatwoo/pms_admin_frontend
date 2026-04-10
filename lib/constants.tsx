@@ -51,7 +51,15 @@ const SUPERADMIN_NAV: NavGroup[] = [
     section: "ADMIN",
     items: [
       { label: "Reports", href: "/reports", icon: <ReportsIcon /> },
-      { label: "Branch Management", href: "/branches", icon: <BranchesIcon /> },
+      {
+        label: "Branch Management",
+        href: "/branches",
+        icon: <BranchesIcon />,
+        subItems: [
+          { label: "Overview", href: "/branch-overview" },
+          { label: "Finance", href: "/branch-finance" },
+        ],
+      },
       { label: "User Management", href: "/users", icon: <UserManagementIcon /> },
       { label: "Settings", href: "/settings", icon: <SettingsIcon /> },
       { label: "Audit Logs", href: "/audit-logs", icon: <AuditLogIcon /> },
@@ -92,8 +100,8 @@ const ADMIN_NAV: NavGroup[] = [
   {
     section: "ADMIN",
     items: [
+      { label: "Branch Finance", href: "/admin/branch-finance", icon: <BranchesIcon /> },
       { label: "Reports", href: "/admin/reports", icon: <ReportsIcon /> },
-      { label: "Branch Management", href: "/admin/branches", icon: <BranchesIcon /> },
       { label: "User Management", href: "/admin/users", icon: <UserManagementIcon /> },
       { label: "Settings", href: "/admin/settings", icon: <SettingsIcon /> },
       { label: "Audit Logs", href: "/admin/audit-logs", icon: <AuditLogIcon /> },
