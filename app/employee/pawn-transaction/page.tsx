@@ -9,6 +9,7 @@ import { useBranch } from "@/contexts/branch-context";
 
 type PurposeType = "Start" | "Buy Back" | "Renew" | "Sold Item" | "Pawn";
 type FilterType = "All" | "Renew" | "Redeem" | "New Pawn" | "Sales / Transfer" | "Buy Back";
+type ActiveForm = "newPawn" | "buyBack" | null;
 
 interface TransactionRow {
   transactionNo: string;
@@ -38,12 +39,17 @@ export default function EmployeePawnTransactionsPage() {
   const { selectedBranch } = useBranch();
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
+  const [activeForm, setActiveForm] = useState<ActiveForm>(null);
   const [currentStats, setCurrentStats] = useState({
     pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0,
     startingBalance: 0, endingBalance: 0,
   });
   const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [balanceModal, setBalanceModal] = useState<{ open: boolean; type: "starting" | "ending" }>({
+    open: false,
+    type: "starting",
+  });
 
   useEffect(() => {
     async function fetchTransactions() {
@@ -94,6 +100,20 @@ export default function EmployeePawnTransactionsPage() {
     window.print();
   }, []);
 
+  const openNewPawnForm = useCallback(() => {
+    setActiveFilter("All");
+    setActiveForm("newPawn");
+  }, []);
+
+  const openBuyBackForm = useCallback(() => {
+    setActiveFilter("All");
+    setActiveForm("buyBack");
+  }, []);
+
+  const closeActiveForm = useCallback(() => {
+    setActiveForm(null);
+  }, []);
+
   return (
     <div className="space-y-3 pb-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -108,6 +128,31 @@ export default function EmployeePawnTransactionsPage() {
         onRenewClick={() => setIsRenewModalOpen(true)}
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
+        onNewPawn={openNewPawnForm}
+        onStartDay={() => setBalanceModal({ open: true, type: "starting" })}
+        onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
+      />
+
+      {activeForm === "newPawn" ? (
+        <NewPawnForm onCancel={closeActiveForm} />
+      ) : activeForm === "buyBack" ? (
+        <BuyBackForm onCancel={closeActiveForm} />
+      ) : (
+        <>
+          <TransactionStats data={currentStats} />
+          <TransactionTable data={filteredTransactions} />
+        </>
+      )}
+
+      <DailyBalanceConfirmation
+        isOpen={balanceModal.open}
+        type={balanceModal.type}
+        currentCash={balanceModal.type === "starting" ? "10000" : "25000"}
+        onClose={() => setBalanceModal((p) => ({ ...p, open: false }))}
+        onConfirm={(amt) => {
+          console.log(`Employee confirmed ${balanceModal.type} cash:`, amt);
+          setBalanceModal((p) => ({ ...p, open: false }));
+        }}
       />
       <TransactionStats data={currentStats} />
       <TransactionTable data={filteredTransactions} />
