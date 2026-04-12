@@ -571,29 +571,27 @@ export default function BranchFinancePage() {
         onAddFunds={() => setAddFundsOpen(true)}
       />
 
-      {!isAllBranches && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
-          {/* Incoming Requests Panel */}
-          <IncomingRequestsPanel
-            requests={scopedIncomingRequests}
-            onFulfill={handleFulfillRequest}
-            onReject={handleRejectRequestClick}
-            expanded={activePanel === "incoming"}
-            onToggle={() => setActivePanel(activePanel === "incoming" ? null : "incoming")}
-          />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
+        {/* Incoming Requests Panel */}
+        <IncomingRequestsPanel
+          requests={scopedIncomingRequests}
+          onFulfill={handleFulfillRequest}
+          onReject={handleRejectRequestClick}
+          expanded={activePanel === "incoming"}
+          onToggle={() => setActivePanel(activePanel === "incoming" ? null : "incoming")}
+        />
 
-          {/* Approval Panel */}
-          <ApprovalPanel
-            requests={scopedApprovals}
-            onCancelClick={(id) => {
-              setSelectedCancelId(id);
-              setCancelModalOpen(true);
-            }}
-            expanded={activePanel === "approval"}
-            onToggle={() => setActivePanel(activePanel === "approval" ? null : "approval")}
-          />
-        </div>
-      )}
+        {/* Approval Panel */}
+        <ApprovalPanel
+          requests={scopedApprovals}
+          onCancelClick={(id) => {
+            setSelectedCancelId(id);
+            setCancelModalOpen(true);
+          }}
+          expanded={activePanel === "approval"}
+          onToggle={() => setActivePanel(activePanel === "approval" ? null : "approval")}
+        />
+      </div>
 
       {/* Section 3: Transaction History */}
       <div className="space-y-4">
