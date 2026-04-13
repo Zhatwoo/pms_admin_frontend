@@ -44,15 +44,15 @@ interface TransactionActionsProps {
   onPrintReport?: () => void;
   onNewPawn?: () => void;
   onBuyBack?: () => void;
+  onSalesTransfer?: () => void;
   onStartDay?: () => void;
   onEndDay?: () => void;
 }
 
-const filters: FilterType[] = ["Renew", "Redeem", "New Pawn", "Sales / Transfer", "Buy Back"];
+const filters: FilterType[] = ["Renew", "New Pawn", "Sales / Transfer", "Buy Back"];
 
 const filterVariantMap: Record<string, string> = {
   "Renew": "renew",
-  "Redeem": "redeem",
   "New Pawn": "pawn",
   "Sales / Transfer": "sales",
   "Buy Back": "buyback",
@@ -66,6 +66,7 @@ export function TransactionActions({
   onPrintReport,
   onNewPawn,
   onBuyBack,
+  onSalesTransfer,
   onStartDay,
   onEndDay
 }: TransactionActionsProps) {
@@ -84,6 +85,8 @@ export function TransactionActions({
                 onNewPawn();
               } else if (f === "Buy Back" && onBuyBack) {
                 onBuyBack();
+              } else if (f === "Sales / Transfer" && onSalesTransfer) {
+                onSalesTransfer();
               } else {
                 onFilterChange?.(activeFilter === f ? "All" : f);
               }
