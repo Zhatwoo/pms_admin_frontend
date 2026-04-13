@@ -1,10 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { ConfirmPasswordModal } from "./_components/confirm-password-modal";
 import { NewPawnTicketModal } from "./_components/new-pawn-ticket-modal";
 
 export default function EmployeePawnTicketPage() {
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleStartNewTransaction = () => {
+    setIsPasswordModalOpen(true);
+  };
+
+  const handlePasswordConfirm = (password: string) => {
+    // TODO: Replace this with real password verification logic.
+    console.log("Password entered:", password);
+    setIsPasswordModalOpen(false);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="space-y-4 p-4">
@@ -38,7 +51,7 @@ export default function EmployeePawnTicketPage() {
         <div className="mt-6">
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleStartNewTransaction}
             className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
           >
             Generate New Ticket
@@ -46,6 +59,11 @@ export default function EmployeePawnTicketPage() {
         </div>
       </div>
 
+      <ConfirmPasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onConfirm={handlePasswordConfirm}
+      />
       <NewPawnTicketModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
