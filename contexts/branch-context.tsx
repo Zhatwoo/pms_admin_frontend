@@ -65,10 +65,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const loadBranches = useCallback(async () => {
     if (!user) return;
     try {
-      // If super admin, fetch all branches. 
-      // If regular employee/admin, fetch only their specific branch row if available.
       const path = isSuperAdmin ? "/branches" : (user.branchId ? `/branches/${user.branchId}` : null);
-      
       if (!path) return;
 
       const data = await api.get<BranchApiItem | BranchApiItem[]>(path);
@@ -88,8 +85,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           }];
 
       setBaseBranches(normalized);
-    } catch (err) {
-      console.warn("[BranchContext] Failed to load branches:", err);
+    } catch {
+      // Keep previous selector options on transient failures.
     }
   }, [user?.id, user?.branchId, isSuperAdmin]);
 
