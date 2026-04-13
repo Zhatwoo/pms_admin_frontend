@@ -8,6 +8,7 @@ import type { NavGroup, NavItem, Role } from "@/types";
 import { APP_SHORT_NAME, APP_TAGLINE } from "@/lib/constants";
 import { getRoleLabel } from "@/lib/auth";
 import { LogoutIcon } from "@/lib/icons";
+import { LogoutModal } from "./logout-modal";
 
 interface SidebarProps {
   navGroups: NavGroup[];
@@ -143,6 +144,7 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Initialize expanded state based on active path
   useEffect(() => {
@@ -282,7 +284,7 @@ export function Sidebar({
       {/* Logout */}
       <div className="border-t border-white/10 p-2">
         <button
-          onClick={onLogout}
+          onClick={() => setShowLogoutConfirm(true)}
           title={collapsed ? "Logout" : undefined}
           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-pawn-sidebar-light hover:text-white ${
             collapsed ? "justify-center" : ""
@@ -292,6 +294,15 @@ export function Sidebar({
           {!collapsed && "Logout"}
         </button>
       </div>
+
+      <LogoutModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          onLogout?.();
+        }}
+      />
     </aside>
   );
 }
