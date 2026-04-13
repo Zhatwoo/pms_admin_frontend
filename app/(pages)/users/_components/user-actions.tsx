@@ -6,9 +6,6 @@ interface UserActionsProps {
   onSearchChange: (value: string) => void;
   roleFilter: RoleFilter;
   onRoleFilterChange: (value: RoleFilter) => void;
-  branchOptions: BranchOption[];
-  branchFilter: BranchFilter;
-  onBranchFilterChange: (value: BranchFilter) => void;
   canCreateUser: boolean;
   onCreateUser: () => void;
   /** Super Admin tab + filter; only for super_admin viewers */
@@ -81,9 +78,6 @@ export function UserActions({
   onSearchChange,
   roleFilter,
   onRoleFilterChange,
-  branchOptions,
-  branchFilter,
-  onBranchFilterChange,
   canCreateUser,
   onCreateUser,
   showSuperAdminRoleTab = false,
@@ -146,25 +140,6 @@ export function UserActions({
               </button>
             );
           })}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <label htmlFor="users-branch" className="text-sm font-medium text-text-tertiary">
-            Branch
-          </label>
-          <select
-            id="users-branch"
-            value={branchFilter}
-            onChange={(event) => onBranchFilterChange(event.target.value)}
-            className="h-10 min-w-36 rounded-md border border-input-border bg-input-bg px-3 text-sm text-text-secondary outline-none transition-colors focus:border-emerald-700"
-          >
-            <option value="ALL">All</option>
-            {branchOptions.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
     </div>
