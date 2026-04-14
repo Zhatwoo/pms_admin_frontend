@@ -27,7 +27,7 @@ const branchOptions = [
 
 export default function AuditLogsPage() {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === "super_admin" || user?.role === "superadmin";
+  const isSuperAdmin = user?.role === "super_admin";
 
   const [branch, setBranch] = useState("all");
   const [logs, setLogs] = useState<ActivityLog[]>([]);
