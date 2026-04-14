@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { NavGroup, NavItem, Role } from "@/types";
 import { APP_SHORT_NAME, APP_TAGLINE } from "@/lib/constants";
 import { getRoleLabel } from "@/lib/auth";
 import { LogoutIcon } from "@/lib/icons";
+import { LogoutModal } from "./logout-modal";
 import { useOpeningChecklist } from "@/contexts/opening-checklist-context";
 
 interface SidebarProps {
@@ -33,25 +34,39 @@ function NavItemComponent({
 }) {
   const hasSubItems = item.subItems && item.subItems.length > 0;
 
-  // For parent item, check if itself or any subitem is active
-  const isSelfActive = pathname === item.href || pathname.startsWith((item.href ?? "") + "/");
-  const isAnySubActive = hasSubItems && item.subItems?.some(
-    (sub) => pathname === sub.href || pathname.startsWith((sub.href ?? "") + "/")
-  );
-  const isParentActive = isSelfActive || isAnySubActive;
-
+  // Active state logic
+  const isSelfActive =
+    pathname === item.href || pathname.startsWith((item.href ?? "") + "/");
+  const isAnySubActive =
+    hasSubItems &&
+    item.subItems?.some(
+      (sub) =>
+        pathname === sub.href || pathname.startsWith((sub.href ?? "") + "/"),
+    );
+  
   const [expanded, setExpanded] = useState(isAnySubActive);
+
+  // Re-sync expanded state when pathname changes
+  useEffect(() => {
+    if (isAnySubActive) setExpanded(true);
+  }, [isAnySubActive]);
+
+  const effectivelyDisabled = disabled && item.href !== "/employee/dashboard";
 
   if (hasSubItems) {
     return (
       <div className="space-y-1">
         <button
-          onClick={() => !disabled && setExpanded(!expanded)}
+          onClick={() => !collapsed && setExpanded(!expanded)}
           title={collapsed ? item.label : undefined}
           disabled={disabled}
           className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors ${
             collapsed ? "justify-center" : ""
-          } ${disabled ? "opacity-30 cursor-not-allowed" : "text-white/80 hover:bg-pawn-sidebar-light hover:text-white"}`}
+          } ${
+            effectivelyDisabled 
+              ? "opacity-30 cursor-not-allowed" 
+              : "text-white/80 hover:bg-pawn-sidebar-light hover:text-white"
+          }`}
         >
           <div className="flex items-center gap-3">
             <span className="flex-shrink-0 text-pawn-gold">{item.icon}</span>
@@ -67,42 +82,54 @@ function NavItemComponent({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+              className={`transition-transform duration-200 ${
+                expanded ? "rotate-180" : ""
+              }`}
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           )}
         </button>
 
-        {expanded && !collapsed && (
-          <div className="ml-9 space-y-1">
-            {item.subItems?.map((sub, subIdx) => {
-              const isSubActive =
-                pathname === sub.href || pathname.startsWith((sub.href ?? "") + "/");
-              return (
-                <Link
-                  key={`${item.href ?? item.label}-sub-${subIdx}-${sub.href ?? sub.label}`}
-                  href={sub.href ?? "#"}
-                  className={`block rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
-                    isSubActive
-                      ? "bg-pawn-gold text-zinc-900"
-                      : "text-white/60 hover:bg-pawn-sidebar-light hover:text-white"
-                  }`}
-                >
-                  {sub.label}
-                </Link>
-              );
-            })}
+        <div
+          className={`grid transition-all duration-300 ease-in-out ${
+            expanded && !collapsed
+              ? "grid-rows-[1fr] opacity-100 mt-1"
+              : "grid-rows-[0fr] opacity-0 mt-0"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <div className="ml-9 space-y-1 pb-1">
+              {item.subItems?.map((sub, subIdx) => {
+                const isSubActive =
+                  pathname === sub.href ||
+                  pathname.startsWith((sub.href ?? "") + "/");
+                return (
+                  <Link
+                    key={`${item.href ?? item.label}-sub-${subIdx}-${
+                      sub.href ?? sub.label
+                    }`}
+                    href={effectivelyDisabled ? "#" : (sub.href ?? "#")}
+                    className={`block rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+                      isSubActive
+                        ? "bg-pawn-gold text-zinc-900 shadow-sm"
+                        : effectivelyDisabled
+                          ? "text-white/20 cursor-not-allowed"
+                          : "text-white/60 hover:bg-pawn-sidebar-light hover:text-white"
+                    }`}
+                  >
+                    {sub.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     );
   }
 
   // Regular non-nested link
-  const isInventory = item.href?.includes("/inventory") || item.label?.toLowerCase() === "inventory";
-  const effectivelyDisabled = disabled && !isInventory;
-
   const content = (
     <div
       title={collapsed ? item.label : undefined}
@@ -141,6 +168,8 @@ export function Sidebar({
 }: SidebarProps) {
   const { resetChecklist } = useOpeningChecklist();
   const pathname = usePathname();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   const userInitials = userName
     ? userName
         .split(" ")
@@ -200,7 +229,9 @@ export function Sidebar({
             <div className="space-y-0.5">
               {group.items.map((item, itemIdx) => (
                 <NavItemComponent
-                  key={`${group.section}-${groupIdx}-item-${itemIdx}-${item.href ?? item.label}`}
+                  key={`${group.section}-${groupIdx}-item-${itemIdx}-${
+                    item.href ?? item.label
+                  }`}
                   item={item}
                   collapsed={collapsed}
                   pathname={pathname}
@@ -258,7 +289,7 @@ export function Sidebar({
       {/* Logout */}
       <div className="border-t border-white/10 p-2">
         <button
-          onClick={onLogout}
+          onClick={() => setShowLogoutConfirm(true)}
           title={collapsed ? "Logout" : undefined}
           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 transition-colors hover:bg-pawn-sidebar-light hover:text-white ${
             collapsed ? "justify-center" : ""
@@ -268,6 +299,15 @@ export function Sidebar({
           {!collapsed && "Logout"}
         </button>
       </div>
+
+      <LogoutModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          onLogout?.();
+        }}
+      />
     </aside>
   );
 }

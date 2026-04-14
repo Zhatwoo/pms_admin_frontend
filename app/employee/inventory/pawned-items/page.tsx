@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Pagination } from "@/components/shared/pagination";
@@ -289,8 +289,8 @@ export default function EmployeePawnedItemsPage() {
                   <tr><td colSpan={8} className="py-8 text-center text-sm text-zinc-400">No pawned items found for this branch</td></tr>
                 ) : (
                   pawnedItems.map((item, idx) => (
-                    <>
-                      <tr key={item.itemId} className={`border-t border-zinc-100 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50"} hover:bg-emerald-50/30 transition-colors`}>
+                    <Fragment key={item.id}>
+                      <tr className={`border-t border-zinc-100 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50"} hover:bg-emerald-50/30 transition-colors`}>
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-800">{item.itemId}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-700 font-medium">{item.itemName}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500">{item.category}</td>
@@ -314,13 +314,13 @@ export default function EmployeePawnedItemsPage() {
                         </td>
                       </tr>
                       {expandedRow === item.itemId && (
-                        <tr key={`${item.itemId}-exp`} className="bg-amber-50/50">
+                        <tr className="bg-amber-50/50">
                           <td colSpan={8} className="px-6 py-3 border-t border-amber-100">
                             <RenewalDetails renewals={item.renewals} />
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   ))
                 )}
               </tbody>
