@@ -49,16 +49,10 @@ export function AppLayout({
         <Header
           userInitials={userInitials}
           notificationCount={notificationCount}
-          branchName={branchName}
+          branchName={branchName || (isAllBranches ? "All Branches" : selectedBranch.name)}
           hideBranchSelector={hideBranchSelector}
         />
         <main className="flex-1 overflow-y-auto bg-pawn-content p-6 transition-colors duration-300">
-          <div className="mb-4 rounded-lg border border-emerald-border bg-emerald-surface px-4 py-2 text-xs text-emerald-text">
-            Showing data from:{" "}
-            <span className="font-semibold">
-              {isAllBranches ? "All Branches" : selectedBranch.name}
-            </span>
-          </div>
           {children}
         </main>
       </div>

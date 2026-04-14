@@ -10,12 +10,14 @@ import {
 import type { User } from "@/types";
 import { api } from "@/lib/api";
 import { normalizeUser } from "@/lib/auth";
+import { getSupabaseBrowserClient, getTokenFromCookie } from "@/lib/supabase-browser";
 
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
   logout: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -23,6 +25,24 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshProfile = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const freshUser = await api.get<User>("/auth/me");
+      const normalizedUser = normalizeUser(freshUser);
+      if (normalizedUser) {
+        setUser(normalizedUser);
+        localStorage.setItem("pms_user", JSON.stringify(normalizedUser));
+      }
+    } catch (err) {
+      console.warn("[AuthContext] Failed to refresh profile:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing]);
 
   // 1. Initial Load: Check localStorage and Cookies
   useEffect(() => {
@@ -45,32 +65,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // 2. Background Verification: Verify token with server
-    api
-      .get<User>("/auth/me")
-      .then((freshUser) => {
-        const normalizedUser = normalizeUser(freshUser);
+    void refreshProfile().finally(() => setIsLoading(false));
+  }, [refreshProfile]);
 
-        if (!normalizedUser) {
-          throw new Error("Unauthorized");
-        }
+  // 3. Realtime Listener: Watch for user profile changes (e.g. branch transfers)
+  useEffect(() => {
+    if (!user?.id) return;
 
-        setUser(normalizedUser);
-        localStorage.setItem("pms_user", JSON.stringify(normalizedUser));
-      })
-      .catch((err) => {
-        // Expired/invalid token should be cleared to prevent repeated 401 loops.
-        if (err?.message === "Unauthorized") {
-          document.cookie = "pms_token=; path=/; max-age=0";
-          localStorage.removeItem("pms_user");
-          setUser(null);
-          return;
-        }
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
 
-        // Keep optimistic session for transient network/server failures.
-        console.warn("Background verification failed:", err.message);
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
+    const token = getTokenFromCookie();
+    if (token) {
+      void supabase.realtime.setAuth(token);
+    }
+
+    const channel = supabase
+      .channel(`user-profile-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "users",
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          console.log("[AuthContext] Profile change detected, refreshing...");
+          void refreshProfile();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, refreshProfile]);
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await api.post<{ access_token: string; expires_in?: number; user: User }>(
@@ -104,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext value={{ user, isLoading, login, logout }}>
+    <AuthContext value={{ user, isLoading, login, logout, refreshProfile }}>
       {children}
     </AuthContext>
   );
