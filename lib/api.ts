@@ -60,7 +60,7 @@ class ApiClient {
     } catch (networkErr) {
       const msg =
         networkErr instanceof Error ? networkErr.message : String(networkErr);
-      console.error(`[API] Network error for ${path}:`, msg);
+      console.warn(`[API] Network error for ${path}:`, msg);
       throw new Error(
         msg.includes("ECONNREFUSED") || msg.includes("fetch failed")
           ? "Cannot reach the server. Please check if the backend is running."
@@ -72,7 +72,7 @@ class ApiClient {
       const errorMessage = await this.extractErrorMessage(res, path, token);
 
       if (res.status === 401 && !isPublicPath) {
-        console.error(
+        console.warn(
           `[API] 401 Unauthorized for ${path}. Token present: ${!!token}`,
         );
       }
