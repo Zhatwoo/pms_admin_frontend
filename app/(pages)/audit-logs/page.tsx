@@ -60,7 +60,7 @@ export default function AuditLogsPage() {
       }
     }
     fetchLogs();
-  }, [user, branch, isSuperAdmin]);
+  }, [user?.id, branch, isSuperAdmin]);
 
   useEffect(() => {
     // Filter by branch name conceptually if super admin selected a specific branch
