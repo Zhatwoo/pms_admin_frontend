@@ -9,6 +9,7 @@ export interface User {
   email: string;
   role: Role;
   branchId?: string;
+  branchName?: string;
   avatarUrl?: string;
 }
 

@@ -128,22 +128,37 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     if (own) return [own];
 
     if (user?.branchId) {
-      return [{ id: user.branchId, name: `Branch ${user.branchId}` }];
+      return [
+        {
+          id: user.branchId,
+          name: user.branchName || `Branch ${user.branchId}`,
+        },
+      ];
     }
 
     return baseBranches.slice(0, 1);
-  }, [baseBranches, isSuperAdmin, user?.branchId]);
+  }, [baseBranches, isSuperAdmin, user?.branchId, user?.branchName]);
 
   const [selected, setSelected] = useState<BranchOption>(ALL_BRANCHES_OPTION);
 
+  /* ── Sync selected branch with available branches ──────── */
   useEffect(() => {
     if (branches.length === 0) return;
 
-    const stillExists = branches.some((branch) => branch.id === selected.id);
-    if (stillExists) return;
+    const currentInList = branches.find((b) => b.id === selected.id);
 
-    setSelected(branches[0]);
-  }, [branches, selected.id]);
+    // If the selected branch no longer exists, reset to the first available
+    if (!currentInList) {
+      setSelected(branches[0]);
+      return;
+    }
+
+    // IMPORTANT: If the name or other data has changed (e.g. from fallback ID to actual name), 
+    // update the selection state so the UI reflects the latest fetched data.
+    if (currentInList.name !== selected.name) {
+      setSelected(currentInList);
+    }
+  }, [branches, selected.id, selected.name]);
 
   const setSelectedBranch = useCallback(
     (branch: BranchOption) => {

@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/ui/app-layout";
+import { useBranch } from "@/contexts/branch-context";
 import { getNavForRole } from "@/lib/constants";
 import { getDefaultRouteForRole } from "@/lib/auth";
 
@@ -13,6 +14,7 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   const { user, logout, isLoading } = useAuth();
+  const { selectedBranch } = useBranch();
   const router = useRouter();
 
   useEffect(() => {
@@ -60,6 +62,8 @@ export default function ProtectedLayout({
       userName={user.fullName || user.email}
       userRole={user.role}
       onLogout={logout}
+      branchName={selectedBranch.name}
+      hideBranchSelector={true}
     >
       {children}
     </AppLayout>
