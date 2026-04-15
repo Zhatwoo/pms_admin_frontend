@@ -108,6 +108,7 @@ interface CustomerDetail {
   email: string;
   phone: string;
   idNumber: string;
+  profileImage?: string;
   createdAt: string;
   branch: string;
   totalItemsPawned: number;
@@ -169,6 +170,21 @@ function formatCurrency(value: number) {
   return `₱${value.toLocaleString()}`;
 }
 
+const PHONE_LOCAL_REGEX = /^9\d{9}$/;
+
+function toPhoneLocalPart(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.startsWith("63")) {
+    return digits.slice(2, 12);
+  }
+  if (digits.startsWith("0")) {
+    return digits.slice(1, 11);
+  }
+
+  return digits.slice(0, 10);
+}
+
 /* ──────────────────────────── Icons ──────────────────────────── */
 
 const backIcon = (
@@ -206,12 +222,14 @@ function CustomerDetailContent() {
   const customerId = searchParams.get("id") ?? "";
   const [customer, setCustomer] = useState<CustomerDetail | null>(mockCustomers[customerId] ?? null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
     phone: "",
     idNumber: "",
     address: "",
+    profileImage: "",
   });
 
   useEffect(() => {
@@ -223,9 +241,10 @@ function CustomerDetailContent() {
       setEditForm({
         name: customer.name,
         email: customer.email,
-        phone: customer.phone,
+        phone: toPhoneLocalPart(customer.phone),
         idNumber: customer.idNumber,
         address: customer.address,
+        profileImage: customer.profileImage ?? "",
       });
     }
   }, [customer]);
@@ -234,20 +253,54 @@ function CustomerDetailContent() {
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
     const { name, value } = event.target;
+
+    if (name === "phone") {
+      const phoneDigits = toPhoneLocalPart(value);
+      setEditForm((current) => ({ ...current, phone: phoneDigits }));
+      setPhoneError("");
+      return;
+    }
+
     setEditForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function handleProfileImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile || !selectedFile.type.startsWith("image/")) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setEditForm((current) => ({ ...current, profileImage: reader.result as string }));
+      }
+    };
+    reader.readAsDataURL(selectedFile);
   }
 
   function handleSaveCustomer(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!customer) return;
 
+    const localPhone = editForm.phone.trim();
+    if (!PHONE_LOCAL_REGEX.test(localPhone)) {
+      setPhoneError("Phone must be 10 digits and start with 9.");
+      return;
+    }
+
+    const normalizedPhone = `+63${localPhone}`;
+
+    setPhoneError("");
+
     setCustomer({
       ...customer,
       name: editForm.name.trim() || customer.name,
       email: editForm.email.trim() || customer.email,
-      phone: editForm.phone.trim() || customer.phone,
+      phone: normalizedPhone || customer.phone,
       idNumber: editForm.idNumber.trim() || customer.idNumber,
       address: editForm.address.trim() || customer.address,
+      profileImage: editForm.profileImage || customer.profileImage,
     });
     setIsEditOpen(false);
   }
@@ -294,7 +347,15 @@ function CustomerDetailContent() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-pawn-gold shadow-sm">
-                  {userIcon}
+                  {customer.profileImage ? (
+                    <img
+                      src={customer.profileImage}
+                      alt={`${customer.name} profile`}
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  ) : (
+                    userIcon
+                  )}
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-text-primary">Basic Info</h2>
@@ -528,6 +589,54 @@ function CustomerDetailContent() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-text-tertiary">
+                    Profile Picture
+                  </label>
+                  <div className="flex flex-col items-center gap-3 rounded-lg border border-border-main bg-surface-secondary p-4">
+                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border-main bg-surface">
+                      {editForm.profileImage ? (
+                        <img
+                          src={editForm.profileImage}
+                          alt="Customer profile preview"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-xl font-bold leading-none text-text-tertiary">
+                          {customer.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <input
+                        id="edit-customer-profile-image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfileImageChange}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="edit-customer-profile-image"
+                        className="inline-flex cursor-pointer items-center rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-800"
+                      >
+                        Upload Photo
+                      </label>
+                      {editForm.profileImage && (
+                        <button
+                          type="button"
+                          onClick={() => setEditForm((current) => ({ ...current, profileImage: "" }))}
+                          className="rounded-md border border-border-main px-3 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-hover"
+                        >
+                          Remove
+                        </button>
+                      )}
+                      <p className="text-center text-[11px] text-text-tertiary">
+                        Upload JPG or PNG profile image.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-text-tertiary">
                     Full Name
                   </label>
                   <input
@@ -543,13 +652,26 @@ function CustomerDetailContent() {
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-text-tertiary">
                     Phone Number
                   </label>
-                  <input
-                    name="phone"
-                    type="tel"
-                    value={editForm.phone}
-                    onChange={handleEditChange}
-                    className="h-11 w-full rounded-md border border-input-border bg-input-bg px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-700"
-                  />
+                  <div className="flex h-11 w-full overflow-hidden rounded-md border border-input-border bg-input-bg focus-within:border-emerald-700">
+                    <span className="inline-flex items-center border-r border-input-border px-3 text-sm font-semibold text-text-secondary">
+                      +63
+                    </span>
+                    <input
+                      name="phone"
+                      type="tel"
+                      value={editForm.phone}
+                      onChange={handleEditChange}
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="9XXXXXXXXX"
+                      pattern="^9\\d{9}$"
+                      title="Use 10-digit mobile number starting with 9"
+                      className="h-full w-full bg-transparent px-3 text-sm text-text-primary outline-none"
+                    />
+                  </div>
+                  {phoneError && (
+                    <p className="mt-1 text-xs font-medium text-red-500">{phoneError}</p>
+                  )}
                 </div>
 
                 <div>
