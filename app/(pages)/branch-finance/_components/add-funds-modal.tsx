@@ -30,6 +30,8 @@ interface AddFundsModalProps {
   getManagersForBranch: (branchId: string) => Manager[];
   defaultAmount?: string;
   defaultNotes?: string;
+  allowBranchTransfer?: boolean;
+  submitLabel?: string;
 }
 
 const MULTI_APPROVAL_THRESHOLD = 50_000;
@@ -45,6 +47,8 @@ export function AddFundsModal({
   getManagersForBranch,
   defaultAmount = "",
   defaultNotes = "",
+  allowBranchTransfer = true,
+  submitLabel,
 }: AddFundsModalProps) {
   const [sourceType, setSourceType] = useState<"MANAGEMENT" | "BRANCH_TRANSFER">("MANAGEMENT");
 
@@ -86,6 +90,10 @@ export function AddFundsModal({
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!amount.trim() || numericAmount <= 0) errs.amount = "Enter a valid amount";
+
+    if (toBranchId === "001") {
+      errs.to = "Please select a specific target branch";
+    }
 
     if (isTransfer) {
       if (!fromBranchId) errs.from = "Select source branch";
@@ -164,26 +172,32 @@ export function AddFundsModal({
 
         <form onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
           {/* Source Toggle */}
-          <div className="flex rounded-lg border border-border-subtle bg-surface-secondary p-1">
-            <button
-              type="button"
-              onClick={() => setSourceType("MANAGEMENT")}
-              className={`flex-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
-                !isTransfer ? "bg-surface shadow-sm text-emerald-700 dark:text-emerald-400 border border-emerald-500/20" : "text-text-muted hover:text-text-primary"
-              }`}
-            >
-              Management
-            </button>
-            <button
-              type="button"
-              onClick={() => setSourceType("BRANCH_TRANSFER")}
-              className={`flex-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
-                isTransfer ? "bg-surface shadow-sm text-blue-700 dark:text-blue-400 border border-blue-500/20" : "text-text-muted hover:text-text-primary"
-              }`}
-            >
-              Branch Fund Transfer
-            </button>
-          </div>
+          {allowBranchTransfer ? (
+            <div className="flex rounded-lg border border-border-subtle bg-surface-secondary p-1">
+              <button
+                type="button"
+                onClick={() => setSourceType("MANAGEMENT")}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
+                  !isTransfer ? "bg-surface shadow-sm text-emerald-700 dark:text-emerald-400 border border-emerald-500/20" : "text-text-muted hover:text-text-primary"
+                }`}
+              >
+                Management
+              </button>
+              <button
+                type="button"
+                onClick={() => setSourceType("BRANCH_TRANSFER")}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
+                  isTransfer ? "bg-surface shadow-sm text-blue-700 dark:text-blue-400 border border-blue-500/20" : "text-text-muted hover:text-text-primary"
+                }`}
+              >
+                Branch Fund Transfer
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border-subtle bg-surface-secondary px-4 py-3 text-xs font-semibold text-text-secondary">
+              Transfer funds to the selected branch request.
+            </div>
+          )}
 
           <div className="h-px w-full bg-border-subtle" />
 
@@ -216,32 +230,23 @@ export function AddFundsModal({
               <label className="text-xs font-semibold text-text-secondary">
                 Target Branch <span className="text-red-500">*</span>
               </label>
-              {(currentBranchId && currentBranchId !== "001") && !isTransfer ? (
-                <input
-                  type="text"
-                  value={branchName}
-                  readOnly
-                  disabled
-                  className="cursor-not-allowed rounded-lg border border-border-subtle bg-surface-secondary px-3 py-2 text-sm font-semibold text-text-muted outline-none h-[38px]"
-                />
-              ) : (
-                <select
-                  value={toBranchId}
-                  onChange={(e) => setToBranchId(e.target.value)}
-                  className={`rounded-lg border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-pawn-sidebar h-[38px] ${
-                    errors.to ? "border-red-400" : "border-input-border"
-                  }`}
-                >
-                  <option value="">Select target...</option>
-                  {branches
-                    .filter((b) => !isTransfer || b.branchId !== fromBranchId)
-                    .map((b) => (
-                      <option key={b.branchId} value={b.branchId}>
-                        {b.name}
-                      </option>
-                    ))}
-                </select>
-              )}
+              <select
+                value={toBranchId}
+                onChange={(e) => setToBranchId(e.target.value)}
+                className={`rounded-lg border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-pawn-sidebar h-[38px] ${
+                  errors.to ? "border-red-400" : "border-input-border"
+                }`}
+              >
+                <option value="">Select target...</option>
+                <option value="001">All Branches</option>
+                {branches
+                  .filter((b) => !isTransfer || b.branchId !== fromBranchId)
+                  .map((b) => (
+                    <option key={b.branchId} value={b.branchId}>
+                      {b.name}
+                    </option>
+                  ))}
+              </select>
               {errors.to && <span className="text-[10px] text-red-500">{errors.to}</span>}
             </div>
           </div>
@@ -293,7 +298,7 @@ export function AddFundsModal({
                 isTransfer ? "border-blue-700 bg-blue-600" : "border-emerald-700 bg-emerald-600"
               }`}
             >
-              Submit {isTransfer ? "Transfer" : "Funds"}
+              {submitLabel ?? `Submit ${isTransfer ? "Transfer" : "Funds"}`}
             </button>
           </div>
         </form>
