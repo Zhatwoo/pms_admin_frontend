@@ -5,7 +5,10 @@ import { Suspense, useEffect, useState } from "react";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ActionButton } from "@/components/shared/action-button";
 import { ViewCustomerModal } from "@/app/(pages)/customers/view_user/_components/view-customer-modal";
-import type { CustomerDetail } from "@/app/(pages)/customers/view_user/_components/types";
+import type {
+  ActivityEntry,
+  CustomerDetail,
+} from "@/app/(pages)/customers/view_user/_components/types";
 
 /* ──────────────────────────── Mock Data ──────────────────────────── */
 
@@ -148,6 +151,14 @@ function formatCurrency(value: number) {
   return `₱${value.toLocaleString()}`;
 }
 
+function formatNoteDate(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 /* ──────────────────────────── Icons ──────────────────────────── */
 
 const backIcon = (
@@ -179,11 +190,51 @@ function EmployeeCustomerDetailContent() {
   const [customer, setCustomer] = useState<CustomerDetail | null>(
     mockCustomers[customerId] ?? null,
   );
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>(
+    mockCustomers[customerId]?.activityLog ?? [],
+  );
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteBody, setNoteBody] = useState("");
 
   useEffect(() => {
-    setCustomer(mockCustomers[customerId] ?? null);
+    const nextCustomer = mockCustomers[customerId] ?? null;
+    setCustomer(nextCustomer);
+    setActivityLog(nextCustomer?.activityLog ?? []);
+    setIsViewOpen(false);
+    setIsNoteOpen(false);
+    setNoteTitle("");
+    setNoteBody("");
   }, [customerId]);
+
+  useEffect(() => {
+    if (customer) {
+      setActivityLog(customer.activityLog);
+    }
+  }, [customer]);
+
+  function handleAddNote(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmedBody = noteBody.trim();
+    if (!trimmedBody) return;
+
+    const trimmedTitle = noteTitle.trim();
+    const now = new Date();
+
+    const nextEntry: ActivityEntry = {
+      title: trimmedTitle || "Note added",
+      date: `${formatNoteDate(now)} · Employee`,
+      description: `— ${trimmedBody}`,
+      color: "bg-emerald-500",
+    };
+
+    setActivityLog((current) => [nextEntry, ...current]);
+    setNoteTitle("");
+    setNoteBody("");
+    setIsNoteOpen(false);
+  }
 
   if (!customer) {
     return (
@@ -333,7 +384,11 @@ function EmployeeCustomerDetailContent() {
           <div className="rounded-lg border border-border-main bg-surface p-5 shadow-sm transition-colors duration-300">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-sm font-bold text-text-primary">Notes &amp; Activity Log</h3>
-              <ActionButton variant="primary" size="sm">
+              <ActionButton
+                variant="primary"
+                size="sm"
+                onClick={() => setIsNoteOpen(true)}
+              >
                 <span className="flex items-center gap-1.5">
                   {noteIcon}
                   Add Note
@@ -341,11 +396,14 @@ function EmployeeCustomerDetailContent() {
               </ActionButton>
             </div>
             <div className="space-y-4">
-              {customer.activityLog.map((entry, i) => (
+              {activityLog.length === 0 ? (
+                <p className="text-xs text-text-tertiary">No notes or activity yet.</p>
+              ) : (
+                activityLog.map((entry, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <div className="mt-1 flex flex-col items-center">
                     <span className={`h-3 w-3 rounded-full ${entry.color}`} />
-                    {i < customer.activityLog.length - 1 && (
+                    {i < activityLog.length - 1 && (
                       <span className="mt-1 h-8 w-px bg-border-main" />
                     )}
                   </div>
@@ -355,7 +413,8 @@ function EmployeeCustomerDetailContent() {
                     <p className="mt-0.5 text-xs text-text-secondary">{entry.description}</p>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -426,6 +485,100 @@ function EmployeeCustomerDetailContent() {
       {/* View Modal only — employees cannot edit */}
       {isViewOpen && (
         <ViewCustomerModal customer={customer} onClose={() => setIsViewOpen(false)} />
+      )}
+
+      {isNoteOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm"
+          onClick={() => setIsNoteOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-2xl border border-border-main bg-surface shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="bg-emerald-900 px-6 py-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400">
+                Customer Notes
+              </p>
+              <div className="mt-2 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Add Note</h2>
+                  <p className="mt-1 text-sm text-emerald-50/80">
+                    Save a quick note to the customer activity log.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNoteOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
+                  aria-label="Close add note modal"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddNote} className="space-y-5 px-6 py-6">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-text-tertiary">
+                  Note Title
+                </label>
+                <input
+                  type="text"
+                  value={noteTitle}
+                  onChange={(event) => setNoteTitle(event.target.value)}
+                  placeholder="Optional title"
+                  className="h-11 w-full rounded-md border border-input-border bg-input-bg px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-700"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-text-tertiary">
+                  Note
+                </label>
+                <textarea
+                  value={noteBody}
+                  onChange={(event) => setNoteBody(event.target.value)}
+                  placeholder="Write something useful for the next person who opens this customer..."
+                  rows={5}
+                  className="w-full rounded-md border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-700"
+                />
+              </div>
+
+              <div className="rounded-xl border border-emerald-border bg-emerald-surface px-4 py-3 text-sm text-emerald-text">
+                This note will appear at the top of the activity log.
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-border-main pt-4 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsNoteOpen(false)}
+                  className="rounded-md border border-border-main px-4 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-surface-hover"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-800"
+                >
+                  Save Note
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
