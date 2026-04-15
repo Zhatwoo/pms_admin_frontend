@@ -109,7 +109,7 @@ export function CustomerTable({ branchName }: CustomerTableProps) {
             return (
               <button
                 onClick={() => router.push(`/employee/customers/view_user?id=${row.id}`)}
-                className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-emerald-700"
+                className="mx-auto flex h-8 w-8 items-center justify-center rounded-md text-emerald-text transition-colors hover:bg-emerald-surface/50"
                 title={`View ${row.name}`}
               >
                 {eyeIcon}

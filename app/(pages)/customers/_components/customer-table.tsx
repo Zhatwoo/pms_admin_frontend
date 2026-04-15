@@ -117,7 +117,7 @@ export function CustomerTable() {
               return (
                 <button
                   onClick={() => router.push(`/customers/view_user?id=${row.id}`)}
-                  className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-emerald-700"
+                  className="mx-auto flex h-8 w-8 items-center justify-center rounded-md text-emerald-text transition-colors hover:bg-emerald-surface/50"
                   title={`View ${row.name}`}
                 >
                   {eyeIcon}
