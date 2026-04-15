@@ -124,6 +124,19 @@ class ApiClient {
     try {
       errorData = JSON.parse(text) as Record<string, unknown>;
     } catch {
+      const trimmedText = text.trim();
+      if (
+        res.status >= 500 &&
+        /^internal server error$/i.test(trimmedText)
+      ) {
+        this.logApiIssue(
+          res.status,
+          path,
+          "Proxy/backend unavailable while handling request",
+        );
+        return "Cannot reach backend API. Ensure PMS_backend is running on port 4000.";
+      }
+
       this.logApiIssue(res.status, path, `Non-JSON response: ${text.slice(0, 300)}`);
       return text.length <= 200 ? text : fallback;
     }
