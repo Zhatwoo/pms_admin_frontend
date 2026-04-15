@@ -175,6 +175,27 @@ function formatCurrency(amount: number) {
   return `₱${amount.toLocaleString()}`;
 }
 
+const PHONE_REGEX = /^\+639\d{9}$/;
+
+function normalizePhoneWithFixedPrefix(value: string) {
+  const digitsOnly = value.replace(/\D/g, "");
+
+  if (!digitsOnly || digitsOnly === "6" || digitsOnly === "63") {
+    return "+63";
+  }
+
+  let local = digitsOnly;
+  if (local.startsWith("63")) {
+    local = local.slice(2);
+  } else if (local.startsWith("0")) {
+    local = local.slice(1);
+  }
+
+  // Keep only the local mobile part after +63 (max 10 digits: 9XXXXXXXXX)
+  local = local.slice(0, 10);
+  return `+63${local}`;
+}
+
 function getStatusBadge(status: Transaction["status"]) {
   switch (status) {
     case "Active":
@@ -212,6 +233,7 @@ function EmployeeCustomerProfileContent() {
     idNumber: "",
     address: "",
   });
+  const [phoneError, setPhoneError] = useState("");
 
   useEffect(() => {
     setCustomer(customerId ? customers[customerId] ?? null : null);
@@ -223,17 +245,31 @@ function EmployeeCustomerProfileContent() {
     setEditForm({
       name: customer.name,
       email: customer.email,
-      phone: customer.phone,
+      phone: normalizePhoneWithFixedPrefix(customer.phone),
       idType: getIdTypeValue(customer.idType),
       idNumber: customer.idNumber,
       address: customer.address,
     });
+    setPhoneError("");
   }, [customer]);
 
   function handleEditChange(
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) {
     const { name, value } = event.target;
+
+    if (name === "phone") {
+      const normalizedPhone = normalizePhoneWithFixedPrefix(value);
+      if (normalizedPhone === "+63" || PHONE_REGEX.test(normalizedPhone)) {
+        setPhoneError("");
+      } else {
+        setPhoneError("Use format +639XXXXXXXXX");
+      }
+
+      setEditForm((current) => ({ ...current, phone: normalizedPhone }));
+      return;
+    }
+
     setEditForm((current) => ({ ...current, [name]: value }));
   }
 
@@ -241,11 +277,17 @@ function EmployeeCustomerProfileContent() {
     event.preventDefault();
     if (!customer) return;
 
+    const trimmedPhone = editForm.phone.trim();
+    if (!PHONE_REGEX.test(trimmedPhone)) {
+      setPhoneError("Use format +639XXXXXXXXX");
+      return;
+    }
+
     setCustomer({
       ...customer,
       name: editForm.name.trim() || customer.name,
       email: editForm.email.trim() || customer.email,
-      phone: editForm.phone.trim() || customer.phone,
+      phone: trimmedPhone || customer.phone,
       idType: editForm.idType,
       idNumber: editForm.idNumber.trim() || customer.idNumber,
       address: editForm.address.trim() || customer.address,
@@ -535,8 +577,19 @@ function EmployeeCustomerProfileContent() {
                     type="tel"
                     value={editForm.phone}
                     onChange={handleEditChange}
-                    className="h-11 w-full rounded-md border border-input-border bg-input-bg px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-700"
+                    pattern="^\\+639\\d{9}$"
+                    title="Use format +639XXXXXXXXX"
+                    maxLength={13}
+                    aria-invalid={phoneError ? "true" : "false"}
+                    className={`h-11 w-full rounded-md border bg-input-bg px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-700 ${
+                      phoneError ? "border-red-400" : "border-input-border"
+                    }`}
                   />
+                  {phoneError ? (
+                    <p className="mt-1 text-xs font-medium text-red-500">{phoneError}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-text-tertiary">Format: +639XXXXXXXXX</p>
+                  )}
                 </div>
 
                 <div>

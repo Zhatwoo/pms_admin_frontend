@@ -27,16 +27,37 @@ const idTypeOptions: { value: IdType; label: string }[] = [
 
 const initialFormState: CustomerFormInput = {
   fullName: "",
-  phoneNumber: "",
+  phoneNumber: "+63",
   email: "",
   idType: "driver-license",
   idNumber: "",
   address: "",
 };
 
+const PHONE_REGEX = /^\+639\d{9}$/;
+
+function normalizePhoneNumber(value: string) {
+  const digitsOnly = value.replace(/\D/g, "");
+
+  if (!digitsOnly || digitsOnly === "6" || digitsOnly === "63") {
+    return "+63";
+  }
+
+  let local = digitsOnly;
+  if (local.startsWith("63")) {
+    local = local.slice(2);
+  } else if (local.startsWith("0")) {
+    local = local.slice(1);
+  }
+
+  local = local.slice(0, 10);
+  return `+63${local}`;
+}
+
 export function AddCustomerModal({ onClose, onSave }: AddCustomerModalProps) {
   const [form, setForm] = useState<CustomerFormInput>({ ...initialFormState });
   const [error, setError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -54,6 +75,17 @@ export function AddCustomerModal({ onClose, onSave }: AddCustomerModalProps) {
     key: K,
     value: CustomerFormInput[K],
   ) {
+    if (key === "phoneNumber") {
+      const normalizedPhone = normalizePhoneNumber(String(value));
+      if (!normalizedPhone || PHONE_REGEX.test(normalizedPhone)) {
+        setPhoneError("");
+      } else {
+        setPhoneError("Use format +639XXXXXXXXX");
+      }
+      setForm((current) => ({ ...current, phoneNumber: normalizedPhone }));
+      return;
+    }
+
     setForm((current) => ({ ...current, [key]: value }));
   }
 
@@ -71,8 +103,13 @@ export function AddCustomerModal({ onClose, onSave }: AddCustomerModalProps) {
       return;
     }
 
-    if (!trimmedPhone) {
+    if (!trimmedPhone || trimmedPhone === "+63") {
       setError("Phone number is required.");
+      return;
+    }
+
+    if (!PHONE_REGEX.test(trimmedPhone)) {
+      setPhoneError("Use format +639XXXXXXXXX");
       return;
     }
 
@@ -181,9 +218,18 @@ export function AddCustomerModal({ onClose, onSave }: AddCustomerModalProps) {
                 type="tel"
                 value={form.phoneNumber}
                 onChange={(e) => updateField("phoneNumber", e.target.value)}
-                placeholder="09123456789"
-                className="h-11 w-full rounded-md border border-input-border bg-input-bg px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-700"
+                placeholder="+639123456789"
+                maxLength={13}
+                aria-invalid={phoneError ? "true" : "false"}
+                className={`h-11 w-full rounded-md border bg-input-bg px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-700 ${
+                  phoneError ? "border-red-400" : "border-input-border"
+                }`}
               />
+              {phoneError ? (
+                <p className="mt-1 text-xs font-medium text-red-500">{phoneError}</p>
+              ) : (
+                <p className="mt-1 text-xs text-text-tertiary">Format: +639XXXXXXXXX</p>
+              )}
             </div>
 
             {/* Email */}
