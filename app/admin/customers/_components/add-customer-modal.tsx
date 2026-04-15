@@ -24,20 +24,57 @@ const uploadIcon = (
   </svg>
 );
 
+const PHONE_REGEX = /^\+639\d{9}$/;
+
+function normalizePhoneNumber(value: string) {
+  const digitsOnly = value.replace(/\D/g, "");
+
+  if (!digitsOnly || digitsOnly === "6" || digitsOnly === "63") {
+    return "+63";
+  }
+
+  let local = digitsOnly;
+  if (local.startsWith("63")) {
+    local = local.slice(2);
+  } else if (local.startsWith("0")) {
+    local = local.slice(1);
+  }
+
+  local = local.slice(0, 10);
+  return `+63${local}`;
+}
+
 export function AddCustomerModal({ isOpen, onClose }: AddCustomerModalProps) {
   const [formData, setFormData] = useState({
     fullName: "",
-    phoneNumber: "",
+    phoneNumber: "+63",
     email: "",
     idType: "driver-license",
     idNumber: "",
     address: "",
   });
+  const [phoneError, setPhoneError] = useState("");
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+
+    if (name === "phoneNumber") {
+      const normalizedPhone = normalizePhoneNumber(value);
+      if (!normalizedPhone || PHONE_REGEX.test(normalizedPhone)) {
+        setPhoneError("");
+      } else {
+        setPhoneError("Use format +639XXXXXXXXX");
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        phoneNumber: normalizedPhone,
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -46,17 +83,31 @@ export function AddCustomerModal({ isOpen, onClose }: AddCustomerModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const trimmedPhone = formData.phoneNumber.trim();
+
+    if (!trimmedPhone || trimmedPhone === "+63") {
+      setPhoneError("Phone number is required.");
+      return;
+    }
+
+    if (!PHONE_REGEX.test(trimmedPhone)) {
+      setPhoneError("Use format +639XXXXXXXXX");
+      return;
+    }
+
     console.log("Customer data:", formData);
     // TODO: Submit to API
     onClose();
     setFormData({
       fullName: "",
-      phoneNumber: "",
+      phoneNumber: "+63",
       email: "",
       idType: "driver-license",
       idNumber: "",
       address: "",
     });
+    setPhoneError("");
   };
 
   if (!isOpen) return null;
@@ -101,9 +152,18 @@ export function AddCustomerModal({ isOpen, onClose }: AddCustomerModalProps) {
                   placeholder="Phone Number"
                   value={formData.phoneNumber}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  maxLength={13}
+                  aria-invalid={phoneError ? "true" : "false"}
+                  className={`w-full px-3 py-2 border rounded-md text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                    phoneError ? "border-red-400" : "border-gray-200"
+                  }`}
                   required
                 />
+                {phoneError ? (
+                  <p className="mt-1 text-xs font-medium text-red-500">{phoneError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-500">Format: +639XXXXXXXXX</p>
+                )}
               </div>
 
               {/* Email */}
