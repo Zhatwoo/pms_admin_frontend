@@ -79,6 +79,11 @@ interface ApiTransaction {
   unit?: string | null;
 }
 
+interface TransactionsResponse {
+  transactions: ApiTransaction[];
+  stats?: unknown;
+}
+
 interface BranchFinanceSummaryItem {
   branchId: string;
   branchName: string;
@@ -136,13 +141,17 @@ export default function BranchFinancePage() {
     const branchQuery = isAllBranches ? "" : `?branch=${selectedBranch.id}`;
 
     try {
-      const [dashboardData, requestData, transactionData, summaryData, ledgerData] = await Promise.all([
+      const [dashboardData, requestData, transactionResponse, summaryData, ledgerData] = await Promise.all([
         api.get<DashboardSummary>("/dashboard"),
         api.get<FundRequestRecord[]>(`/fund-requests${branchQuery}`),
-        api.get<ApiTransaction[]>(`/transactions${branchQuery}`),
+        api.get<ApiTransaction[] | TransactionsResponse>(`/transactions${branchQuery}`),
         api.get<BranchFinanceSummaryItem[]>(`/branch-finance/summary${branchQuery}`),
         api.get<{ entries: LedgerEntry[]; total: number }>(`/branch-finance/ledger${branchQuery ? branchQuery + "&" : "?"}limit=100`),
       ]);
+
+      const transactionData = Array.isArray(transactionResponse)
+        ? transactionResponse
+        : transactionResponse?.transactions ?? [];
 
       const transferRequestByTransactionId = new Map(
         requestData
