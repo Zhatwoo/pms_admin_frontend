@@ -72,7 +72,14 @@ interface FundRequestRecord {
   amountTransferred: number | null;
   purpose: string;
   notes?: string | null;
-  status: "pending" | "approved" | "pending_confirmation" | "rejected" | "transferred" | "cancelled";
+  status:
+    | "pending"
+    | "approved"
+    | "pending_source_confirmation"
+    | "pending_confirmation"
+    | "rejected"
+    | "transferred"
+    | "cancelled";
   createdAt: string;
   reviewedAt?: string | null;
   transferredAt?: string | null;
@@ -121,6 +128,8 @@ function toStatusClass(status: FundRequestRecord["status"]) {
       return "bg-amber-100 text-amber-700";
     case "approved":
       return "bg-blue-100 text-blue-700";
+    case "pending_source_confirmation":
+      return "bg-orange-100 text-orange-700";
     case "pending_confirmation":
       return "bg-violet-100 text-violet-700";
     case "rejected":
@@ -133,7 +142,9 @@ function toStatusClass(status: FundRequestRecord["status"]) {
 }
 
 function toStatusLabel(status: FundRequestRecord["status"]) {
-  return status === "pending_confirmation" ? "Pending Confirmation" : status;
+  if (status === "pending_source_confirmation") return "Pending Source Confirmation";
+  if (status === "pending_confirmation") return "Pending Confirmation";
+  return status;
 }
 
 export default function AdminBranchFinancePage() {
@@ -150,6 +161,7 @@ export default function AdminBranchFinancePage() {
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
   const [branchSummary, setBranchSummary] = useState<BranchFinanceSummaryApi | null>(null);
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<FundRequestRecord["status"] | "all">("all");
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [ledgerDateFrom, setLedgerDateFrom] = useState("");
   const [ledgerDateTo, setLedgerDateTo] = useState("");
@@ -325,7 +337,8 @@ export default function AdminBranchFinancePage() {
 
     // Add fund request rows
     if (ledgerViewFilter !== "transactions") {
-      for (const req of filteredRequests) {
+      for (const req of requests) {
+        if (statusFilter !== "all" && req.status !== statusFilter) continue;
         const amount = req.amountTransferred ?? req.approvedAmount ?? req.amountRequested;
         const isIncoming = req.status === "transferred" || req.status === "pending_confirmation";
 
@@ -372,7 +385,7 @@ export default function AdminBranchFinancePage() {
       if (ledgerDateTo && d > ledgerDateTo) return false;
       return true;
     });
-  }, [ledgerEntries, filteredRequests, ledgerViewFilter, ledgerTypeFilter, ledgerSearch, ledgerDateFrom, ledgerDateTo]);
+  }, [ledgerEntries, requests, ledgerViewFilter, ledgerTypeFilter, statusFilter, ledgerSearch, ledgerDateFrom, ledgerDateTo]);
 
   const finance = dashboard?.branchFinance;
   const resolvedCurrentBalance = useMemo(() => {
