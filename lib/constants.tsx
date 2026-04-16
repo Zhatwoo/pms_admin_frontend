@@ -48,9 +48,7 @@ const SUPERADMIN_NAV: NavGroup[] = [
   },
   {
     section: "MANAGEMENT",
-    section: "MANAGEMENT",
     items: [
-      { label: "Customers", href: "/customers", icon: <CustomersIcon /> },
       { label: "Customers", href: "/customers", icon: <CustomersIcon /> },
       { label: "Reports", href: "/reports", icon: <ReportsIcon /> },
       {
@@ -102,7 +100,6 @@ const ADMIN_NAV: NavGroup[] = [
     section: "ADMIN",
     items: [
       { label: "Customers", href: "/admin/customers", icon: <CustomersIcon /> },
-      { label: "Customers", href: "/admin/customers", icon: <CustomersIcon /> },
       {
         label: "Branch Management",
         href: "/admin/branches",
@@ -147,8 +144,6 @@ const BRANCH_NAV: NavGroup[] = [
           { label: "Items For Sale", href: "/employee/inventory/items-for-sale" },
         ],
       },
-      { label: "Expiration Monitoring", href: "/employee/expiration-monitoring", icon: <ExpirationIcon /> },
-      { label: "Branch Finance", href: "/employee/branch-finance", icon: <ReportsIcon /> },
       { label: "Expiration Monitoring", href: "/employee/expiration-monitoring", icon: <ExpirationIcon /> },
       { label: "Branch Finance", href: "/employee/branch-finance", icon: <ReportsIcon /> },
     ],
