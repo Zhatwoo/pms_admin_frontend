@@ -7,6 +7,7 @@ import { ActionButton } from "@/components/shared/action-button";
 import { ViewCustomerModal } from "./_components/view-customer-modal";
 import { EditCustomerModal } from "./_components/edit-customer-modal";
 import type { CustomerDetail } from "./_components/types";
+import { api } from "@/lib/api";
 
 /* ──────────────────────────── Mock Data ──────────────────────────── */
 
@@ -191,18 +192,105 @@ function CustomerDetailContent() {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
-    setCustomer(mockCustomers[customerId] ?? null);
+    async function fetchCustomer() {
+      if (!customerId) return;
+      setIsLoading(true);
+      try {
+        const data = await api.get<BackendCustomer>(`/customers/${customerId}`);
+        if (data) {
+          setCustomer({
+            id: data.id,
+            name: data.full_name,
+            address: [data.address, data.barangay, data.city, data.province].filter(Boolean).join(", "),
+            email: data.email || "N/A",
+            phone: data.contact_number || "N/A",
+            idNumber: data.id_presented || "N/A",
+            createdAt: new Date(data.created_at).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric"
+            }),
+            branch: "Current Branch", // This could be fetched too
+            totalItemsPawned: 0,
+            activePawned: 0,
+            totalLoanValue: 0,
+            overduePayments: 0,
+            loyaltyPoints: 0,
+            loyaltyMax: 100,
+            transactions: [],
+            rewards: [],
+            deadlines: [],
+            activityLog: [
+              { 
+                title: "Client Registered", 
+                date: new Date(data.created_at).toLocaleDateString(), 
+                description: "Basic profile created in the system.", 
+                color: "bg-emerald-500" 
+              }
+            ],
+          });
+        } else {
+          setCustomer(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch customer:", err);
+        setCustomer(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchCustomer();
   }, [customerId]);
+
+  useEffect(() => {
+    if (customer) {
+      setEditForm({
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        idNumber: customer.idNumber,
+        address: customer.address,
+      });
+    }
+  }, [customer]);
+
+  function handleEditChange(
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) {
+    const { name, value } = event.target;
+    setEditForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function handleSaveCustomer(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!customer) return;
+
+    setCustomer({
+      ...customer,
+      name: editForm.name.trim() || customer.name,
+      email: editForm.email.trim() || customer.email,
+      phone: editForm.phone.trim() || customer.phone,
+      idNumber: editForm.idNumber.trim() || customer.idNumber,
+      address: editForm.address.trim() || customer.address,
+    });
+    setIsEditOpen(false);
+  }
 
   if (!customer) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <p className="text-lg font-semibold text-text-primary">Customer not found</p>
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-2">
+           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-text-primary">Customer Profile Not Found</p>
+          <p className="text-sm text-text-tertiary mt-1">The requested ID does not exist in our database or belongs to another branch.</p>
+        </div>
         <button
           onClick={() => router.push("/customers")}
-          className="text-sm text-emerald-700 underline hover:text-emerald-800"
+          className="mt-2 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-700/20 hover:bg-emerald-800 transition-all"
         >
-          Back to Customers
+          Return to Registry
         </button>
       </div>
     );
