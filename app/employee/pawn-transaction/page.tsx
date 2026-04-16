@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { TransactionActions } from "./_components/transaction-actions";
 import { api } from "@/lib/api";
 import { TransactionStats } from "./_components/transaction-stats";
@@ -25,6 +25,15 @@ type PurposeType =
   | "Fund Transfer"
   | "Cash Transfer";
 
+type FilterType = "All" | "Renew" | "Sales / Transfer" | "Buy Back";
+
+const filterToPurpose: Record<FilterType, PurposeType | null> = {
+  "All": null,
+  "Renew": "Renew",
+  "Sales / Transfer": "Sold Item",
+  "Buy Back": "Buy Back",
+};
+
 interface TransactionRow {
   transactionNo: string;
   branch: string;
@@ -39,6 +48,8 @@ interface TransactionRow {
   unitCode: string;
   pawn: string;
   storage: string;
+  customerName?: string;
+  customerAddress?: string;
   profilePhoto?: string;
   idPhoto?: string;
   relatedPawnedItemId?: string | null;
@@ -94,6 +105,8 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
     unitCode: transaction.unit_code ?? "",
     pawn: String(transaction.pawn_amount ?? 0),
     storage: String(transaction.storage_fee ?? 0),
+    customerName: (transaction as any).pawned_item?.customer?.full_name,
+    customerAddress: (transaction as any).pawned_item?.customer?.address,
     profilePhoto: transaction.profile_photo ?? undefined,
     idPhoto: transaction.id_photo ?? undefined,
     relatedPawnedItemId: transaction.related_pawned_item_id ?? undefined,
@@ -102,7 +115,7 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
 }
 
 export default function EmployeePawnTransactionsPage() {
-  const { selectedBranch, canSwitchBranch } = useBranch();
+  const { selectedBranch, branches, canSwitchBranch } = useBranch();
   const { user } = useAuth();
   const [branchAdminName, setBranchAdminName] = useState("");
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
@@ -111,6 +124,7 @@ export default function EmployeePawnTransactionsPage() {
   const [isSalesTransferModalOpen, setIsSalesTransferModalOpen] = useState(false);
   const [isMoaReprintOpen, setIsMoaReprintOpen] = useState(false);
   const [reprintData, setReprintData] = useState<any>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionRow | null>(null);
   const [currentStats, setCurrentStats] = useState({
     pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0,
@@ -135,7 +149,10 @@ export default function EmployeePawnTransactionsPage() {
       try {
         const data = await api.get<TransactionsResponse>(`/transactions?branch=${encodeURIComponent(selectedBranch.id)}`);
         if (data) {
-          setCurrentStats(data.stats || DEFAULT_STATS);
+          setCurrentStats(data.stats || {
+            pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0,
+            startingBalance: 0, endingBalance: 0,
+          });
           setAllTransactions((data.transactions || []).map(toTransactionRow));
         }
       } catch (error) {
@@ -146,6 +163,13 @@ export default function EmployeePawnTransactionsPage() {
     }
     fetchTransactions();
   }, [selectedBranch]);
+
+  const filteredTransactions = useMemo(() => {
+    if (activeFilter === "All") return allTransactions;
+    const targetPurpose = filterToPurpose[activeFilter];
+    if (!targetPurpose) return allTransactions;
+    return allTransactions.filter((t) => t.purpose === targetPurpose);
+  }, [allTransactions, activeFilter]);
 
   useEffect(() => {
     async function fetchBranchAdmin() {
@@ -167,9 +191,9 @@ export default function EmployeePawnTransactionsPage() {
   }, [selectedBranch.id, user]);
 
   const handleExportCSV = useCallback(() => {
-    if (allTransactions.length === 0) return;
+    if (filteredTransactions.length === 0) return;
     const headers = ["Transaction #", "Purpose", "Details", "Date", "Time", "Cash In", "Cash Out", "Return", "Unit", "Unit Code", "Pawn", "Storage"];
-    const rows = allTransactions.map((r) =>
+    const rows = filteredTransactions.map((r) =>
       [r.transactionNo, r.purpose, r.details, r.date, r.time, r.cashIn, r.cashOut, r.returnVal, r.unit, r.unitCode, r.pawn, r.storage].join(",")
     );
     const csv = [headers.join(","), ...rows].join("\n");
@@ -180,7 +204,7 @@ export default function EmployeePawnTransactionsPage() {
     link.download = `transactions_${selectedBranch.name.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [allTransactions, selectedBranch]);
+  }, [filteredTransactions, selectedBranch]);
 
   const handlePrintReport = useCallback(() => {
     window.print();
@@ -205,11 +229,16 @@ export default function EmployeePawnTransactionsPage() {
     const tx = allTransactions.find(t => t.transactionNo === transactionNo);
     if (!tx) return;
     
+    const branchInfo = branches.find(b => b.name === tx.branch);
+    const names = (tx.customerName || "WALK-IN CUSTOMER").split(" ");
+    const firstName = names[0];
+    const lastName = names.length > 1 ? names.slice(1).join(" ") : "---";
+
     setReprintData({
-      firstName: tx.unit.split(" ")[0] || "REPRINT",
+      firstName: firstName,
       middleName: "",
-      lastName: "RECORD",
-      address: `Transaction: ${tx.transactionNo}`,
+      lastName: lastName,
+      address: tx.customerAddress || "---",
       contactNo: "---",
       unitCode: tx.unitCode,
       unitName: tx.unit,
@@ -222,7 +251,9 @@ export default function EmployeePawnTransactionsPage() {
       storageFee: tx.storage,
       purchasedDate: tx.date,
       idPresented: "---",
-      branchName: tx.branch
+      branchName: tx.branch,
+      branchAddress: branchInfo?.location || "",
+      branchPhone: branchInfo?.phone || ""
     });
     setIsMoaReprintOpen(true);
   }, [allTransactions]);
@@ -236,6 +267,8 @@ export default function EmployeePawnTransactionsPage() {
       </div>
 
       <TransactionActions
+        activeFilter={activeFilter}
+        onFilterChange={(f) => setActiveFilter(f)}
         onRenewClick={() => handleActionWithPassword(() => setIsRenewModalOpen(true))}
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
@@ -246,7 +279,7 @@ export default function EmployeePawnTransactionsPage() {
         onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
       />
 
-            <TransactionTable data={allTransactions} onReprint={handleReprint} onViewDetails={setSelectedTransaction} />
+            <TransactionTable data={filteredTransactions} onReprint={handleReprint} onViewDetails={setSelectedTransaction} />
 
             <TransactionDetailsModal
               isOpen={Boolean(selectedTransaction)}
@@ -290,6 +323,8 @@ export default function EmployeePawnTransactionsPage() {
         onClose={() => setIsNewPawnModalOpen(false)}
         branchId={selectedBranch.id}
         branchName={selectedBranch.name}
+        branchAddress={selectedBranch.location}
+        branchPhone={selectedBranch.phone}
         branchAdminName={branchAdminName}
         loggedInUserName={user?.fullName}
       />

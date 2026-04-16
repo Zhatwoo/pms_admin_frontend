@@ -4,11 +4,24 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ActionButton } from "@/components/shared/action-button";
-import { ViewCustomerModal } from "@/app/(pages)/customers/view_user/_components/view-customer-modal";
-import type {
-  ActivityEntry,
-  CustomerDetail,
-} from "@/app/(pages)/customers/view_user/_components/types";
+import { ViewCustomerModal } from "./_components/view-customer-modal";
+import { EditCustomerModal } from "./_components/edit-customer-modal";
+import type { CustomerDetail, ActivityEntry, Transaction, Reward, Deadline } from "./_components/types";
+import { api } from "@/lib/api";
+
+/* ──────────────────────────── Types ──────────────────────────── */
+interface BackendCustomer {
+  id: string;
+  full_name: string;
+  address: string;
+  barangay: string;
+  city: string;
+  province: string;
+  email: string;
+  contact_number: string;
+  id_presented: string;
+  created_at: string;
+}
 
 /* ──────────────────────────── Mock Data ──────────────────────────── */
 
@@ -190,22 +203,73 @@ function EmployeeCustomerDetailContent() {
   const [customer, setCustomer] = useState<CustomerDetail | null>(
     mockCustomers[customerId] ?? null,
   );
-  const [activityLog, setActivityLog] = useState<ActivityEntry[]>(
-    mockCustomers[customerId]?.activityLog ?? [],
-  );
+  const [isLoading, setIsLoading] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
   const [noteBody, setNoteBody] = useState("");
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
 
   useEffect(() => {
-    const nextCustomer = mockCustomers[customerId] ?? null;
-    setCustomer(nextCustomer);
-    setActivityLog(nextCustomer?.activityLog ?? []);
-    setIsViewOpen(false);
-    setIsNoteOpen(false);
-    setNoteTitle("");
-    setNoteBody("");
+    async function fetchCustomer() {
+      if (!customerId) return;
+      setIsLoading(true);
+      try {
+        const data = await api.get<BackendCustomer>(`/customers/${customerId}`);
+        if (data) {
+          setCustomer({
+            id: data.id,
+            firstName: data.full_name.split(" ")[0] || "",
+            middleName: "",
+            lastName: data.full_name.split(" ").slice(1).join(" ") || "",
+            name: data.full_name,
+            street: data.address,
+            barangay: data.barangay,
+            city: data.city,
+            province: data.province,
+            address: [data.address, data.barangay, data.city, data.province].filter(Boolean).join(", "),
+            email: data.email || "N/A",
+            phone: data.contact_number || "N/A",
+            idType: data.id_presented || "N/A",
+            idNumber: data.id_presented || "N/A",
+            profilePhoto: null,
+            idFrontPhoto: null,
+            idBackPhoto: null,
+            createdAt: new Date(data.created_at).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric"
+            }),
+            branch: "Current Branch", 
+            totalItemsPawned: 0,
+            activePawned: 0,
+            totalLoanValue: 0,
+            overduePayments: 0,
+            loyaltyPoints: 0,
+            loyaltyMax: 100,
+            transactions: [],
+            rewards: [],
+            deadlines: [],
+            activityLog: [
+              { 
+                title: "Client Registered", 
+                date: new Date(data.created_at).toLocaleDateString(), 
+                description: "Basic profile created in the system.", 
+                color: "bg-emerald-500" 
+              }
+            ],
+          });
+        } else {
+          setCustomer(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch customer:", err);
+        setCustomer(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchCustomer();
   }, [customerId]);
 
   useEffect(() => {
@@ -216,21 +280,16 @@ function EmployeeCustomerDetailContent() {
 
   function handleAddNote(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!customer || !noteBody.trim()) return;
 
-    const trimmedBody = noteBody.trim();
-    if (!trimmedBody) return;
-
-    const trimmedTitle = noteTitle.trim();
-    const now = new Date();
-
-    const nextEntry: ActivityEntry = {
-      title: trimmedTitle || "Note added",
-      date: `${formatNoteDate(now)} · Employee`,
-      description: `— ${trimmedBody}`,
-      color: "bg-emerald-500",
+    const newNote = {
+      title: noteTitle.trim() || "Manual Note",
+      date: formatNoteDate(new Date()),
+      description: noteBody.trim(),
+      color: "bg-amber-400",
     };
 
-    setActivityLog((current) => [nextEntry, ...current]);
+    setActivityLog((prev) => [newNote, ...prev]);
     setNoteTitle("");
     setNoteBody("");
     setIsNoteOpen(false);
