@@ -3,6 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { ConfirmFundModal } from "@/app/admin/branch-finance/_components/confirm-fund-modal";
+<<<<<<< HEAD
+import {
+  FinanceLedgerTable,
+  FinanceSummaryCards,
+  LedgerTypeFilter,
+} from "@/components/shared/finance-ledger-table";
+import type {
+  LedgerEntry,
+  FinanceSummaryBreakdown,
+} from "@/components/shared/finance-ledger-table";
+=======
+>>>>>>> 49e74a1e33b34459682012cc29a20f666bca2d95
 
 interface FundRequestRecord {
   id: string;
@@ -34,6 +46,20 @@ interface EmployeeDashboardResponse {
   branch: { name: string } | null;
 }
 
+<<<<<<< HEAD
+interface BranchFinanceSummaryApi {
+  branchId: string;
+  branchName: string;
+  currentBalance: number;
+  startingBalance: number;
+  todayCashIn: number;
+  todayCashOut: number;
+  breakdown: FinanceSummaryBreakdown;
+  fundRequests: { pending: number; approved: number; transferred: number };
+}
+
+=======
+>>>>>>> 49e74a1e33b34459682012cc29a20f666bca2d95
 function fmtCurrency(value: number) {
   return `PHP ${value.toLocaleString("en-PH", {
     minimumFractionDigits: 2,
@@ -62,6 +88,16 @@ export default function EmployeeBranchFinancePage() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedConfirmRequest, setSelectedConfirmRequest] = useState<FundRequestRecord | null>(null);
 
+<<<<<<< HEAD
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [branchSummary, setBranchSummary] = useState<BranchFinanceSummaryApi | null>(null);
+  const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerDateFrom, setLedgerDateFrom] = useState("");
+  const [ledgerDateTo, setLedgerDateTo] = useState("");
+
+=======
+>>>>>>> 49e74a1e33b34459682012cc29a20f666bca2d95
   const showToast = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(null), 2500);
@@ -71,12 +107,25 @@ export default function EmployeeBranchFinancePage() {
     setIsLoading(true);
     setError(null);
     try {
+<<<<<<< HEAD
+      const [dashboardData, requestData, summaryData, ledgerData] = await Promise.all([
+        api.get<EmployeeDashboardResponse>("/dashboard"),
+        api.get<FundRequestRecord[]>("/fund-requests"),
+        api.get<BranchFinanceSummaryApi[]>("/branch-finance/summary"),
+        api.get<{ entries: LedgerEntry[]; total: number }>("/branch-finance/ledger?limit=100"),
+      ]);
+      setDashboard(dashboardData);
+      setRequests(requestData);
+      setBranchSummary(summaryData?.[0] ?? null);
+      setLedgerEntries(ledgerData?.entries ?? []);
+=======
       const [dashboardData, requestData] = await Promise.all([
         api.get<EmployeeDashboardResponse>("/dashboard"),
         api.get<FundRequestRecord[]>("/fund-requests"),
       ]);
       setDashboard(dashboardData);
       setRequests(requestData);
+>>>>>>> 49e74a1e33b34459682012cc29a20f666bca2d95
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load branch finance data.");
     } finally {
@@ -244,6 +293,79 @@ export default function EmployeeBranchFinancePage() {
               </table>
             </div>
           </div>
+<<<<<<< HEAD
+
+          {/* ── Branch Financial Activity (Read-Only) ── */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                  <line x1="1" y1="10" x2="23" y2="10" />
+                </svg>
+              </div>
+              <h2 className="text-sm font-bold text-text-primary">All Branch Financial Activity</h2>
+              <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
+                View Only
+              </span>
+            </div>
+
+            {branchSummary && (
+              <FinanceSummaryCards
+                breakdown={branchSummary.breakdown}
+                todayCashIn={branchSummary.todayCashIn}
+                todayCashOut={branchSummary.todayCashOut}
+              />
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search transactions..."
+                value={ledgerSearch}
+                onChange={(e) => setLedgerSearch(e.target.value)}
+                className="rounded-lg border border-border-main bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald-500 focus:outline-none"
+              />
+              <LedgerTypeFilter value={ledgerTypeFilter} onChange={setLedgerTypeFilter} />
+              <input
+                type="date"
+                value={ledgerDateFrom}
+                onChange={(e) => setLedgerDateFrom(e.target.value)}
+                className="rounded-lg border border-border-main bg-surface px-3 py-2 text-sm text-text-primary focus:border-emerald-500 focus:outline-none"
+              />
+              <input
+                type="date"
+                value={ledgerDateTo}
+                onChange={(e) => setLedgerDateTo(e.target.value)}
+                className="rounded-lg border border-border-main bg-surface px-3 py-2 text-sm text-text-primary focus:border-emerald-500 focus:outline-none"
+              />
+              {(ledgerSearch || ledgerTypeFilter !== "all" || ledgerDateFrom || ledgerDateTo) && (
+                <button
+                  onClick={() => {
+                    setLedgerSearch("");
+                    setLedgerTypeFilter("all");
+                    setLedgerDateFrom("");
+                    setLedgerDateTo("");
+                  }}
+                  className="text-xs font-bold text-red-600 hover:underline"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            <FinanceLedgerTable
+              entries={ledgerEntries}
+              isLoading={isLoading}
+              showBranchColumn={false}
+              searchQuery={ledgerSearch}
+              typeFilter={ledgerTypeFilter}
+              dateFrom={ledgerDateFrom}
+              dateTo={ledgerDateTo}
+            />
+          </div>
+=======
+>>>>>>> 49e74a1e33b34459682012cc29a20f666bca2d95
         </>
       )}
 

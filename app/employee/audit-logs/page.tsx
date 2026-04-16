@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
+import AuditLogsPage from "@/app/(pages)/audit-logs/page";
 
-export default function EmployeeAuditLogsPage() {
-	redirect("/employee/dashboard");
-}
+export default AuditLogsPage;
