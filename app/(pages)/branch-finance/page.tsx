@@ -19,6 +19,15 @@ import { TransactionFilters } from "./_components/transaction-filters";
 import { TransactionTable } from "./_components/transaction-table";
 import type { FinanceTransaction } from "./_components/transaction-table";
 import { FinanceQueueSection } from "@/components/shared/finance-queue-section";
+import {
+  FinanceLedgerTable,
+  FinanceSummaryCards,
+  LedgerTypeFilter,
+} from "@/components/shared/finance-ledger-table";
+import type {
+  LedgerEntry,
+  FinanceSummaryBreakdown,
+} from "@/components/shared/finance-ledger-table";
 
 interface DashboardSummary {
   view: "super_admin";
@@ -70,6 +79,19 @@ interface ApiTransaction {
   unit?: string | null;
 }
 
+interface BranchFinanceSummaryItem {
+  branchId: string;
+  branchName: string;
+  branchCode: string | null;
+  status: string | null;
+  currentBalance: number;
+  startingBalance: number;
+  todayCashIn: number;
+  todayCashOut: number;
+  breakdown: FinanceSummaryBreakdown;
+  fundRequests: { pending: number; approved: number; transferred: number };
+}
+
 export default function BranchFinancePage() {
   const { selectedBranch, isAllBranches } = useBranch();
 
@@ -88,6 +110,13 @@ export default function BranchFinancePage() {
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [selectedTransferRequest, setSelectedTransferRequest] = useState<FundRequestRecord | null>(null);
 
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [financeSummaries, setFinanceSummaries] = useState<BranchFinanceSummaryItem[]>([]);
+  const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerDateFrom, setLedgerDateFrom] = useState("");
+  const [ledgerDateTo, setLedgerDateTo] = useState("");
+
   const showToast = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(null), 2500);
@@ -100,10 +129,12 @@ export default function BranchFinancePage() {
     const branchQuery = isAllBranches ? "" : `?branch=${selectedBranch.id}`;
 
     try {
-      const [dashboardData, requestData, transactionData] = await Promise.all([
+      const [dashboardData, requestData, transactionData, summaryData, ledgerData] = await Promise.all([
         api.get<DashboardSummary>("/dashboard"),
         api.get<FundRequestRecord[]>(`/fund-requests${branchQuery}`),
         api.get<ApiTransaction[]>(`/transactions${branchQuery}`),
+        api.get<BranchFinanceSummaryItem[]>(`/branch-finance/summary${branchQuery}`),
+        api.get<{ entries: LedgerEntry[]; total: number }>(`/branch-finance/ledger${branchQuery ? branchQuery + "&" : "?"}limit=100`),
       ]);
 
       const transferRequestByTransactionId = new Map(
@@ -158,6 +189,8 @@ export default function BranchFinancePage() {
       setDashboard(dashboardData);
       setFundRequests(requestData);
       setTransactions(liveTransactions);
+      setFinanceSummaries(summaryData ?? []);
+      setLedgerEntries(ledgerData?.entries ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load branch finance data.");
     } finally {
@@ -207,6 +240,40 @@ export default function BranchFinancePage() {
     () => branchBalances.map((branch) => ({ branchId: branch.branchId, name: branch.name })),
     [branchBalances],
   );
+
+  const aggregatedBreakdown = useMemo<FinanceSummaryBreakdown>(() => {
+    const scoped = isAllBranches
+      ? financeSummaries
+      : financeSummaries.filter((s) => s.branchId === selectedBranch.id);
+    const agg: FinanceSummaryBreakdown = {
+      pawnOut: 0, buyBackIn: 0, renewalIn: 0, saleIn: 0,
+      fundTransferIn: 0, fundTransferOut: 0, startBalance: 0, other: 0,
+    };
+    for (const s of scoped) {
+      agg.pawnOut += s.breakdown.pawnOut;
+      agg.buyBackIn += s.breakdown.buyBackIn;
+      agg.renewalIn += s.breakdown.renewalIn;
+      agg.saleIn += s.breakdown.saleIn;
+      agg.fundTransferIn += s.breakdown.fundTransferIn;
+      agg.fundTransferOut += s.breakdown.fundTransferOut;
+      agg.startBalance += s.breakdown.startBalance;
+      agg.other += s.breakdown.other;
+    }
+    return agg;
+  }, [financeSummaries, isAllBranches, selectedBranch.id]);
+
+  const aggregatedTodayCash = useMemo(() => {
+    const scoped = isAllBranches
+      ? financeSummaries
+      : financeSummaries.filter((s) => s.branchId === selectedBranch.id);
+    let cashIn = 0;
+    let cashOut = 0;
+    for (const s of scoped) {
+      cashIn += s.todayCashIn;
+      cashOut += s.todayCashOut;
+    }
+    return { cashIn, cashOut };
+  }, [financeSummaries, isAllBranches, selectedBranch.id]);
 
   const handleRejectRequestClick = useCallback((id: string) => {
     const target = queues.pendingReview.find((request) => request.id === id) ?? null;
@@ -613,6 +680,74 @@ export default function BranchFinancePage() {
               branchFilter={branchFilter}
               dateFrom={dateFrom}
               dateTo={dateTo}
+            />
+          </div>
+
+          {/* ── All Financial Activity (Unified Ledger) ── */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                  <line x1="1" y1="10" x2="23" y2="10" />
+                </svg>
+              </div>
+              <h2 className="text-sm font-bold text-text-primary">All Financial Activity</h2>
+              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                Per Branch Monitoring
+              </span>
+            </div>
+
+            <FinanceSummaryCards
+              breakdown={aggregatedBreakdown}
+              todayCashIn={aggregatedTodayCash.cashIn}
+              todayCashOut={aggregatedTodayCash.cashOut}
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search transactions..."
+                value={ledgerSearch}
+                onChange={(e) => setLedgerSearch(e.target.value)}
+                className="rounded-lg border border-border-main bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald-500 focus:outline-none"
+              />
+              <LedgerTypeFilter value={ledgerTypeFilter} onChange={setLedgerTypeFilter} />
+              <input
+                type="date"
+                value={ledgerDateFrom}
+                onChange={(e) => setLedgerDateFrom(e.target.value)}
+                className="rounded-lg border border-border-main bg-surface px-3 py-2 text-sm text-text-primary focus:border-emerald-500 focus:outline-none"
+              />
+              <input
+                type="date"
+                value={ledgerDateTo}
+                onChange={(e) => setLedgerDateTo(e.target.value)}
+                className="rounded-lg border border-border-main bg-surface px-3 py-2 text-sm text-text-primary focus:border-emerald-500 focus:outline-none"
+              />
+              {(ledgerSearch || ledgerTypeFilter !== "all" || ledgerDateFrom || ledgerDateTo) && (
+                <button
+                  onClick={() => {
+                    setLedgerSearch("");
+                    setLedgerTypeFilter("all");
+                    setLedgerDateFrom("");
+                    setLedgerDateTo("");
+                  }}
+                  className="text-xs font-bold text-red-600 hover:underline"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            <FinanceLedgerTable
+              entries={ledgerEntries}
+              isLoading={isLoading}
+              showBranchColumn={isAllBranches}
+              searchQuery={ledgerSearch}
+              typeFilter={ledgerTypeFilter}
+              dateFrom={ledgerDateFrom}
+              dateTo={ledgerDateTo}
             />
           </div>
         </>
