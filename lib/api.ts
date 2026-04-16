@@ -125,16 +125,46 @@ class ApiClient {
       errorData = JSON.parse(text) as Record<string, unknown>;
     } catch {
       const trimmedText = text.trim();
-      if (
+      const lower = trimmedText.toLowerCase();
+      const likelyProxyBackendDown =
         res.status >= 500 &&
-        /^internal server error$/i.test(trimmedText)
-      ) {
+        text.length < 8000 &&
+        !trimmedText.startsWith("{") &&
+        (lower.includes("internal server error") ||
+          lower.includes("bad gateway") ||
+          lower.includes("gateway timeout") ||
+          lower.includes("service unavailable"));
+
+      if (likelyProxyBackendDown) {
+        // #region agent log
+        fetch("http://127.0.0.1:7631/ingest/72ea5a90-3237-42ea-a50b-59d1cc22d712", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "70f8a0",
+          },
+          body: JSON.stringify({
+            sessionId: "70f8a0",
+            runId: "proxy-detect",
+            hypothesisId: "H1",
+            location: "PMS_frontend/lib/api.ts:extractErrorMessage",
+            message: "Non-JSON 5xx from /api (rewrite target unreachable)",
+            data: {
+              path,
+              resStatus: res.status,
+              bodyLen: trimmedText.length,
+              snippet: trimmedText.slice(0, 160),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => { });
+        // #endregion
         this.logApiIssue(
           res.status,
           path,
-          "Proxy/backend unavailable while handling request",
+          "Next.js proxy could not reach Nest (ECONNREFUSED or 5xx from upstream)",
         );
-        return "Cannot reach backend API. Ensure PMS_backend is running on port 4000.";
+        return "Cannot reach the backend API. Start Nest on port 4000 (npm run start:dev in PMS_backend) or run npm run dev from the project root to start both apps.";
       }
 
       this.logApiIssue(res.status, path, `Non-JSON response: ${text.slice(0, 300)}`);
