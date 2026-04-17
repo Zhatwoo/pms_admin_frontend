@@ -103,13 +103,13 @@ export default function EmployeeBranchFinancePage() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedConfirmRequest, setSelectedConfirmRequest] = useState<FundRequestRecord | null>(null);
 
-  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
-  const [branchSummary, setBranchSummary] = useState<BranchFinanceSummaryApi | null>(null);
-  const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
-  const [ledgerSearch, setLedgerSearch] = useState("");
-  const [ledgerDateFrom, setLedgerDateFrom] = useState("");
-  const [ledgerDateTo, setLedgerDateTo] = useState("");
-  const [ledgerViewFilter, setLedgerViewFilter] = useState<"all" | "transactions" | "fund_requests">("all");
+  // const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  // const [branchSummary, setBranchSummary] = useState<BranchFinanceSummaryApi | null>(null);
+  // const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
+  // const [ledgerSearch, setLedgerSearch] = useState("");
+  // const [ledgerDateFrom, setLedgerDateFrom] = useState("");
+  // const [ledgerDateTo, setLedgerDateTo] = useState("");
+  // const [ledgerViewFilter, setLedgerViewFilter] = useState<"all" | "transactions" | "fund_requests">("all");
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -398,12 +398,6 @@ export default function EmployeeBranchFinancePage() {
 
             <FinanceQueueSection
               accent="orange"
-              title="Pending Branch Confirmation"
-              subtitle={
-                confirmationRequests.length === 0
-                  ? "No transfers are waiting for branch confirmation."
-                  : `${confirmationRequests.length} transfer${confirmationRequests.length === 1 ? "" : "s"} awaiting confirmation.`
-              }
               title="Pending Receiving Confirmation"
               subtitle={
                 confirmationRequests.length === 0
@@ -538,14 +532,6 @@ export default function EmployeeBranchFinancePage() {
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border-subtle text-left text-xs uppercase tracking-wide text-text-muted">
-                    <th className="px-3 py-3">Date</th>
-                    <th className="px-3 py-3">Source</th>
-                    <th className="px-3 py-3">Type / Status</th>
-                    <th className="px-3 py-3">Item Name</th>
-                    <th className="px-3 py-3">Description</th>
-                    <th className="px-3 py-3 text-right">Cash In</th>
-                    <th className="px-3 py-3 text-right">Cash Out</th>
-                    <th className="px-3 py-3">Reference</th>
                     <th className="px-3 py-3">Date</th>
                     <th className="px-3 py-3">Source</th>
                     <th className="px-3 py-3">Type / Status</th>

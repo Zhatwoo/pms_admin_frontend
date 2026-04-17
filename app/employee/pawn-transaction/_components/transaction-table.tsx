@@ -5,9 +5,10 @@ type PurposeType = "Start" | "Buy Back" | "Renew" | "Sold Item" | "Pawn" | "Fund
 
 interface TransactionRow {
   transactionNo: string;
-  branch: string;
   purpose: PurposeType;
-  details: string;
+  buyBack: string;
+  buyOut: string;
+  sold: string;
   date: string;
   time: string;
   cashIn: string;
@@ -17,19 +18,19 @@ interface TransactionRow {
   unitCode: string;
   pawn: string;
   storage: string;
-  profilePhoto?: string;
-  idPhoto?: string;
+  qrCode?: string;
   relatedPawnedItemId?: string | null;
   relatedSaleItemId?: string | null;
 }
 
 const columns = [
   { key: "transactionNo", label: "Transaction #" },
-  { key: "branch", label: "Branch" },
   { key: "purpose", label: "Purpose" },
-  { key: "details", label: "Details" },
   { key: "date", label: "Date" },
   { key: "time", label: "Time" },
+  { key: "buyBack", label: "Buy Back", align: "right" as const },
+  { key: "buyOut", label: "Buy Out", align: "right" as const },
+  { key: "sold", label: "Sold", align: "right" as const },
   { key: "cashIn", label: "Cash In", align: "right" as const },
   { key: "cashOut", label: "Cash Out", align: "right" as const },
   { key: "returnVal", label: "Return", align: "right" as const },
@@ -37,8 +38,7 @@ const columns = [
   { key: "unitCode", label: "Unit Code" },
   { key: "pawn", label: "Pawn", align: "right" as const },
   { key: "storage", label: "Storage", align: "right" as const },
-  { key: "profilePhoto", label: "Profile" },
-  { key: "idPhoto", label: "ID Photo" },
+  { key: "qrCode", label: "QR Code", align: "center" as const },
   { key: "actions", label: "Actions", align: "center" as const },
 ];
 
@@ -66,13 +66,38 @@ interface TransactionTableProps {
   data?: TransactionRow[];
   onReprint?: (transactionNo: string) => void;
   onViewDetails?: (transaction: TransactionRow) => void;
+  viewRange: "daily" | "weekly" | "monthly" | "all";
+  onRangeChange: (range: "daily" | "weekly" | "monthly" | "all") => void;
 }
 
-export function TransactionTable({ data = [], onReprint, onViewDetails }: TransactionTableProps) {
+export function TransactionTable({ 
+  data = [], 
+  onReprint, 
+  onViewDetails,
+  viewRange,
+  onRangeChange
+}: TransactionTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-      <div className="flex items-center justify-between bg-white px-4 py-3">
-        <h3 className="text-sm font-bold text-zinc-800">Daily Transactions</h3>
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-zinc-100 bg-white px-4 py-3">
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-bold text-zinc-800">
+            {viewRange === "daily" ? "Daily Transactions" : 
+             viewRange === "weekly" ? "Weekly Transactions" : 
+             viewRange === "monthly" ? "Monthly Transactions" : "All Transactions"}
+          </h3>
+          <span className="h-4 w-[1px] bg-zinc-200" />
+          <select
+            value={viewRange}
+            onChange={(e) => onRangeChange(e.target.value as any)}
+            className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="daily">Today</option>
+            <option value="weekly">This Week</option>
+            <option value="monthly">This Month</option>
+            <option value="all">All Records</option>
+          </select>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -121,21 +146,12 @@ export function TransactionTable({ data = [], onReprint, onViewDetails }: Transa
                     {row.transactionNo}
                   </td>
 
-                  {/* Branch */}
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-600">
-                    {formatTimeWithAmPm(row.time)}
-                  </td>
-
                   {/* Purpose */}
                   <td className="whitespace-nowrap px-3 py-2">
                     <StatusBadge
                       label={row.purpose}
                       variant={purposeVariant[row.purpose]}
                     />
-                  </td>
-
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-700">
-                    {row.details || "—"}
                   </td>
 
                   {/* Date */}
@@ -146,6 +162,36 @@ export function TransactionTable({ data = [], onReprint, onViewDetails }: Transa
                   {/* Time */}
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-600">
                     {formatTimeWithAmPm(row.time)}
+                  </td>
+
+                  {/* Buy Back */}
+                  <td className="whitespace-nowrap px-3 py-2 text-right text-xs font-medium text-blue-700">
+                    {(() => {
+                      const num = Number(row.buyBack);
+                      return !isNaN(num) && num !== 0 
+                        ? `₱${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                        : "₱0.00";
+                    })()}
+                  </td>
+
+                  {/* Buy Out */}
+                  <td className="whitespace-nowrap px-3 py-2 text-right text-xs font-medium text-orange-700">
+                    {(() => {
+                      const num = Number(row.buyOut);
+                      return !isNaN(num) && num !== 0 
+                        ? `₱${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                        : "₱0.00";
+                    })()}
+                  </td>
+
+                  {/* Sold */}
+                  <td className="whitespace-nowrap px-3 py-2 text-right text-xs font-medium text-emerald-700">
+                    {(() => {
+                      const num = Number(row.sold);
+                      return !isNaN(num) && num !== 0 
+                        ? `₱${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                        : "₱0.00";
+                    })()}
                   </td>
 
                   <td className="whitespace-nowrap px-4 py-2.5 text-right text-sm text-text-secondary">
@@ -190,26 +236,19 @@ export function TransactionTable({ data = [], onReprint, onViewDetails }: Transa
                     )}
                   </td>
 
-                  {/* Profile Photo */}
-                  <td className="whitespace-nowrap px-3 py-2">
-                    {row.profilePhoto ? (
-                      <img 
-                        src={row.profilePhoto} 
-                        alt="Profile" 
-                        className="w-10 h-10 object-cover rounded-md border border-zinc-200" 
-                      />
-                    ) : "-"}
-                  </td>
-
-                  {/* ID Photo */}
-                  <td className="whitespace-nowrap px-3 py-2">
-                    {row.idPhoto ? (
-                      <img 
-                        src={row.idPhoto} 
-                        alt="ID" 
-                        className="w-10 h-10 object-cover rounded-md border border-zinc-200" 
-                      />
-                    ) : "-"}
+                  {/* QR Code */}
+                  <td className="whitespace-nowrap px-3 py-2 text-center">
+                    {row.qrCode ? (
+                      <div className="flex justify-center">
+                        <img 
+                          src={row.qrCode} 
+                          alt="QR Code" 
+                          className="w-10 h-10 object-contain rounded-md border border-zinc-100 bg-white p-0.5" 
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-zinc-300">—</span>
+                    )}
                   </td>
 
                   {/* Actions */}

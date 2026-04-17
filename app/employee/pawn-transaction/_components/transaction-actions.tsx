@@ -106,17 +106,7 @@ export function TransactionActions({
     <div className="flex flex-wrap items-center justify-between gap-3">
       {/* Left — filter buttons */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* All Filter */}
-        <button
-          onClick={() => onFilterChange?.("All")}
-          className={`px-4 py-2 text-xs font-bold rounded-lg transition shadow-sm ${
-            activeFilter === "All"
-              ? "bg-zinc-800 text-white ring-2 ring-offset-1 ring-zinc-500"
-              : "bg-surface-secondary text-text-secondary hover:bg-surface-hover"
-          }`}
-        >
-          All
-        </button>
+        {/* Filter buttons removed: All */}
 
         {/* Renew — amber/orange solid */}
         <button
