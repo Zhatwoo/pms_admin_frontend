@@ -103,13 +103,13 @@ export default function EmployeeBranchFinancePage() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedConfirmRequest, setSelectedConfirmRequest] = useState<FundRequestRecord | null>(null);
 
-  // const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
-  // const [branchSummary, setBranchSummary] = useState<BranchFinanceSummaryApi | null>(null);
-  // const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
-  // const [ledgerSearch, setLedgerSearch] = useState("");
-  // const [ledgerDateFrom, setLedgerDateFrom] = useState("");
-  // const [ledgerDateTo, setLedgerDateTo] = useState("");
-  // const [ledgerViewFilter, setLedgerViewFilter] = useState<"all" | "transactions" | "fund_requests">("all");
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [branchSummary, setBranchSummary] = useState<BranchFinanceSummaryApi | null>(null);
+  const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerDateFrom, setLedgerDateFrom] = useState("");
+  const [ledgerDateTo, setLedgerDateTo] = useState("");
+  const [ledgerViewFilter, setLedgerViewFilter] = useState<"all" | "transactions" | "fund_requests">("all");
 
   const showToast = useCallback((message: string) => {
     setToast(message);
