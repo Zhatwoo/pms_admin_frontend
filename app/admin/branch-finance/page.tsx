@@ -64,34 +64,7 @@ interface AdminDashboardResponse {
   };
 }
 
-interface FundRequestRecord {
-  id: string;
-  requestNo: string;
-  amountRequested: number;
-  approvedAmount: number | null;
-  amountTransferred: number | null;
-  purpose: string;
-  notes?: string | null;
-  status:
-    | "pending"
-    | "approved"
-    | "pending_source_confirmation"
-    | "pending_confirmation"
-    | "rejected"
-    | "transferred"
-    | "cancelled";
-  createdAt: string;
-  reviewedAt?: string | null;
-  transferredAt?: string | null;
-  reviewNotes?: string | null;
-  transferReference?: string | null;
-  transferNotes?: string | null;
-  confirmationNotes?: string | null;
-  confirmedAt?: string | null;
-  confirmedReceivedAmount?: number | null;
-  receiverUserId?: string | null;
-  receiverRole?: "admin" | "employee" | null;
-}
+
 
 interface BranchFinanceSummaryApi {
   branchId: string;
