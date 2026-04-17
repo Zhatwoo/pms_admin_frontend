@@ -1,10 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import { Pagination } from "@/components/shared/pagination";
+import { api } from "@/lib/api";
 import type { Column } from "@/components/shared/data-table";
+
+interface CustomerData {
+  id: string;
+  full_name: string;
+  contact_number: string;
+  email: string;
+  id_presented: string;
+  created_at: string;
+}
 
 const columns: Column[] = [
   { key: "name", label: "Name" },

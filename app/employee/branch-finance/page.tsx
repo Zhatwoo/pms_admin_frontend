@@ -63,6 +63,10 @@ function toStatusLabel(status: FundRequestRecord["status"]) {
   return status === "pending_confirmation" ? "Pending Confirmation" : status;
 }
 
+function fmtDate(value: string | null | undefined) {
+  return formatFinanceDate(value);
+}
+
 const TYPE_CONFIG: Record<string, { label: string; bgClass: string; dotClass: string }> = {
   pawn: { label: "Pawn", bgClass: "bg-orange-100 text-orange-700", dotClass: "bg-orange-500" },
   buy_back: { label: "Buy Back", bgClass: "bg-blue-100 text-blue-700", dotClass: "bg-blue-500" },
@@ -534,6 +538,14 @@ export default function EmployeeBranchFinancePage() {
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border-subtle text-left text-xs uppercase tracking-wide text-text-muted">
+                    <th className="px-3 py-3">Date</th>
+                    <th className="px-3 py-3">Source</th>
+                    <th className="px-3 py-3">Type / Status</th>
+                    <th className="px-3 py-3">Item Name</th>
+                    <th className="px-3 py-3">Description</th>
+                    <th className="px-3 py-3 text-right">Cash In</th>
+                    <th className="px-3 py-3 text-right">Cash Out</th>
+                    <th className="px-3 py-3">Reference</th>
                     <th className="px-3 py-3">Date</th>
                     <th className="px-3 py-3">Source</th>
                     <th className="px-3 py-3">Type / Status</th>
