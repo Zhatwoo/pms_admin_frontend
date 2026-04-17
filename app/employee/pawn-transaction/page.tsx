@@ -36,9 +36,10 @@ const filterToPurpose: Record<FilterType, PurposeType | null> = {
 
 interface TransactionRow {
   transactionNo: string;
-  branch: string;
   purpose: PurposeType;
-  details: string;
+  buyBack: string;
+  buyOut: string;
+  sold: string;
   date: string;
   time: string;
   cashIn: string;
@@ -50,8 +51,7 @@ interface TransactionRow {
   storage: string;
   customerName?: string;
   customerAddress?: string;
-  profilePhoto?: string;
-  idPhoto?: string;
+  qrCode?: string;
   relatedPawnedItemId?: string | null;
   relatedSaleItemId?: string | null;
 }
@@ -70,8 +70,7 @@ interface ApiTransaction {
   unit_code: string | null;
   pawn_amount?: number | string | null;
   storage_fee?: number | string | null;
-  profile_photo?: string | null;
-  id_photo?: string | null;
+  qr_code?: string | null;
   related_pawned_item_id?: string | null;
   related_sale_item_id?: string | null;
 }
@@ -93,9 +92,10 @@ const DEFAULT_STATS = {
 function toTransactionRow(transaction: ApiTransaction): TransactionRow {
   return {
     transactionNo: transaction.transaction_no,
-    branch: transaction.branch ?? "",
     purpose: transaction.purpose as PurposeType,
-    details: transaction.details ?? "",
+    buyBack: transaction.purpose === "Buy Back" ? String(transaction.cash_in ?? 0) : "0",
+    buyOut: transaction.purpose === "Buy Out" ? String(transaction.cash_out ?? 0) : "0",
+    sold: transaction.purpose === "Sold Item" || transaction.purpose === "Sale" ? String(transaction.cash_in ?? 0) : "0",
     date: transaction.transaction_date,
     time: transaction.transaction_time,
     cashIn: String(transaction.cash_in ?? 0),
@@ -107,8 +107,7 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
     storage: String(transaction.storage_fee ?? 0),
     customerName: (transaction as any).pawned_item?.customer?.full_name,
     customerAddress: (transaction as any).pawned_item?.customer?.address,
-    profilePhoto: transaction.profile_photo ?? undefined,
-    idPhoto: transaction.id_photo ?? undefined,
+    qrCode: (transaction as any).pawned_item?.qr_code || (transaction as any).pawned_item?.[0]?.qr_code || undefined,
     relatedPawnedItemId: transaction.related_pawned_item_id ?? undefined,
     relatedSaleItemId: transaction.related_sale_item_id ?? undefined,
   };
@@ -140,6 +139,7 @@ export default function EmployeePawnTransactionsPage() {
     open: false,
     onConfirm: () => { },
   });
+  const [viewRange, setViewRange] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
 
   useEffect(() => {
     async function fetchTransactions() {
@@ -147,7 +147,9 @@ export default function EmployeePawnTransactionsPage() {
 
       setIsLoading(true);
       try {
-        const data = await api.get<TransactionsResponse>(`/transactions?branch=${encodeURIComponent(selectedBranch.id)}`);
+        const data = await api.get<TransactionsResponse>(
+          `/transactions?branch=${encodeURIComponent(selectedBranch.id)}&range=${viewRange}`
+        );
         if (data) {
           setCurrentStats(data.stats || {
             pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0,
@@ -162,7 +164,7 @@ export default function EmployeePawnTransactionsPage() {
       }
     }
     fetchTransactions();
-  }, [selectedBranch]);
+  }, [selectedBranch, viewRange]);
 
   const filteredTransactions = useMemo(() => {
     if (activeFilter === "All") return allTransactions;
@@ -192,9 +194,9 @@ export default function EmployeePawnTransactionsPage() {
 
   const handleExportCSV = useCallback(() => {
     if (filteredTransactions.length === 0) return;
-    const headers = ["Transaction #", "Purpose", "Details", "Date", "Time", "Cash In", "Cash Out", "Return", "Unit", "Unit Code", "Pawn", "Storage"];
+    const headers = ["Transaction #", "Purpose", "Date", "Time", "Buy Back", "Buy Out", "Sold", "Cash In", "Cash Out", "Return", "Unit", "Unit Code", "Pawn", "Storage"];
     const rows = filteredTransactions.map((r) =>
-      [r.transactionNo, r.purpose, r.details, r.date, r.time, r.cashIn, r.cashOut, r.returnVal, r.unit, r.unitCode, r.pawn, r.storage].join(",")
+      [r.transactionNo, r.purpose, r.date, r.time, r.buyBack, r.buyOut, r.sold, r.cashIn, r.cashOut, r.returnVal, r.unit, r.unitCode, r.pawn, r.storage].join(",")
     );
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -229,7 +231,7 @@ export default function EmployeePawnTransactionsPage() {
     const tx = allTransactions.find(t => t.transactionNo === transactionNo);
     if (!tx) return;
     
-    const branchInfo = branches.find(b => b.name === tx.branch);
+    const branchInfo = branches.find(b => b.id === selectedBranch.id);
     const names = (tx.customerName || "WALK-IN CUSTOMER").split(" ");
     const firstName = names[0];
     const lastName = names.length > 1 ? names.slice(1).join(" ") : "---";
@@ -251,7 +253,7 @@ export default function EmployeePawnTransactionsPage() {
       storageFee: tx.storage,
       purchasedDate: tx.date,
       idPresented: "---",
-      branchName: tx.branch,
+      branchName: selectedBranch.name,
       branchAddress: branchInfo?.location || "",
       branchPhone: branchInfo?.phone || ""
     });
@@ -260,12 +262,6 @@ export default function EmployeePawnTransactionsPage() {
 
   return (
     <div className="space-y-3 pb-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-emerald-900 leading-tight">Transactions</h1>
-        </div>
-      </div>
-
       <TransactionActions
         activeFilter={activeFilter}
         onFilterChange={(f) => setActiveFilter(f)}
@@ -279,7 +275,13 @@ export default function EmployeePawnTransactionsPage() {
         onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
       />
 
-            <TransactionTable data={filteredTransactions} onReprint={handleReprint} onViewDetails={setSelectedTransaction} />
+            <TransactionTable 
+              data={filteredTransactions} 
+              onReprint={handleReprint} 
+              onViewDetails={setSelectedTransaction}
+              viewRange={viewRange}
+              onRangeChange={setViewRange}
+            />
 
             <TransactionDetailsModal
               isOpen={Boolean(selectedTransaction)}
