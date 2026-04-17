@@ -911,6 +911,7 @@ export default function AuditLogsPage() {
             totalItems={totalItems}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
+            mode="edge-pairs"
           />
         </div>
       </div>
