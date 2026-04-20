@@ -34,7 +34,10 @@ interface EmployeeDashboardResponse {
     totalTransferred: number;
     lastUpdated: string | null;
   } | null;
-  branch: { name: string } | null;
+  branch: { 
+    name: string;
+    branch_code?: string | null;
+  } | null;
 }
 
 interface BranchFinanceSummaryApi {
@@ -110,6 +113,13 @@ export default function EmployeeBranchFinancePage() {
   const [ledgerDateFrom, setLedgerDateFrom] = useState("");
   const [ledgerDateTo, setLedgerDateTo] = useState("");
   const [ledgerViewFilter, setLedgerViewFilter] = useState<"all" | "transactions" | "fund_requests">("all");
+
+  useEffect(() => {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    setLedgerDateFrom(today);
+    setLedgerDateTo(today);
+  }, []);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -527,8 +537,96 @@ export default function EmployeeBranchFinancePage() {
               )}
             </div>
 
+            <div className="flex justify-end print:hidden mb-2">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect width="12" height="8" x="6" y="14" />
+                </svg>
+                Print Ledger
+              </button>
+            </div>
+
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media print {
+                body * { visibility: hidden; }
+                #print-ledger-section, #print-ledger-section * { visibility: visible; }
+                #print-ledger-section { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+              }
+            `}} />
+
+            <div id="print-ledger-section" className="hidden print:block mb-8">
+              <h1 className="text-xl font-bold text-black border-b border-black pb-2 mb-4">
+                Branch Financial Ledger
+              </h1>
+              <div className="text-sm text-black space-y-1 mb-4">
+                {dashboard?.branch ? (
+                  <>
+                    <p><strong>Branch:</strong> {dashboard.branch.name}</p>
+                    <p><strong>Branch Code:</strong> {dashboard.branch.branch_code || "N/A"}</p>
+                  </>
+                ) : (
+                  <p><strong>Scope:</strong> Personal Ledger</p>
+                )}
+                <p><strong>Date Generated:</strong> {new Date().toLocaleString()}</p>
+                {ledgerDateFrom && <p><strong>From:</strong> {ledgerDateFrom}</p>}
+                {ledgerDateTo && <p><strong>To:</strong> {ledgerDateTo}</p>}
+              </div>
+
+              <table className="w-full text-left text-sm border-collapse text-black print:text-[11px]">
+                <thead>
+                  <tr className="bg-gray-100 border-y border-black">
+                    <th className="p-2 font-bold whitespace-nowrap">Date</th>
+                    <th className="p-2 font-bold whitespace-nowrap">Source</th>
+                    <th className="p-2 font-bold">Item Name</th>
+                    <th className="p-2 font-bold">Description</th>
+                    <th className="p-2 font-bold text-right whitespace-nowrap">Cash In</th>
+                    <th className="p-2 font-bold text-right whitespace-nowrap">Cash Out</th>
+                    <th className="p-2 font-bold">Ref No.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unifiedRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-4 text-center italic text-gray-500 border-b border-black">
+                        No records found for the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    unifiedRows.map((row) => (
+                      <tr key={row.id} className="border-b border-gray-300">
+                        <td className="p-2 whitespace-nowrap">{row.displayDate} {row.displayTime || ""}</td>
+                        <td className="p-2 whitespace-nowrap">{row.source === "transaction" ? "TXN" : "FUND REQ"}</td>
+                        <td className="p-2 truncate max-w-[200px]">{row.itemName || "—"}</td>
+                        <td className="p-2 truncate max-w-[250px]">{row.description || "—"}</td>
+                        <td className="p-2 text-right font-mono">{row.cashIn > 0 ? `+₱${row.cashIn.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}</td>
+                        <td className="p-2 text-right font-mono text-red-600">{row.cashOut > 0 ? `-₱${row.cashOut.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}</td>
+                        <td className="p-2 font-mono text-[10px] truncate max-w-[120px] text-gray-700">{row.reference || "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                  {unifiedRows.length > 0 && (
+                    <tr className="border-b-2 border-black bg-gray-50 uppercase">
+                      <td colSpan={4} className="p-2 font-bold text-right">Total:</td>
+                      <td className="p-2 text-right font-bold font-mono">
+                        ₱{unifiedRows.reduce((acc, r) => acc + (r.cashIn || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-2 text-right font-bold font-mono text-red-600">
+                        ₱{unifiedRows.reduce((acc, r) => acc + (r.cashOut || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
             {/* Unified table */}
-            <div className="overflow-x-auto rounded-xl border border-border-main bg-surface">
+            <div className="print:hidden overflow-x-auto rounded-xl border border-border-main bg-surface">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border-subtle text-left text-xs uppercase tracking-wide text-text-muted">

@@ -77,6 +77,8 @@ interface FinanceLedgerTableProps {
   typeFilter?: string;
   dateFrom?: string;
   dateTo?: string;
+  branchName?: string | null;
+  branchCode?: string | null;
 }
 
 export function FinanceLedgerTable({
@@ -87,6 +89,8 @@ export function FinanceLedgerTable({
   typeFilter = "all",
   dateFrom = "",
   dateTo = "",
+  branchName,
+  branchCode,
 }: FinanceLedgerTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -145,85 +149,185 @@ export function FinanceLedgerTable({
   }
 
   return (
-    <div className="space-y-3">
-      <DataTable
-        columns={columns}
-        data={paginated}
-        emptyMessage="No financial activity found for the selected filters."
-        renderCell={(key, value, row) => {
-          if (key === "date") {
-            return (
-              <div>
-                <span className="text-sm text-text-secondary">{fmtDate(value)}</span>
-                {row.time ? (
-                  <span className="ml-1.5 text-xs text-text-muted">{row.time}</span>
-                ) : null}
-              </div>
-            );
+    <div className="space-y-3 relative">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * {
+            visibility: hidden;
           }
-          if (key === "type") {
-            const cfg = TYPE_CONFIG[value as LedgerEntryType] ?? TYPE_CONFIG.other;
-            return (
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${cfg.bgClass}`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${cfg.dotClass}`} />
-                {cfg.label}
-              </span>
-            );
+          #print-ledger-section, #print-ledger-section * {
+            visibility: visible;
           }
-          if (key === "itemName") {
-            return (
-              <span
-                className="block max-w-[180px] truncate text-sm font-medium text-text-primary"
-                title={value || ""}
-              >
-                {value || "—"}
-              </span>
-            );
+          #print-ledger-section {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            display: block !important;
           }
-          if (key === "description") {
-            return (
-              <span
-                className="block max-w-[260px] truncate text-sm text-text-secondary"
-                title={value}
-              >
-                {value || "—"}
-              </span>
-            );
-          }
-          if (key === "cashIn") {
-            return (
-              <span className={`text-sm font-bold ${value > 0 ? "text-emerald-600" : "text-text-muted"}`}>
-                {value > 0 ? `+${fmt(value)}` : "—"}
-              </span>
-            );
-          }
-          if (key === "cashOut") {
-            return (
-              <span className={`text-sm font-bold ${value > 0 ? "text-red-600" : "text-text-muted"}`}>
-                {value > 0 ? `-${fmt(value)}` : "—"}
-              </span>
-            );
-          }
-          if (key === "branchName") {
-            return (
-              <span className="text-sm font-medium text-text-secondary">
-                {value || "—"}
-              </span>
-            );
-          }
-          if (key === "reference") {
-            return (
-              <span className="text-xs font-mono text-text-muted">{value || "—"}</span>
-            );
-          }
-          return value;
-        }}
-      />
+        }
+      `}} />
+
+      <div className="flex justify-end print:hidden">
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect width="12" height="8" x="6" y="14" />
+          </svg>
+          Print Ledger
+        </button>
+      </div>
+
+      <div id="print-ledger-section" className="hidden print:block mb-8">
+        <h1 className="text-xl font-bold text-black border-b border-black pb-2 mb-4">
+          Financial Ledger Report
+        </h1>
+        <div className="mb-4 text-sm text-black space-y-1">
+          {showBranchColumn ? (
+            <p><strong>Scope:</strong> All Branches</p>
+          ) : (
+            <>
+              <p><strong>Branch:</strong> {branchName || entries[0]?.branchName || "Unknown"}</p>
+              <p><strong>Branch Code:</strong> {branchCode || "N/A"}</p>
+            </>
+          )}
+          <p><strong>Date Generated:</strong> {new Date().toLocaleString()}</p>
+          {dateFrom && <p><strong>From:</strong> {dateFrom}</p>}
+          {dateTo && <p><strong>To:</strong> {dateTo}</p>}
+        </div>
+        <table className="w-full text-left text-sm border-collapse text-black print:text-[11px]">
+          <thead>
+            <tr className="bg-gray-100 border-y border-black">
+              <th className="p-2 font-bold whitespace-nowrap">Date</th>
+              {showBranchColumn && <th className="p-2 font-bold">Branch</th>}
+              <th className="p-2 font-bold whitespace-nowrap">Type</th>
+              <th className="p-2 font-bold">Item Name</th>
+              <th className="p-2 font-bold">Description</th>
+              <th className="p-2 font-bold text-right whitespace-nowrap">Cash In</th>
+              <th className="p-2 font-bold text-right whitespace-nowrap">Cash Out</th>
+              <th className="p-2 font-bold">Ref No.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((e, idx) => (
+              <tr key={idx} className="border-b border-gray-300">
+                <td className="p-2 whitespace-nowrap">{fmtDate(e.date)} {e.time || ""}</td>
+                {showBranchColumn && <td className="p-2 truncate max-w-[150px]">{e.branchName || "—"}</td>}
+                <td className="p-2 whitespace-nowrap">{(TYPE_CONFIG[e.type] || TYPE_CONFIG.other).label}</td>
+                <td className="p-2 truncate max-w-[200px]">{e.itemName || "—"}</td>
+                <td className="p-2 truncate max-w-[250px]">{e.description || "—"}</td>
+                <td className="p-2 text-right font-mono">{e.cashIn > 0 ? fmt(e.cashIn) : ""}</td>
+                <td className="p-2 text-right font-mono text-red-600">{e.cashOut > 0 ? fmt(e.cashOut) : ""}</td>
+                <td className="p-2 font-mono text-[10px] truncate max-w-[120px] text-gray-700">{e.reference || "—"}</td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={showBranchColumn ? 8 : 7} className="p-4 text-center italic text-gray-500 border-b border-black">
+                  No financial activity found for the selected view.
+                </td>
+              </tr>
+            )}
+            {filtered.length > 0 && (
+              <tr className="border-b-2 border-black bg-gray-50 uppercase">
+                <td colSpan={showBranchColumn ? 5 : 4} className="p-2 font-bold text-right">Total:</td>
+                <td className="p-2 text-right font-bold font-mono">
+                  {fmt(filtered.reduce((sum, e) => sum + (e.cashIn || 0), 0))}
+                </td>
+                <td className="p-2 text-right font-bold font-mono text-red-600">
+                  {fmt(filtered.reduce((sum, e) => sum + (e.cashOut || 0), 0))}
+                </td>
+                <td></td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="print:hidden">
+        <DataTable
+          columns={columns}
+          data={paginated}
+          emptyMessage="No financial activity found for the selected filters."
+          renderCell={(key, value, row) => {
+            if (key === "date") {
+              return (
+                <div>
+                  <span className="text-sm text-text-secondary">{fmtDate(value)}</span>
+                  {row.time ? (
+                    <span className="ml-1.5 text-xs text-text-muted">{row.time}</span>
+                  ) : null}
+                </div>
+              );
+            }
+            if (key === "type") {
+              const cfg = TYPE_CONFIG[value as LedgerEntryType] ?? TYPE_CONFIG.other;
+              return (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${cfg.bgClass}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${cfg.dotClass}`} />
+                  {cfg.label}
+                </span>
+              );
+            }
+            if (key === "itemName") {
+              return (
+                <span
+                  className="block max-w-[180px] truncate text-sm font-medium text-text-primary"
+                  title={value || ""}
+                >
+                  {value || "—"}
+                </span>
+              );
+            }
+            if (key === "description") {
+              return (
+                <span
+                  className="block max-w-[260px] truncate text-sm text-text-secondary"
+                  title={value}
+                >
+                  {value || "—"}
+                </span>
+              );
+            }
+            if (key === "cashIn") {
+              return (
+                <span className={`text-sm font-bold ${value > 0 ? "text-emerald-600" : "text-text-muted"}`}>
+                  {value > 0 ? `+${fmt(value)}` : "—"}
+                </span>
+              );
+            }
+            if (key === "cashOut") {
+              return (
+                <span className={`text-sm font-bold ${value > 0 ? "text-red-600" : "text-text-muted"}`}>
+                  {value > 0 ? `-${fmt(value)}` : "—"}
+                </span>
+              );
+            }
+            if (key === "branchName") {
+              return (
+                <span className="text-sm font-medium text-text-secondary">
+                  {value || "—"}
+                </span>
+              );
+            }
+            if (key === "reference") {
+              return (
+                <span className="text-xs font-mono text-text-muted">{value || "—"}</span>
+              );
+            }
+            return value;
+          }}
+        />
+      </div>
 
       {filtered.length > ITEMS_PER_PAGE && (
-        <div className="rounded-lg border border-border-main bg-surface">
+        <div className="rounded-lg border border-border-main bg-surface print:hidden">
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
