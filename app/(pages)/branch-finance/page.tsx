@@ -129,6 +129,13 @@ export default function BranchFinancePage() {
   const [ledgerDateFrom, setLedgerDateFrom] = useState("");
   const [ledgerDateTo, setLedgerDateTo] = useState("");
 
+  useEffect(() => {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    setLedgerDateFrom(today);
+    setLedgerDateTo(today);
+  }, []);
+
   const showToast = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(null), 2500);
@@ -664,6 +671,8 @@ export default function BranchFinancePage() {
               typeFilter={ledgerTypeFilter}
               dateFrom={ledgerDateFrom}
               dateTo={ledgerDateTo}
+              branchName={isAllBranches ? null : selectedBranch.name}
+              branchCode={isAllBranches ? null : (financeSummaries[0]?.branchCode ?? selectedBranch.branch_code ?? null)}
             />
           </div>
         </>
