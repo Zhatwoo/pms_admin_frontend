@@ -1,4 +1,5 @@
 import { StatCard } from "@/components/shared/stat-card";
+import { formatPeso } from "@/lib/currency";
 
 const pawnedIcon = (
   <svg
@@ -176,10 +177,9 @@ export function TransactionStats({ data }: TransactionStatsProps) {
         borderColor="bg-orange-500"
       />
       
-      <div className="flex flex-col justify-between rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-col justify-between rounded-lg border border-border-main bg-surface p-3 shadow-sm transition-colors duration-300">
         <div className="mb-2 h-1 w-full rounded-full bg-emerald-950" />
-        
-        {/* Starting Balance */}
+
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
@@ -189,14 +189,13 @@ export function TransactionStats({ data }: TransactionStatsProps) {
               ₱ {(data?.startingBalance || 0).toLocaleString()}
             </p>
           </div>
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
             {balanceIcon}
           </div>
         </div>
 
         <div className="my-2 border-t border-dashed border-zinc-100" />
 
-        {/* Ending Balance */}
         <div className="flex items-end justify-between">
           <div className="text-right w-full">
             <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
