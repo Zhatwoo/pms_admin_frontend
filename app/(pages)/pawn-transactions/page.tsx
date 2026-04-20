@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { calculateGadgetInterest } from "@/lib/interest";
 import { useBranch } from "@/contexts/branch-context";
+import { calculateGadgetInterest } from "@/lib/interest";
+import { MoaModal } from "@/app/employee/pawn-transaction/_components/moa-modal";
 import { TransactionActions } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
 import { TransactionViewModal } from "./_components/transaction-view-modal";
-import { MoaModal } from "@/app/employee/pawn-transaction/_components/moa-modal";
 import type {
   TransactionPurposeFilter,
   TransactionRow,
@@ -22,13 +22,13 @@ function csvCell(value: string) {
 type ApiPurpose =
   | "Start"
   | "Buy Back"
+  | "Buy Out"
   | "Renew"
   | "Sold Item"
   | "Sale"
   | "Pawn"
   | "Fund Transfer"
-  | "Cash Transfer"
-  | "Buy Out";
+  | "Cash Transfer";
 
 interface ApiTransaction {
   id?: string;
@@ -108,7 +108,10 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
     buyBack: isBuyBackAction ? toAmountString(transaction.cash_in) : "0",
     percentage:
       isBuyBackAction || isPawnAction ? String(calculations.percentage) : "0",
-    buyOut: transaction.purpose === "Buy Out" ? toAmountString(transaction.cash_out) : "0",
+    buyOut:
+      transaction.purpose === "Buy Out"
+        ? toAmountString(transaction.cash_out)
+        : "0",
     sold:
       transaction.purpose === "Sold Item" || transaction.purpose === "Sale"
         ? toAmountString(transaction.cash_in)
@@ -125,10 +128,7 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
     unitCode: transaction.unit_code ?? "",
     pawn: toAmountString(transaction.pawn_amount),
     storage: toAmountString(transaction.storage_fee),
-    notes:
-      transaction.pawned_item?.remarks ??
-      transaction.details ??
-      "",
+    notes: transaction.pawned_item?.remarks ?? transaction.details ?? "",
     qrCode: transaction.pawned_item?.qr_code ?? undefined,
     serialNumber: transaction.pawned_item?.serial_number ?? undefined,
     itemsIncluded: transaction.pawned_item?.items_included ?? undefined,
