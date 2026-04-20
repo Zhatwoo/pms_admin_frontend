@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Pagination } from "@/components/shared/pagination";
+import { PaginationFooter } from "@/components/shared/pagination";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { api } from "@/lib/api";
@@ -901,19 +901,14 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Footer Pagination */}
-        <div className="p-4 border-t border-border-subtle bg-surface-secondary/50 flex items-center justify-between">
-          <span className="text-xs font-bold text-text-tertiary tracking-widest uppercase">
-            SHOWING {totalItems === 0 ? "0" : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} OF {totalItems} RECORDS
-          </span>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={Math.ceil(totalItems / itemsPerPage) || 1}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            mode="edge-pairs"
-          />
-        </div>
+        <PaginationFooter
+          currentPage={currentPage}
+          totalPages={Math.ceil(totalItems / itemsPerPage) || 1}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          mode="edge-pairs"
+        />
       </div>
     </div>
   );

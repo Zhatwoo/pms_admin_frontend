@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
-import { Pagination } from "@/components/shared/pagination";
+import { PaginationFooter } from "@/components/shared/pagination";
 import { useBranch } from "@/contexts/branch-context";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
@@ -223,7 +223,7 @@ export function CustomerTable() {
       />
 
       {!isLoading && customers.length > 0 && (
-        <Pagination
+        <PaginationFooter
           currentPage={currentPageSafe}
           totalPages={totalPages}
           totalItems={customers.length}
