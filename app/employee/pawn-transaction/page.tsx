@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { TransactionActions } from "./_components/transaction-actions";
 import { api } from "@/lib/api";
+import { PaginationFooter } from "@/components/shared/pagination";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
 import { RenewModal } from "./_components/renew-modal";
@@ -96,6 +97,8 @@ const DEFAULT_STATS = {
   buyBack: 0,
   renewed: 0,
   soldItem: 0,
+  redeemed: 0,
+  transfer: 0,
   startingBalance: 0,
   endingBalance: 0,
 };
@@ -179,6 +182,7 @@ export default function EmployeePawnTransactionsPage() {
     onConfirm: () => { },
   });
   const [viewRange, setViewRange] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     async function fetchTransactions() {
@@ -212,6 +216,15 @@ export default function EmployeePawnTransactionsPage() {
     if (!targetPurpose) return allTransactions;
     return allTransactions.filter((t) => t.purpose === targetPurpose);
   }, [allTransactions, activeFilter]);
+
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactions.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE,
+    );
+  }, [filteredTransactions, currentPage]);
 
   useEffect(() => {
     async function fetchBranchAdmin() {
@@ -319,13 +332,20 @@ export default function EmployeePawnTransactionsPage() {
 
       <TransactionStats data={currentStats} />
 
-      <TransactionTable 
-
-              data={filteredTransactions} 
+            <TransactionTable 
+              data={paginatedTransactions} 
               onReprint={handleReprint} 
               onViewDetails={setSelectedTransaction}
               viewRange={viewRange}
               onRangeChange={setViewRange}
+            />
+
+            <PaginationFooter
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredTransactions.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
             />
 
             <TransactionDetailsModal
