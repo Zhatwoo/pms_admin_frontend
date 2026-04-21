@@ -106,32 +106,32 @@ export default function EmployeeItemsForSalePage() {
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={saleStatusOptions} value={status} onChange={setStatus} />
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wide text-text-tertiary">Search</label>
+            <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Search</label>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search items..."
-              className="h-9 w-44 rounded-md border border-input-border bg-input-bg px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500"
+              className="h-9 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500 w-44"
             />
           </div>
         </div>
 
-        <div className="flex overflow-hidden rounded-md border border-border-main bg-surface">
-          <button onClick={() => setSaleViewMode("current")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "current" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>Current</button>
-          <button onClick={() => setSaleViewMode("calendar")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>Calendar</button>
-          <button onClick={() => setSaleViewMode("history")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "history" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>History</button>
+        <div className="flex rounded-md border border-zinc-200 overflow-hidden bg-surface">
+          <button onClick={() => setSaleViewMode("current")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "current" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>Current</button>
+          <button onClick={() => setSaleViewMode("calendar")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>Calendar</button>
+          <button onClick={() => setSaleViewMode("history")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "history" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>History</button>
         </div>
       </div>
 
       {saleViewMode === "calendar" ? (
         <InventoryCalendar items={saleItems} />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-sm transition-colors duration-300">
+        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-amber-400">
+                <tr className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white">
                   {["ID", "Item Name", "Category", "Price", "Stock", "Status", "Actions"].map((h) => (
                     <th key={h} className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${h === "Price" ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
@@ -139,9 +139,9 @@ export default function EmployeeItemsForSalePage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={7} className="py-8 text-center text-sm text-text-muted">Loading branch items...</td></tr>
+                  <tr><td colSpan={7} className="py-8 text-center text-sm text-zinc-400">Loading branch items...</td></tr>
                 ) : saleItems.length === 0 ? (
-                  <tr><td colSpan={7} className="py-8 text-center text-sm text-text-muted">No items for sale found</td></tr>
+                  <tr><td colSpan={7} className="py-8 text-center text-sm text-zinc-400">No items for sale found</td></tr>
                 ) : (
                   saleItems.map((item, idx) => (
                     <tr key={item.id || item.itemId} className={`border-t border-border-subtle transition-colors ${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary/40"} hover:bg-surface-hover`}>
@@ -149,7 +149,7 @@ export default function EmployeeItemsForSalePage() {
                       <td className="whitespace-nowrap px-3 py-2">
                         <button
                           onClick={() => setViewingItem(item)}
-                          className="text-xs font-bold text-text-primary transition-colors hover:text-emerald-400 hover:underline"
+                          className="text-xs font-bold text-zinc-900 hover:text-emerald-700 transition-colors hover:underline"
                         >
                           {item.itemName}
                         </button>
@@ -164,7 +164,7 @@ export default function EmployeeItemsForSalePage() {
                             Sell Item
                           </button>
                         ) : (
-                          <span className="text-[10px] font-bold italic text-text-muted">Sold to Customer</span>
+                          <span className="text-[10px] font-bold text-zinc-400 italic">Sold to Customer</span>
                         )}
                       </td>
                     </tr>
@@ -176,7 +176,7 @@ export default function EmployeeItemsForSalePage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-border-main bg-surface transition-colors duration-300">
+      <div className="rounded-lg border border-zinc-200 bg-white">
         <PaginationFooter
           currentPage={currentPage}
           totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}
@@ -221,7 +221,7 @@ export default function EmployeeItemsForSalePage() {
               </div>
             </div>
 
-            <div className="flex justify-end border-t border-border-subtle bg-surface-secondary/50 px-8 py-4">
+            <div className="border-t border-zinc-100 bg-zinc-50/50/50 px-8 py-4 flex justify-end">
               <button
                 onClick={() => setViewingItem(null)}
                 className="rounded-xl bg-emerald-700 px-8 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-800 active:scale-95"
