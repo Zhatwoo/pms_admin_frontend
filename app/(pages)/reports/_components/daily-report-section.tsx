@@ -93,7 +93,9 @@ export function DailyReportSection({ data, date }: DailyReportSectionProps) {
         <p className="text-[11px] text-text-muted">
           This report is auto-generated. Download PDF for official records.
         </p>
-        <button className="flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-[10px] font-bold text-white transition-opacity hover:opacity-90">
+        <button 
+          onClick={() => window.print()}
+          className="flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-[10px] font-bold text-white transition-opacity hover:opacity-90">
           {downloadIcon}
           Download PDF
         </button>

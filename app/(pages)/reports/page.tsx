@@ -92,7 +92,9 @@ export default function ReportsPage() {
           />
           <span className="text-sm text-zinc-500">{todayFormatted}</span>
         </div>
-        <button className="flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90">
+        <button 
+          onClick={() => window.print()}
+          className="flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90">
           {downloadIcon}
           Download PDF
         </button>
