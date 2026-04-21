@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import { MoaModal } from "./moa-modal";
 
@@ -65,6 +66,38 @@ function getVerificationMode(idPresented: string) {
   return "front-back" as const;
 }
 
+function createEmptyForm() {
+  return {
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    address: "",
+    barangay: "",
+    city: "",
+    province: "",
+    contactNo: "",
+    email: "",
+    idPresented: "",
+    unitCode: "",
+    unitName: "",
+    category: "",
+    categorySpecify: "",
+    serialNumber: "",
+    itemsIncluded: "",
+    condition: "",
+    memory: "",
+    remarks: "",
+    amount: "",
+    purchasedDate: "",
+    storageFee: false,
+    storageFeeAmount: "",
+    profilePhoto: null as string | null,
+      itemPhotos: [] as string[],
+    idPhoto: null as string | null,
+    idBackPhoto: null as string | null,
+  };
+}
+
 interface NewPawnModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -86,33 +119,7 @@ export function NewPawnModal({
   branchAdminName, 
   loggedInUserName 
 }: NewPawnModalProps) {
-  const [form, setForm] = useState({
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    address: "",
-    barangay: "",
-    city: "",
-    province: "",
-    contactNo: "",
-    email: "",
-    idPresented: "",
-    unitCode: "",
-    unitName: "",
-    category: "",
-    serialNumber: "",
-    itemsIncluded: "",
-    condition: "",
-    memory: "",
-    remarks: "",
-    amount: "",
-    purchasedDate: "",
-    storageFee: false,
-    storageFeeAmount: "",
-    profilePhoto: null as string | null,
-    idPhoto: null as string | null,
-    idBackPhoto: null as string | null,
-  });
+  const [form, setForm] = useState(() => createEmptyForm());
 
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
@@ -146,6 +153,34 @@ export function NewPawnModal({
       fetchNextCode();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !branchId || branchId === "__all__") {
+      return;
+    }
+
+    let isActive = true;
+
+    const fetchNextSerialNumber = async () => {
+      try {
+        const { serialNumber } = await api.get<{ serialNumber: string }>("/pawn-tickets/next-serial-number");
+        if (isActive && serialNumber) {
+          setForm((prev) => ({ ...prev, serialNumber }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch next serial number:", error);
+        if (isActive) {
+          setForm((prev) => ({ ...prev, serialNumber: "PENDING-SN-xxxxx" }));
+        }
+      }
+    };
+
+    void fetchNextSerialNumber();
+
+    return () => {
+      isActive = false;
+    };
+  }, [branchId, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !branchId || branchId === "__all__") {
@@ -225,56 +260,66 @@ export function NewPawnModal({
       return;
     }
 
+    if (name === "category") {
+      setForm((prev) => ({
+        ...prev,
+        category: value,
+        categorySpecify: value === "Others" ? prev.categorySpecify : "",
+      }));
+      setQrUrl(null);
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
 
     // Reset QR if key fields change
-    if (["unitCode", "unitName", "serialNumber"].includes(name)) {
+    if (["unitCode", "unitName", "serialNumber", "categorySpecify"].includes(name)) {
       setQrUrl(null);
     }
   };
 
-  const handleReset = useCallback(() => {
-    setForm({
-      firstName: "",
-      middleName: "",
-      lastName: "",
-      address: "",
-      barangay: "",
-      city: "",
-      province: "",
-      contactNo: "",
-      email: "",
-      idPresented: "",
-      unitCode: "",
-      unitName: "",
-      category: "",
-      serialNumber: "",
-      itemsIncluded: "",
-      condition: "",
-      memory: "",
-      remarks: "",
-      amount: "",
-      purchasedDate: "",
-      storageFee: false,
-      storageFeeAmount: "",
-      profilePhoto: null,
-      idPhoto: null,
-      idBackPhoto: null,
-    });
+  const handleAddItemPhoto = useCallback((dataUrl: string | null) => {
+    if (!dataUrl) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      itemPhotos: [...prev.itemPhotos, dataUrl],
+    }));
+  }, []);
+
+  const handleRemoveItemPhoto = useCallback((indexToRemove: number) => {
+    setForm((prev) => ({
+      ...prev,
+      itemPhotos: prev.itemPhotos.filter((_, index) => index !== indexToRemove),
+    }));
+  }, []);
+
+  const handleClearForm = useCallback(() => {
+    setForm((prev) => ({
+      ...createEmptyForm(),
+      unitCode: prev.unitCode,
+      serialNumber: prev.serialNumber,
+    }));
     setQrUrl(null);
     setPassword("");
     setErrorMessage(null);
     setCustomerMode("new");
     setSelectedCustomerId(null);
     setCustomerSearch("");
+  }, []);
+
+  const handleReset = useCallback(() => {
+    handleClearForm();
     setBranchCustomers([]);
     setCustomerBranchTransactions(new Set());
     setCustomerLookupError(null);
     onClose();
-  }, [onClose]);
+  }, [handleClearForm, onClose]);
 
   const handleSelectExistingCustomer = useCallback((customer: CustomerLookupRecord) => {
     const nameParts = splitFullName(customer.full_name);
@@ -293,6 +338,7 @@ export function NewPawnModal({
       email: customer.email ?? "",
       idPresented: customer.id_presented ?? "",
       profilePhoto: null,
+        itemPhotos: prev.itemPhotos,
       idPhoto: null,
       idBackPhoto: null,
     }));
@@ -303,6 +349,8 @@ export function NewPawnModal({
 
   const handleUseAsNewCustomer = useCallback(() => {
     setSelectedCustomerId(null);
+    setCustomerMode("new");
+    setErrorMessage(null);
   }, []);
 
   const handleSwitchToExistingCustomers = useCallback(() => {
@@ -322,8 +370,20 @@ export function NewPawnModal({
     ? branchCustomers.find((customer) => customer.id === selectedCustomerId) ?? null
     : null;
 
+  const getResolvedCategory = () => {
+    if (form.category === "Others") {
+      const specify = form.categorySpecify.trim();
+      return specify ? `Others - ${specify}` : "";
+    }
+
+    return form.category.trim();
+  };
+
   const handleGenerateQR = () => {
     // Required fields for QR generation
+    const resolvedCategory = getResolvedCategory();
+    const unitCodeReady = form.unitCode && !form.unitCode.startsWith("PENDING");
+    const serialNumberReady = form.serialNumber && !form.serialNumber.startsWith("PENDING");
     const requiredFields = {
       firstName: "First Name",
       lastName: "Last Name",
@@ -332,9 +392,7 @@ export function NewPawnModal({
       city: "City",
       contactNo: "Contact Number",
       idPresented: "ID Type",
-      unitCode: "Unit Code",
       unitName: "Unit Name",
-      category: "Category",
       amount: "Loan Amount",
       purchasedDate: "Purchased Date"
     };
@@ -344,6 +402,25 @@ export function NewPawnModal({
         setErrorMessage(`${label} is required before generating QR.`);
         return;
       }
+    }
+
+    if (!resolvedCategory) {
+      setErrorMessage(
+        form.category === "Others"
+          ? "Specify the category before generating QR."
+          : "Category is required before generating QR.",
+      );
+      return;
+    }
+
+    if (!unitCodeReady) {
+      setErrorMessage("Unit code is still generating. Please wait and try again.");
+      return;
+    }
+
+    if (!serialNumberReady) {
+      setErrorMessage("Serial number is still generating. Please wait and try again.");
+      return;
     }
 
     setErrorMessage(null);
@@ -358,7 +435,7 @@ export function NewPawnModal({
       form.address && `Addr:${form.address}`,
       form.unitCode && `Code:${form.unitCode}`,
       form.unitName && `Item:${form.unitName}`,
-      form.category && `Cat:${form.category}`,
+      resolvedCategory && `Cat:${resolvedCategory}`,
       form.serialNumber && `SN:${form.serialNumber}`,
       form.amount && `Loan:P${form.amount}`,
       `Branch:${branchName}`
@@ -381,6 +458,10 @@ export function NewPawnModal({
       return;
     }
 
+    const resolvedCategory = getResolvedCategory();
+    const unitCodeReady = form.unitCode && !form.unitCode.startsWith("PENDING");
+    const serialNumberReady = form.serialNumber && !form.serialNumber.startsWith("PENDING");
+
     // 1. Check all required fields - Customer
     const requiredFields = {
       firstName: "First Name",
@@ -390,9 +471,7 @@ export function NewPawnModal({
       city: "City",
       contactNo: "Contact Number",
       idPresented: "ID Type",
-      unitCode: "Unit Code",
       unitName: "Unit Name",
-      category: "Category",
       amount: "Loan Amount",
       purchasedDate: "Purchased Date"
     };
@@ -402,6 +481,30 @@ export function NewPawnModal({
         setErrorMessage(`${label} is required.`);
         return;
       }
+    }
+
+    if (!resolvedCategory) {
+      setErrorMessage(
+        form.category === "Others"
+          ? "Specify the category before generating the ticket."
+          : "Category is required.",
+      );
+      return;
+    }
+
+    if (!unitCodeReady) {
+      setErrorMessage("Unit code is still generating. Please wait and try again.");
+      return;
+    }
+
+    if (!serialNumberReady) {
+      setErrorMessage("Serial number is still generating. Please wait and try again.");
+      return;
+    }
+
+      if (form.itemPhotos.length === 0) {
+      setErrorMessage("Item photo is required before generating the ticket.");
+      return;
     }
 
     // 2. Check QR Code
@@ -441,6 +544,7 @@ export function NewPawnModal({
     const storageAmount = form.storageFee ? Number(form.storageFeeAmount || 0) : 0;
     const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" ").trim();
     const verificationMode = getVerificationMode(form.idPresented);
+    const resolvedCategory = getResolvedCategory();
 
     if (verificationMode === "no-id" && !form.profilePhoto) {
       setIsSaving(false);
@@ -457,6 +561,22 @@ export function NewPawnModal({
     if (verificationMode === "front-back" && (!form.idPhoto || !form.idBackPhoto)) {
       setIsSaving(false);
       setErrorMessage("Front and back ID photos are required for this ID type.");
+      return;
+    }
+
+      if (form.itemPhotos.length === 0) {
+      setIsSaving(false);
+      setErrorMessage("Item photo is required for pawned items.");
+      return;
+    }
+
+    if (!resolvedCategory) {
+      setIsSaving(false);
+      setErrorMessage(
+        form.category === "Others"
+          ? "Specify the category before finalizing the ticket."
+          : "Category is required before finalizing the ticket.",
+      );
       return;
     }
 
@@ -478,7 +598,7 @@ export function NewPawnModal({
         item: {
           unitCode: form.unitCode.trim(),
           unitName: form.unitName.trim(),
-          category: form.category.trim(),
+          category: resolvedCategory,
           serialNumber: form.serialNumber.trim(),
           itemsIncluded: form.itemsIncluded.trim(),
           condition: form.condition,
@@ -488,6 +608,8 @@ export function NewPawnModal({
           purchasedDate: form.purchasedDate,
           qrCode: qrUrl || undefined,
           profilePhoto: form.profilePhoto || undefined,
+            itemPhoto: form.itemPhotos[0] || undefined,
+            itemPhotos: form.itemPhotos.length > 0 ? form.itemPhotos : undefined,
           idPhoto: form.idPhoto || undefined,
           idBackPhoto: form.idBackPhoto || undefined,
         },
@@ -564,11 +686,12 @@ export function NewPawnModal({
                 {/* Generated QR Preview */}
                 {qrUrl && (
                   <div className="flex flex-col items-center gap-2">
-                    <img
+                    <Image
                       src={qrUrl}
                       alt="Generated QR Code"
                       width={100}
                       height={100}
+                      unoptimized
                       className="rounded-xl border-2 border-emerald-200 shadow-md bg-white p-1 animate-in fade-in zoom-in duration-300"
                       onError={() => setQrUrl(null)}
                     />
@@ -653,6 +776,13 @@ export function NewPawnModal({
                           className="rounded-xl border border-emerald-200 bg-emerald-700 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-emerald-800"
                         >
                           Use As New
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleClearForm}
+                          className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600 transition-colors hover:bg-zinc-50"
+                        >
+                          Clear Form
                         </button>
                       </div>
                     </div>
@@ -850,10 +980,92 @@ export function NewPawnModal({
                     <Input label="Unit Name" name="unitName" value={form.unitName} onChange={handleChange} bg="bg-zinc-100" />
                   </div>
 
-                  <Input label="Category" name="category" value={form.category} onChange={handleChange} bg="bg-zinc-100" />
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4 space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Item Photo</p>
+                        <p className="text-xs font-medium text-zinc-500">Capture every angle of the pawned item for inventory review.</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
+                        {form.itemPhotos.length} photo{form.itemPhotos.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="space-y-4">
+                      <PhotoUpload
+                        label="Capture Item Photo"
+                        frameClassName="aspect-[16/9]"
+                        allowMultipleCapture
+                        onCapture={handleAddItemPhoto}
+                      />
+
+                      <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-3">
+                        {form.itemPhotos.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                            {form.itemPhotos.map((photo, index) => (
+                              <div key={`${photo.slice(0, 24)}-${index}`} className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm">
+                                <Image
+                                  src={photo}
+                                  alt={`Item photo ${index + 1}`}
+                                  width={320}
+                                  height={240}
+                                  unoptimized
+                                  className="h-full w-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveItemPhoto(index)}
+                                  className="absolute right-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 transition group-hover:opacity-100"
+                                >
+                                  Remove
+                                </button>
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white">
+                                  {index + 1}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex h-full min-h-[10rem] items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 text-center text-xs font-medium text-zinc-400">
+                            No item photos captured yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 w-full">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Category</label>
+                    <select
+                      name="category"
+                      value={form.category}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="">— Select Category —</option>
+                      <option value="Smartphone">Smartphone</option>
+                      <option value="Laptop & PC">Laptop & PC</option>
+                      <option value="Appliances">Appliances</option>
+                      <option value="Gaming Console">Gaming Console</option>
+                      <option value="Camera">Camera</option>
+                      <option value="Smartwatch">Smartwatch</option>
+                      <option value="Audio and Earphone">Audio and Earphone</option>
+                      <option value="Others">Others</option>
+                    </select>
+                  </div>
+
+                  {form.category === "Others" && (
+                    <Input
+                      label="Specify Category"
+                      name="categorySpecify"
+                      value={form.categorySpecify}
+                      onChange={handleChange}
+                      bg="bg-zinc-100"
+                      placeholder="Enter specific category"
+                    />
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label="Serial Number" name="serialNumber" value={form.serialNumber} onChange={handleChange} bg="bg-zinc-100" />
+                    <Input label="Serial Number" name="serialNumber" value={form.serialNumber} onChange={handleChange} bg="bg-zinc-200" readOnly={true} />
                     <Input label="Items Included" name="itemsIncluded" value={form.itemsIncluded} onChange={handleChange} bg="bg-zinc-100" />
                   </div>
 
@@ -1030,7 +1242,17 @@ function Input({
   );
 }
 
-function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl: string | null) => void }) {
+function PhotoUpload({
+  label,
+  onCapture,
+  frameClassName = "aspect-[4/3]",
+  allowMultipleCapture = false,
+}: {
+  label: string;
+  onCapture?: (dataUrl: string | null) => void;
+  frameClassName?: string;
+  allowMultipleCapture?: boolean;
+}) {
   const [photo, setPhoto] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -1077,12 +1299,25 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     setPhoto(dataUrl);
     if (onCapture) onCapture(dataUrl);
-    stopCamera();
-  }, [stopCamera, onCapture]);
+    if (!allowMultipleCapture) {
+      stopCamera();
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch(() => undefined);
+      }
+      setIsStreaming(true);
+    });
+  }, [allowMultipleCapture, stopCamera, onCapture]);
 
   const retake = () => {
-    setPhoto(null);
-    if (onCapture) onCapture(null);
+    if (!allowMultipleCapture) {
+      setPhoto(null);
+      if (onCapture) onCapture(null);
+    }
     openCamera();
   };
 
@@ -1090,20 +1325,26 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
     <>
       {/* Thumbnail / Placeholder */}
       <div
-        onClick={photo ? undefined : openCamera}
-        className={`aspect-[4/3] rounded-2xl border-2 border-dashed bg-white flex flex-col items-center justify-center text-center p-4 transition-all group relative overflow-hidden
-          ${ photo ? "border-emerald-400 cursor-default" : "border-zinc-200 hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer" }`}
+        onClick={allowMultipleCapture || !photo ? openCamera : undefined}
+        className={`${frameClassName} rounded-2xl border-2 border-dashed bg-white flex flex-col items-center justify-center text-center p-4 transition-all group relative overflow-hidden
+          ${ photo ? "border-emerald-400 cursor-pointer" : "border-zinc-200 hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer" }`}
       >
-        {photo ? (
+        {photo && !allowMultipleCapture ? (
           <>
-            <img src={photo} alt={label} className="absolute inset-0 w-full h-full object-cover rounded-2xl" />
+            <Image
+              src={photo}
+              alt={label}
+              fill
+              unoptimized
+              className="rounded-2xl object-cover"
+            />
             <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-2xl">
               <button
                 type="button"
                 onClick={retake}
                 className="bg-white text-emerald-700 font-black text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-lg shadow hover:bg-emerald-50 transition"
               >
-                Retake
+                {allowMultipleCapture ? "Capture Again" : "Retake"}
               </button>
             </div>
           </>
@@ -1115,6 +1356,9 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
               </svg>
             </div>
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest group-hover:text-emerald-700 transition-colors">{label}</p>
+            {allowMultipleCapture && photo && (
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-600/70">Ready for next shot</p>
+            )}
           </>
         )}
       </div>
@@ -1175,7 +1419,13 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
               >
                 <span className="w-10 h-10 rounded-full bg-emerald-600 block" />
               </button>
-              <div className="w-[76px]" />{/* spacer */}
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-5 py-2 rounded-xl bg-emerald-600 text-xs font-black text-white hover:bg-emerald-500 transition"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
