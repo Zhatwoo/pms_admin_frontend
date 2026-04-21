@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Pagination } from "@/components/shared/pagination";
+import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
 import { PawnedItemDetailsModal } from "@/components/shared/pawned-item-details-modal";
 
@@ -212,8 +212,8 @@ export default function PawnedItemsPage() {
                   <tr><td colSpan={9} className="py-8 text-center text-sm text-zinc-400">No pawned items found</td></tr>
                 ) : (
                   pawnedItems.map((item, idx) => (
-                    <Fragment key={item.id}>
-                      <tr className={`border-t border-border-subtle ${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary"} hover:bg-surface-hover transition-colors`}>
+                    <>
+                      <tr key={item.itemId} className={`border-t border-border-subtle ${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary"} hover:bg-surface-hover transition-colors`}>
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-800">{item.itemId}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">{item.itemName}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-text-tertiary">{item.category}</td>
@@ -256,7 +256,7 @@ export default function PawnedItemsPage() {
                           </td>
                         </tr>
                       )}
-                    </Fragment>
+                    </>
                   ))
                 )}
               </tbody>
@@ -278,7 +278,13 @@ export default function PawnedItemsPage() {
       )}
 
       <div className="rounded-lg border border-border-main bg-surface transition-colors duration-300">
-        <Pagination currentPage={currentPage} totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+        <PaginationFooter
+          currentPage={currentPage}
+          totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       <PawnedItemDetailsModal 
