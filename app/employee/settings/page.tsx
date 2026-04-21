@@ -40,10 +40,10 @@ function safeParseDetails(details: string | null): Record<string, unknown> {
 }
 
 export default function EmployeeSettingsPage() {
-  const [activeTab, setActiveTab] = useState("Profile");
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { selectedBranch } = useBranch();
-
+  const [activeTab, setActiveTab] = useState("Profile");
+  const [toast, setToast] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -55,7 +55,7 @@ export default function EmployeeSettingsPage() {
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const branchName = selectedBranch?.name || "Bgc Branch";
   const [passwordRequests, setPasswordRequests] = useState<PasswordChangeRequest[]>([]);
   const [isLoadingPasswordRequests, setIsLoadingPasswordRequests] = useState(false);
   const [passwordRequestsError, setPasswordRequestsError] = useState<string | null>(null);
@@ -166,24 +166,135 @@ export default function EmployeeSettingsPage() {
     };
   }, [user?.role]);
 
-  const branchName = selectedBranch?.name || "Branch";
-  const roleLabel = user?.role === "admin" ? "Branch Admin" : user?.role === "super_admin" ? "Super Admin" : "Branch Associate";
-  const initials = fullName ? fullName.charAt(0).toUpperCase() : "U";
+  useEffect(() => {
+    if (user?.role !== "admin" && user?.role !== "super_admin") {
+      setPasswordRequests([]);
+      setPasswordRequestsError(null);
+      return;
+    }
 
-  async function handleSave() {
+    let cancelled = false;
+
+    async function loadPasswordRequests() {
+      try {
+        setIsLoadingPasswordRequests(true);
+        setPasswordRequestsError(null);
+        const isBranchAdmin = user?.role === "admin";
+        let records: ActivityLogRecord[] = [];
+
+        try {
+          records = await api.get<ActivityLogRecord[]>(
+            isBranchAdmin ? "/activity-logs" : "/activity-logs",
+          );
+        } catch {
+          // Fallback to the dedicated route if the activity log endpoint is unavailable.
+          const fallback = await api.get<PasswordChangeRequest[]>("/auth/password-change-requests");
+          if (!cancelled) {
+            setPasswordRequests(Array.isArray(fallback) ? fallback : []);
+          }
+          return;
+        }
+
+        const mappedRequests = records
+          .filter((record) => record.action === "PASSWORD_CHANGE_REQUEST")
+          .map((record) => {
+            const details = safeParseDetails(record.details);
+            const requestStatus =
+              typeof details.requestStatus === "string"
+                ? details.requestStatus
+                : "pending";
+            const approverRole =
+              typeof details.approverRole === "string"
+                ? details.approverRole
+                : null;
+
+            return {
+              id: record.id,
+              requestStatus,
+              requestedAt:
+                typeof details.requestedAt === "string"
+                  ? details.requestedAt
+                  : record.createdAt,
+              requestedByUserId:
+                typeof details.requestedByUserId === "string"
+                  ? details.requestedByUserId
+                  : record.userId,
+              requestedByRole:
+                typeof details.requestedByRole === "string"
+                  ? details.requestedByRole
+                  : record.userRole || "employee",
+              requestedByName:
+                typeof details.requestedByName === "string"
+                  ? details.requestedByName
+                  : record.userFullName || "Unknown user",
+              approverRole,
+              branchId: record.branchId,
+            };
+          })
+          .filter((request) => {
+            if (request.requestStatus !== "pending") {
+              return false;
+            }
+            if (!request.approverRole) {
+              return true;
+            }
+            return request.approverRole === user?.role;
+          });
+
+        if (!cancelled) {
+          setPasswordRequests(mappedRequests);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const errorMessage = err instanceof Error ? err.message : "Failed to load password requests.";
+          setPasswordRequestsError(errorMessage);
+          setPasswordRequests([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingPasswordRequests(false);
+        }
+      }
+    }
+
+    void loadPasswordRequests();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
+
+  const handleSave = async () => {
+    if (!user) return;
     setIsSaving(true);
+    setToast(null);
     try {
-      await api.patch("/users/me", { fullName, email });
-      setToast("Profile updated successfully.");
-      setTimeout(() => setToast(null), 2500);
-    } catch (err) {
-      console.error("Failed to update profile:", err);
-      setToast("Failed to update profile.");
-      setTimeout(() => setToast(null), 2500);
+      await api.patch("/auth/profile", { fullName });
+      await refreshProfile();
+      setToast("Profile updated successfully!");
+      setTimeout(() => setToast(null), 3000);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Failed to update profile");
     } finally {
       setIsSaving(false);
     }
-  }
+  };
+
+  const handleDiscard = () => {
+    if (user) {
+      setFullName(user.fullName || "");
+      setToast(null);
+    }
+  };
+
+  const initials = fullName
+    ? fullName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : user?.email?.charAt(0).toUpperCase() || "U";
 
   async function handleChangePassword() {
     if (!currentPassword || !newPassword || !confirmNewPassword) {
@@ -300,7 +411,10 @@ export default function EmployeeSettingsPage() {
         {["Profile", "Branch Config"].map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setActiveTab(tab);
+              setToast(null);
+            }}
             className={`px-6 py-2 text-xs font-bold transition-all rounded-md ${
               activeTab === tab
                 ? "bg-emerald-700 text-white shadow-sm"
@@ -316,30 +430,35 @@ export default function EmployeeSettingsPage() {
         <div className="md:col-span-2 space-y-6">
           {activeTab === "Profile" && (
             <div className="space-y-6">
-              <div className="rounded-xl border border-zinc-200 dark:border-border-main bg-white dark:bg-surface p-6 shadow-sm">
-                <h3 className="text-base font-bold text-zinc-800 dark:text-text-primary mb-4 pb-2 border-b border-border-subtle">My Account Profile</h3>
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <h3 className="text-base font-bold text-zinc-800 mb-4 pb-2 border-b">My Account Profile</h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase text-zinc-500 dark:text-text-muted tracking-wide">Full Name</label>
-                      <input
-                        className="rounded-lg border border-zinc-300 dark:border-border-main bg-white dark:bg-surface-secondary px-3 py-2 text-sm text-zinc-800 dark:text-text-primary focus:border-emerald-500 outline-none"
+                      <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-wide">Full Name</label>
+                      <input 
+                        className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-emerald-500 outline-none transition-colors" 
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Your full name"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                       <label className="text-[10px] font-bold uppercase text-zinc-500 dark:text-text-muted tracking-wide">Job Title</label>
-                       <div className="rounded-lg border border-zinc-100 dark:border-border-subtle bg-zinc-50 dark:bg-surface-secondary px-3 py-2 text-sm text-zinc-500 dark:text-text-secondary">{roleLabel}</div>
+                       <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-wide">Account Role</label>
+                       <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 capitalize">
+                       {user?.role || "Employee"}
+                     </div>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold uppercase text-zinc-500 dark:text-text-muted tracking-wide">Email Address</label>
-                    <input
-                      className="rounded-lg border border-zinc-300 dark:border-border-main bg-white dark:bg-surface-secondary px-3 py-2 text-sm text-zinc-800 dark:text-text-primary focus:border-emerald-500 outline-none"
+                    <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-wide">Email Address</label>
+                    <input 
+                      className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-400 outline-none cursor-not-allowed" 
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      readOnly
+                    title="Email cannot be changed from this page"
                     />
+                  <p className="text-[10px] text-zinc-400 italic">Email updates require administrative verification.</p>
                   </div>
                 </div>
               </div>
@@ -425,8 +544,8 @@ export default function EmployeeSettingsPage() {
           )}
 
           {activeTab === "Branch Config" && (
-            <div className="rounded-xl border border-zinc-200 dark:border-border-main bg-white dark:bg-surface p-6 shadow-sm">
-              <h3 className="text-base font-bold text-emerald-800 dark:text-emerald-400 mb-4 pb-2 border-b border-border-subtle">Current Location: {branchName}</h3>
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h3 className="text-base font-bold text-emerald-800 mb-4 pb-2 border-b">Current Location: {branchName}</h3>
               <div className="space-y-5">
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                   <div>
@@ -453,19 +572,16 @@ export default function EmployeeSettingsPage() {
           )}
 
           <div className="flex items-center gap-3">
-             <button
+             <button 
                onClick={handleSave}
-               disabled={isSaving}
-               className="rounded-lg bg-emerald-700 px-6 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors disabled:opacity-50"
+               disabled={isSaving || fullName === user?.fullName}
+               className="rounded-lg bg-emerald-700 px-6 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
              >
                {isSaving ? "Saving..." : "Save Changes"}
              </button>
-             <button
-               onClick={() => {
-                 setFullName(user?.fullName || "");
-                 setEmail(user?.email || "");
-               }}
-               className="rounded-lg border border-zinc-300 dark:border-border-main px-6 py-2 text-xs font-bold text-zinc-600 dark:text-text-secondary hover:bg-zinc-50 dark:hover:bg-surface-secondary"
+             <button 
+               onClick={handleDiscard}
+               className="rounded-lg border border-zinc-300 px-6 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50 transition-colors"
              >
                Discard
              </button>
@@ -473,15 +589,14 @@ export default function EmployeeSettingsPage() {
         </div>
 
         <div className="space-y-6">
-           <div className="rounded-xl border border-zinc-200 dark:border-border-main bg-white dark:bg-surface p-6 shadow-sm text-center">
-              <div className="mx-auto w-20 h-20 rounded-full bg-emerald-800 flex items-center justify-center text-white text-3xl font-bold mb-4 border-4 border-emerald-50 dark:border-emerald-900">
+           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm text-center">
+              <div className="mx-auto w-20 h-20 rounded-full bg-emerald-800 flex items-center justify-center text-white text-3xl font-bold mb-4 border-4 border-emerald-50 overflow-hidden">
                  {initials}
               </div>
-              <h4 className="text-lg font-bold text-zinc-900 dark:text-text-primary">{fullName || "User"}</h4>
-              <p className="text-xs text-zinc-500 dark:text-text-muted mb-1">{roleLabel}</p>
-              <p className="text-xs text-zinc-500 dark:text-text-muted mb-4">{branchName}</p>
+              <h4 className="text-lg font-bold text-zinc-900 truncate px-2">{fullName || "Employee"}</h4>
+              <p className="text-xs text-zinc-500 mb-4">{branchName}</p>
               <div className="grid grid-cols-2 gap-2">
-                <button className="w-full py-2 rounded-lg border border-emerald-100 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-100 dark:hover:bg-emerald-900/40">
+                <button className="w-full py-2 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-100 transition-colors">
                   Change Avatar
                 </button>
                 <button

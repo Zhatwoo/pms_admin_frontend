@@ -48,22 +48,6 @@ function isHighlightedValue(value: string) {
   return Number.isFinite(amount) && amount > 0;
 }
 
-const viewIcon = (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
 const printerIcon = (
   <svg
     width="16"
@@ -110,7 +94,7 @@ export function TransactionTable({
       <div className="overflow-x-auto">
         <table className="w-full text-base">
           <thead>
-            <tr className="bg-emerald-900 text-white">
+            <tr className="bg-emerald-900 text-amber-400">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -250,14 +234,6 @@ export function TransactionTable({
                         className="flex items-center justify-center gap-2"
                         onClick={(event) => event.stopPropagation()}
                       >
-                        <button
-                          type="button"
-                          onClick={() => onViewDetails?.(row)}
-                          title="View transaction"
-                          className="rounded-lg p-2 text-text-muted transition-colors hover:bg-emerald-50 hover:text-emerald-700"
-                        >
-                          {viewIcon}
-                        </button>
                         {row.purpose === "Pawn" ? (
                           <button
                             type="button"

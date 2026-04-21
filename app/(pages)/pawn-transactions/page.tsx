@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useBranch } from "@/contexts/branch-context";
 import { calculateGadgetInterest } from "@/lib/interest";
+import { PaginationFooter } from "@/components/shared/pagination";
 import { MoaModal } from "@/app/employee/pawn-transaction/_components/moa-modal";
 import { TransactionActions } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
@@ -141,12 +142,15 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
   };
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function PawnTransactionsPage() {
   const { selectedBranch, branches } = useBranch();
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [search, setSearch] = useState("");
   const [purposeFilter, setPurposeFilter] =
     useState<TransactionPurposeFilter>("All");
+  const [currentPage, setCurrentPage] = useState(1);
   const [viewingTransaction, setViewingTransaction] =
     useState<TransactionRow | null>(null);
   const [stats, setStats] = useState<TransactionStatsData>(EMPTY_STATS);
@@ -229,6 +233,12 @@ export default function PawnTransactionsPage() {
 
     return matchesPurpose && matchesSearch;
   });
+
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   function handleExportCSV() {
     if (filteredTransactions.length === 0) {
@@ -358,10 +368,18 @@ export default function PawnTransactionsPage() {
       />
 
       <TransactionTable
-        data={filteredTransactions}
+        data={paginatedTransactions}
         isLoading={isLoading}
         onViewDetails={setViewingTransaction}
         onPrint={handlePrintSlip}
+      />
+
+      <PaginationFooter
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredTransactions.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
       />
 
       <TransactionViewModal
