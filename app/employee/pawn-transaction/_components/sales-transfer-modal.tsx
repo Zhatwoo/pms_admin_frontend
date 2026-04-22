@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, type ChangeEvent } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 interface SalesTransferModalProps {
   isOpen: boolean;
@@ -119,9 +120,10 @@ export function SalesTransferModal({ isOpen, onClose, branchName, onSuccess }: S
 
       if (onSuccess) onSuccess();
       onClose();
+      toast.success("Item marked for sales transfer successfully!");
     } catch (error: any) {
       console.error(error);
-      alert(error?.message || "Failed to process Sales/Transfer transaction.");
+      toast.error(error?.message || "Failed to process Sales/Transfer transaction.");
     } finally {
       setIsConfirming(false);
     }
@@ -137,24 +139,34 @@ export function SalesTransferModal({ isOpen, onClose, branchName, onSuccess }: S
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between bg-white px-6 py-4 border-b border-emerald-50 shrink-0 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-600/20">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" />
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800 px-6 py-5 text-white shrink-0 relative z-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-800 flex items-center justify-center text-emerald-300 shadow-inner border border-emerald-700/50">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/90">
+                  {branchName}
+                </p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white leading-none">
+                  Sales / Transfer
+                </h1>
+              </div>
+            </div>
+            
+            <button 
+              onClick={onClose} 
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label="Close"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-emerald-950 uppercase tracking-tight leading-none">Sales / Transfer</h1>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1">{branchName}</p>
-            </div>
+            </button>
           </div>
-          
-          <button onClick={onClose} className="p-2 hover:bg-emerald-50 rounded-full transition-colors text-emerald-900/40 hover:text-emerald-900">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-              <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
         </div>
 
         {/* Content Area */}
@@ -197,8 +209,11 @@ export function SalesTransferModal({ isOpen, onClose, branchName, onSuccess }: S
                     <tbody className="divide-y divide-emerald-50">
                       {isLoading ? (
                         <tr>
-                          <td colSpan={7} className="px-4 py-8 text-center text-[10px] text-emerald-900 font-bold uppercase tracking-widest">
-                            Loading items...
+                          <td colSpan={7} className="px-4 py-16 text-center">
+                            <div className="flex flex-col items-center justify-center gap-3">
+                              <span className="anim-loading h-6 w-6 border-emerald-500/50 border-t-emerald-600 rounded-full" />
+                              <span className="text-[10px] text-emerald-900 font-bold uppercase tracking-widest">Loading items...</span>
+                            </div>
                           </td>
                         </tr>
                       ) : items.length === 0 ? (
@@ -341,13 +356,22 @@ export function SalesTransferModal({ isOpen, onClose, branchName, onSuccess }: S
                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] leading-none mb-1">Final Amount</p>
                 <p className="text-3xl font-black text-emerald-950 tracking-tighter">₱ {Number(form.priceSold || 0).toLocaleString()}</p>
              </div>
-             <button 
+              <button 
               disabled={!isFormValid || isConfirming}
               onClick={handleConfirmAction}
-              className={`flex items-center gap-3 px-12 py-5 rounded-2xl font-black text-lg uppercase tracking-tight transition-all active:scale-[0.98] ${isFormValid ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/30' : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'}`}
+              className={`flex items-center justify-center gap-3 px-12 py-5 rounded-2xl font-black text-lg uppercase tracking-tight transition-all active:scale-[0.98] ${isFormValid ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/30' : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'}`}
              >
-                {isConfirming ? "Processing..." : "Confirm & Print"}
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+                {isConfirming ? (
+                  <div className="flex items-center gap-2">
+                    <span className="anim-loading h-5 w-5 border-white/30 border-t-white rounded-full" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <>
+                    Confirm & Print
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+                  </>
+                )}
              </button>
           </div>
         </div>

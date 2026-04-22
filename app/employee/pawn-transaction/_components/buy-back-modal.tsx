@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, type ChangeEvent } from "react";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 /* ── Inline SVG Icons ── */
 
@@ -163,8 +164,11 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
         onSuccess();
       }
       onClose();
+      toast.success("Item bought back successfully!");
     } catch (err: any) {
-      setError(err.message || "Action failed.");
+      const msg = err.message || "Failed to process transaction.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsConfirming(false);
     }
@@ -180,22 +184,32 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between bg-white px-6 py-4 border-b border-emerald-50 shrink-0 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-600/20">
-              {tagIcon}
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800 px-6 py-5 text-white shrink-0 relative z-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-800 flex items-center justify-center text-emerald-300 shadow-inner border border-emerald-700/50">
+                {tagIcon}
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/90">
+                  {branchName} | Expired Inventory
+                </p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white leading-none">
+                  Buy Back / Repurchase
+                </h1>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-black text-emerald-950 uppercase tracking-tight leading-none">Buy Back / Repurchase</h1>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1">{branchName} | Expired Inventory</p>
-            </div>
+            
+            <button 
+              onClick={onClose} 
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label="Close"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-emerald-50 rounded-full transition-colors text-emerald-900/40 hover:text-emerald-900"
-          >
-            {closeIcon}
-          </button>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
@@ -372,7 +386,12 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
                         disabled={isConfirming}
                         className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-xl font-black uppercase tracking-wider shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                       >
-                        {isConfirming ? "Processing..." : (
+                        {isConfirming ? (
+                          <div className="flex items-center gap-2">
+                            <span className="anim-loading h-5 w-5 border-white/30 border-t-white rounded-full" />
+                            <span>Processing...</span>
+                          </div>
+                        ) : (
                           <>
                             Finalize Buy Back
                             {arrowRightIcon}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
 import Image from "next/image";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { MoaModal } from "./moa-modal";
 import { PhilippineAddressFields } from "@/components/shared/philippine-address-fields";
 
@@ -644,8 +645,11 @@ export function NewPawnModal({
       if (onSuccess) onSuccess();
       setIsMoaOpen(false);
       onClose();
+      toast.success("New pawn ticket generated successfully!");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      const msg = error instanceof Error ? error.message : String(error);
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
@@ -660,25 +664,35 @@ export function NewPawnModal({
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between bg-white px-6 py-4 border-b border-emerald-50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-900 flex items-center justify-center text-white shadow-lg shadow-emerald-900/20">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800 px-6 py-5 text-white shrink-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-800 flex items-center justify-center text-emerald-300 shadow-inner border border-emerald-700/50">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/90">
+                  {branchName}
+                </p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white leading-none">
+                  New Pawn Ticket
+                </h1>
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleReset} 
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label="Close"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-emerald-950 uppercase tracking-tight leading-none">New Pawn Ticket</h1>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1.5">{branchName}</p>
-            </div>
+            </button>
           </div>
-          
-          <button onClick={handleReset} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors group">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-zinc-400 group-hover:text-zinc-900">
-              <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
         </div>
 
         {/* Content Area */}
@@ -1161,7 +1175,12 @@ export function NewPawnModal({
                    disabled={isSaving}
                    className="bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white font-black px-6 py-3 rounded-xl shadow-lg shadow-emerald-700/20 transition-all active:scale-[0.98] uppercase tracking-tight flex items-center gap-2"
                  >
-                   {isSaving ? 'Processing...' : 'Generate Ticket'}
+                   {isSaving ? (
+                    <div className="flex items-center gap-2">
+                      <span className="anim-loading h-5 w-5 border-white/30 border-t-white rounded-full" />
+                      <span>Generating Ticket...</span>
+                    </div>
+                  ) : "Print Pawn Ticket"}
                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
                  </button>
                </div>
