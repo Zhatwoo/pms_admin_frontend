@@ -57,6 +57,7 @@ interface BuyBackModalProps {
   onClose: () => void;
   branchId: string;
   branchName: string;
+  onSuccess?: () => void;
 }
 
 interface ForSaleItem {
@@ -74,7 +75,7 @@ interface ForSaleItem {
   };
 }
 
-export function BuyBackModal({ isOpen, onClose, branchId, branchName }: BuyBackModalProps) {
+export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess }: BuyBackModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<ForSaleItem | null>(null);
   const [buyBackPrice, setBuyBackPrice] = useState<string>("");
@@ -156,11 +157,12 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName }: BuyBackM
         related_pawned_item_id: selectedItem.id
       });
 
-      // 3. Mark Item as Redeemed (or Sold)
       await api.patch(`/inventory/pawned/${selectedItem.id}`, { status: 'Redeemed' });
 
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
-      window.location.reload();
     } catch (err: any) {
       setError(err.message || "Action failed.");
     } finally {
@@ -218,7 +220,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName }: BuyBackM
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto px-4 pb-6 scrollbar-hide">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-3">
                   <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -264,7 +266,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName }: BuyBackM
           </div>
 
           {/* Right Side: Details & Repurchase Price */}
-          <div className="flex-1 bg-white overflow-y-auto custom-scrollbar">
+          <div className="flex-1 bg-white overflow-y-auto scrollbar-hide">
             {selectedItem ? (
               <div className="p-8 lg:p-12 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex flex-wrap items-start justify-between gap-6 mb-10">

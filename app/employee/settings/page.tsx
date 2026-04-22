@@ -23,15 +23,15 @@ export default function EmployeeSettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordRequests, setPasswordRequests] = useState<any[]>([]);
   const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
-  
+
   const branchName = selectedBranch?.name || "Bgc Branch";
   const initials = fullName
     ? fullName
-        .split(" ")
-        .map((n: string) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
     : "E";
 
   useEffect(() => {
@@ -71,11 +71,11 @@ export default function EmployeeSettingsPage() {
 
   const initials = fullName
     ? fullName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 2)
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2)
     : "EM";
 
 
@@ -102,11 +102,10 @@ export default function EmployeeSettingsPage() {
               setActiveTab(tab);
               setToast(null);
             }}
-            className={`px-6 py-2 text-xs font-bold transition-all rounded-md ${
-              activeTab === tab
+            className={`px-6 py-2 text-xs font-bold transition-all rounded-md ${activeTab === tab
                 ? "bg-emerald-700 text-white shadow-sm"
                 : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-surface-secondary hover:text-zinc-800 dark:hover:text-text-primary"
-            }`}
+              }`}
           >
             {tab}
           </button>
@@ -122,24 +121,24 @@ export default function EmployeeSettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-wide">Full Name</label>
-                    <input 
-                      className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-emerald-500 outline-none transition-colors" 
+                    <input
+                      className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-emerald-500 outline-none transition-colors"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Your full name"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                     <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-wide">Account Role</label>
-                     <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 capitalize">
-                       {user?.role || "Employee"}
-                     </div>
+                    <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-wide">Account Role</label>
+                    <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 capitalize">
+                      {user?.role || "Employee"}
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-wide">Email Address</label>
-                  <input 
-                    className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-400 outline-none cursor-not-allowed" 
+                  <input
+                    className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-400 outline-none cursor-not-allowed"
                     value={email}
                     readOnly
                     title="Email cannot be changed from this page"
@@ -165,11 +164,11 @@ export default function EmployeeSettingsPage() {
                   </div>
                   <div className="bg-emerald-50/50 dark:bg-emerald-900/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-800 col-span-2">
                     <p className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400 tracking-wide mb-1 flex items-center gap-1.5">
-                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                       Security Restriction
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                      Security Restriction
                     </p>
                     <p className="text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed">
-                      Branch associates are restricted to accessing data for their assigned terminal only. 
+                      Branch associates are restricted to accessing data for their assigned terminal only.
                       Changes to operation hours must be approved by the Super Admin.
                     </p>
                   </div>
@@ -179,33 +178,33 @@ export default function EmployeeSettingsPage() {
           )}
 
           <div className="flex items-center gap-3">
-             <button 
-               onClick={handleSave}
-               disabled={isSaving || fullName === user?.fullName}
-               className="rounded-lg bg-emerald-700 px-6 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-               {isSaving ? "Saving..." : "Save Changes"}
-             </button>
-             <button 
-               onClick={handleDiscard}
-               className="rounded-lg border border-zinc-300 px-6 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50 transition-colors"
-             >
-               Discard
-             </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || fullName === user?.fullName}
+              className="rounded-lg bg-emerald-700 px-6 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              onClick={handleDiscard}
+              className="rounded-lg border border-zinc-300 px-6 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50 transition-colors"
+            >
+              Discard
+            </button>
           </div>
         </div>
 
         <div className="space-y-6">
-           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm text-center">
-              <div className="mx-auto w-20 h-20 rounded-full bg-emerald-800 flex items-center justify-center text-white text-3xl font-bold mb-4 border-4 border-emerald-50 overflow-hidden">
-                 {initials}
-              </div>
-              <h4 className="text-lg font-bold text-zinc-900 truncate px-2">{fullName || "Employee"}</h4>
-              <p className="text-xs text-zinc-500 mb-4">{branchName}</p>
-              <button className="w-full py-2 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-100 transition-colors">
-                Change Avatar
-              </button>
-           </div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm text-center">
+            <div className="mx-auto w-20 h-20 rounded-full bg-emerald-800 flex items-center justify-center text-white text-3xl font-bold mb-4 border-4 border-emerald-50 overflow-hidden">
+              {initials}
+            </div>
+            <h4 className="text-lg font-bold text-zinc-900 truncate px-2">{fullName || "Employee"}</h4>
+            <p className="text-xs text-zinc-500 mb-4">{branchName}</p>
+            <button className="w-full py-2 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-100 transition-colors">
+              Change Avatar
+            </button>
+          </div>
         </div>
       </div>
     </div>

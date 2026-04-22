@@ -31,6 +31,7 @@ interface RedeemModalProps {
   onClose: () => void;
   branchId: string;
   branchName: string;
+  onSuccess?: () => void;
 }
 
 interface PawnedSearchItem {
@@ -51,7 +52,7 @@ interface PawnedSearchItem {
   status: string;
 }
 
-export function RedeemModal({ isOpen, onClose, branchId, branchName }: RedeemModalProps) {
+export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }: RedeemModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<PawnedSearchItem | null>(null);
   const [adminForm, setAdminForm] = useState({
@@ -143,11 +144,12 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName }: RedeemMod
         related_pawned_item_id: selectedItem.id
       });
 
-      // 3. Update Item status to Redeemed
       await api.patch(`/inventory/pawned/${selectedItem.id}`, { status: 'Redeemed' });
 
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
-      window.location.reload();
     } catch (err: any) {
       setError(err.message || "Action failed.");
     } finally {
@@ -203,7 +205,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName }: RedeemMod
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto px-4 pb-6 scrollbar-hide">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-3">
                   <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -246,7 +248,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName }: RedeemMod
           </div>
 
           {/* Right Side: Details & Computation */}
-          <div className="flex-1 bg-white overflow-y-auto custom-scrollbar">
+          <div className="flex-1 bg-white overflow-y-auto scrollbar-hide">
             {selectedItem ? (
               <div className="p-8 lg:p-12 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-1 mb-8">
