@@ -11,7 +11,7 @@ import {
   type FundRequestRecord,
 } from "@/lib/fund-finance";
 import { AddFundsModal } from "./_components/add-funds-modal";
-import type { UnifiedFundResult } from "./_components/add-funds-modal";
+import type { UnifiedFundResult, Manager } from "./_components/add-funds-modal";
 import { BalanceOverview } from "./_components/balance-overview";
 import type { BranchBalance } from "./_components/balance-overview";
 import { RejectRequestModal } from "./_components/reject-request-modal";
@@ -104,9 +104,23 @@ function fmtCurrency(value: number) {
   })}`;
 }
 
+interface UserRecord {
+  id?: string;
+  authId?: string;
+  auth_id?: string;
+  fullName?: string;
+  full_name?: string;
+  email: string;
+  role: string;
+  branchId?: string | null;
+  branch_id?: string | null;
+}
+
 export default function BranchFinancePage() {
   const { selectedBranch, isAllBranches } = useBranch();
 
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [managersByBranch, setManagersByBranch] = useState<Record<string, Manager[]>>({});
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [fundRequests, setFundRequests] = useState<FundRequestRecord[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
@@ -148,13 +162,37 @@ export default function BranchFinancePage() {
     const branchQuery = isAllBranches ? "" : `?branch=${selectedBranch.id}`;
 
     try {
-      const [dashboardData, requestData, transactionResponse, summaryData, ledgerData] = await Promise.all([
+      const [dashboardData, requestData, transactionResponse, summaryData, ledgerData, usersData] = await Promise.all([
         api.get<DashboardSummary>("/dashboard"),
         api.get<FundRequestRecord[]>(`/fund-requests${branchQuery}`),
         api.get<ApiTransaction[] | TransactionsResponse>(`/transactions${branchQuery}`),
         api.get<BranchFinanceSummaryItem[]>(`/branch-finance/summary${branchQuery}`),
         api.get<{ entries: LedgerEntry[]; total: number }>(`/branch-finance/ledger${branchQuery ? branchQuery + "&" : "?"}limit=100`),
+        api.get<UserRecord[]>("/users").catch(() => [] as UserRecord[]),
       ]);
+
+      const adminUsers = (usersData ?? []).filter(
+        (u) => u.role === "admin" || u.role === "super_admin",
+      );
+      const allManagers: Manager[] = adminUsers.map((u) => ({
+        id: u.id ?? u.authId ?? u.auth_id ?? u.email,
+        name: u.fullName ?? u.full_name ?? u.email,
+        role: u.role,
+      }));
+      setManagers(allManagers);
+
+      const byBranch: Record<string, Manager[]> = {};
+      for (const u of adminUsers) {
+        const bid = u.branchId ?? u.branch_id;
+        if (bid) {
+          (byBranch[bid] ??= []).push({
+            id: u.id ?? u.authId ?? u.auth_id ?? u.email,
+            name: u.fullName ?? u.full_name ?? u.email,
+            role: u.role,
+          });
+        }
+      }
+      setManagersByBranch(byBranch);
 
       const transactionData = Array.isArray(transactionResponse)
         ? transactionResponse
@@ -705,10 +743,10 @@ export default function BranchFinancePage() {
         }}
         onSubmit={handleTransferSubmit}
         branchName={selectedTransferRequest?.branch?.name ?? selectedBranch.name}
-        managers={[]}
+        managers={managers}
         branches={branchBalances}
         currentBranchId={selectedTransferRequest?.branch?.id ?? (isAllBranches ? "001" : selectedBranch.id)}
-        getManagersForBranch={() => []}
+        getManagersForBranch={(branchId: string) => managersByBranch[branchId] ?? managers}
         defaultAmount={String(selectedTransferRequest?.approvedAmount ?? selectedTransferRequest?.amountRequested ?? "")}
         defaultNotes={selectedTransferRequest?.reviewNotes ?? selectedTransferRequest?.notes ?? ""}
         allowBranchTransfer={true}

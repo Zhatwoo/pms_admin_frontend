@@ -31,7 +31,10 @@ type BranchFormData = {
   status: string;
 };
 
-function toBranchRow(branch: BranchApiItem): BranchRow {
+type OverviewStats = Record<string, { pawnedItems: number; forSaleItems: number; totalValue: number }>;
+
+function toBranchRow(branch: BranchApiItem, stats?: OverviewStats): BranchRow {
+  const s = stats?.[branch.id];
   return {
     id: branch.id,
     branchId: branch.branch_code,
@@ -39,9 +42,9 @@ function toBranchRow(branch: BranchApiItem): BranchRow {
     location: branch.location,
     contactNumber: branch.contact_number ?? "",
     status: branch.status,
-    pawnedItems: 0,
-    forSaleItems: 0,
-    totalValue: "₱0",
+    pawnedItems: s?.pawnedItems ?? 0,
+    forSaleItems: s?.forSaleItems ?? 0,
+    totalValue: s ? `₱${s.totalValue.toLocaleString("en-PH", { minimumFractionDigits: 0 })}` : "₱0",
   };
 }
 
@@ -79,8 +82,11 @@ export default function BranchesPage() {
 
   const loadBranches = useCallback(async () => {
     try {
-      const data = await api.get<BranchApiItem[]>("/branches");
-      setBranches((data || []).map(toBranchRow));
+      const [data, stats] = await Promise.all([
+        api.get<BranchApiItem[]>("/branches"),
+        api.get<OverviewStats>("/branches/overview-stats").catch(() => ({} as OverviewStats)),
+      ]);
+      setBranches((data || []).map((b) => toBranchRow(b, stats)));
       setErrorMessage(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load branches";

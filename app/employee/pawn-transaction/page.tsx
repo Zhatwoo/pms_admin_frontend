@@ -58,6 +58,9 @@ interface TransactionRow {
   storage: string;
   customerName?: string;
   customerAddress?: string;
+  customerPhone?: string;
+  customerMiddleName?: string;
+  idPresented?: string;
   qrCode?: string;
   serialNumber?: string;
   itemsIncluded?: string;
@@ -87,6 +90,7 @@ interface ApiTransaction {
   qr_code?: string | null;
   related_pawned_item_id?: string | null;
   related_sale_item_id?: string | null;
+  pawned_item?: PawnedItemJoin | PawnedItemJoin[] | null;
 }
 
 interface TransactionsResponse {
@@ -107,20 +111,44 @@ const DEFAULT_STATS = {
 
 // Shared logic imported from @/lib/interest.ts
 
+interface PawnedItemJoin {
+  qr_code?: string | null;
+  serial_number?: string | null;
+  items_included?: string | null;
+  condition?: string | null;
+  category?: string | null;
+  memory_storage?: string | null;
+  remarks?: string | null;
+  id_presented?: string | null;
+  customer?: {
+    full_name?: string | null;
+    address?: string | null;
+    contact_number?: string | null;
+    middle_name?: string | null;
+  } | null;
+}
+
+function resolvePawnedItem(raw: unknown): PawnedItemJoin | null {
+  if (!raw) return null;
+  if (Array.isArray(raw)) return raw[0] ?? null;
+  return raw as PawnedItemJoin;
+}
+
 function toTransactionRow(transaction: ApiTransaction): TransactionRow {
   const pawnAmount = Number(transaction.pawn_amount || 0);
   const calculations = calculateGadgetInterest(pawnAmount, transaction.transaction_date);
 
-  // If already a Buy Back transaction, use its actual cash_in as historical value
-  // Otherwise, if it's an active Pawn, show the current projected interest
   const isBuyBackAction = transaction.purpose === "Buy Back";
   const isPawnAction = transaction.purpose === "Pawn";
+
+  const item = resolvePawnedItem(transaction.pawned_item);
+  const customer = item?.customer;
 
   return {
     transactionNo: transaction.transaction_no,
     purpose: transaction.purpose as PurposeType,
-    buyBack: isBuyBackAction 
-      ? String(transaction.cash_in ?? 0) 
+    buyBack: isBuyBackAction
+      ? String(transaction.cash_in ?? 0)
       : "0",
     percentage: isBuyBackAction || isPawnAction ? String(calculations.percentage) : "0",
     buyOut: "0",
@@ -128,23 +156,26 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
     date: transaction.transaction_date,
     time: transaction.transaction_time,
     cashIn: isPawnAction ? "0" : String(transaction.cash_in ?? 0),
-    cashOut: (isBuyBackAction || transaction.purpose === "Sold Item") 
-      ? "0" 
+    cashOut: (isBuyBackAction || transaction.purpose === "Sold Item")
+      ? "0"
       : String(transaction.cash_out ?? 0),
     returnVal: String(transaction.return_amount ?? 0),
     unit: transaction.unit ?? "",
     unitCode: transaction.unit_code ?? "",
     pawn: String(transaction.pawn_amount ?? 0),
     storage: String(transaction.storage_fee ?? 0),
-    customerName: (transaction as any).pawned_item?.customer?.full_name,
-    customerAddress: (transaction as any).pawned_item?.customer?.address,
-    qrCode: (transaction as any).pawned_item?.qr_code || (transaction as any).pawned_item?.[0]?.qr_code || undefined,
-    serialNumber: (transaction as any).pawned_item?.serial_number,
-    itemsIncluded: (transaction as any).pawned_item?.items_included,
-    condition: (transaction as any).pawned_item?.condition,
-    category: (transaction as any).pawned_item?.category,
-    memoryStorage: (transaction as any).pawned_item?.memory_storage,
-    remarks: (transaction as any).pawned_item?.remarks,
+    customerName: customer?.full_name ?? undefined,
+    customerAddress: customer?.address ?? undefined,
+    customerPhone: customer?.contact_number ?? undefined,
+    customerMiddleName: customer?.middle_name ?? undefined,
+    idPresented: item?.id_presented ?? undefined,
+    qrCode: item?.qr_code ?? undefined,
+    serialNumber: item?.serial_number ?? undefined,
+    itemsIncluded: item?.items_included ?? undefined,
+    condition: item?.condition ?? undefined,
+    category: item?.category ?? undefined,
+    memoryStorage: item?.memory_storage ?? undefined,
+    remarks: item?.remarks ?? undefined,
     relatedPawnedItemId: transaction.related_pawned_item_id ?? undefined,
     relatedSaleItemId: transaction.related_sale_item_id ?? undefined,
     details: transaction.details ?? undefined,
@@ -330,35 +361,37 @@ export default function EmployeePawnTransactionsPage() {
     if (!tx) return;
     
     const branchInfo = branches.find(b => b.id === selectedBranch.id);
-    const names = (tx.customerName || "WALK-IN CUSTOMER").split(" ");
+    const fullName = tx.customerName || "WALK-IN CUSTOMER";
+    const names = fullName.split(" ");
     const firstName = names[0];
-    const lastName = names.length > 1 ? names.slice(1).join(" ") : "---";
+    const middleName = tx.customerMiddleName || (names.length > 2 ? names.slice(1, -1).join(" ") : "");
+    const lastName = names.length > 1 ? names[names.length - 1] : "";
 
     setReprintData({
-      firstName: firstName,
-      middleName: "",
-      lastName: lastName,
-      address: tx.customerAddress || "---",
-      contactNo: "---",
+      firstName,
+      middleName,
+      lastName,
+      address: tx.customerAddress || "",
+      contactNo: tx.customerPhone || "",
       unitCode: tx.unitCode,
       unitName: tx.unit,
-      category: tx.category || "---",
-      serialNumber: tx.serialNumber || "---",
-      itemsIncluded: tx.itemsIncluded || "---",
-      condition: tx.condition || "---",
-      memory: tx.memoryStorage || "---",
-      remarks: tx.remarks || "---",
+      category: tx.category || "",
+      serialNumber: tx.serialNumber || "",
+      itemsIncluded: tx.itemsIncluded || "",
+      condition: tx.condition || "",
+      memory: tx.memoryStorage || "",
+      remarks: tx.remarks || "",
       amount: tx.pawn,
       storageFee: tx.storage,
       purchasedDate: tx.date,
-      idPresented: "---",
+      idPresented: tx.idPresented || "",
       branchName: selectedBranch.name,
       branchAddress: branchInfo?.location || "",
       branchPhone: branchInfo?.phone || "",
       processedBy: tx.details?.match(/Processed [bB]y:\s*([A-Za-z\s]+)/)?.[1]?.trim() || user?.fullName || branchAdminName || "AUTHORIZED PERSONNEL"
     });
     setIsMoaReprintOpen(true);
-  }, [allTransactions, selectedBranch, branches, user]);
+  }, [allTransactions, selectedBranch, branches, user, branchAdminName]);
 
   const handleTransactionSuccess = useCallback(() => {
     void fetchTransactionsRef.current();
@@ -408,11 +441,23 @@ export default function EmployeePawnTransactionsPage() {
       <DailyBalanceConfirmation
         isOpen={balanceModal.open}
         type={balanceModal.type}
-        currentCash={balanceModal.type === "starting" ? "10000" : "25000"}
+        currentCash={
+          balanceModal.type === "starting"
+            ? String(currentStats.endingBalance || currentStats.startingBalance || 0)
+            : String(currentStats.endingBalance || 0)
+        }
         onClose={() => setBalanceModal((p) => ({ ...p, open: false }))}
-        onConfirm={(amt) => {
-          console.log(`Employee confirmed ${balanceModal.type} cash:`, amt);
-          setBalanceModal((p) => ({ ...p, open: false }));
+        onConfirm={async (amt) => {
+          try {
+            await api.post("/branch-finance/daily-balance", {
+              type: balanceModal.type,
+              amount: parseFloat(amt) || 0,
+            });
+            setBalanceModal((p) => ({ ...p, open: false }));
+            fetchTransactionsRef.current();
+          } catch (err) {
+            console.error("Failed to confirm daily balance:", err);
+          }
         }}
       />
 

@@ -27,6 +27,7 @@ const SUPERADMIN_NAV: NavGroup[] = [
     section: "TRANSACTION",
     items: [
       { label: "Pawn Transactions", href: "/pawn-transactions", icon: <PawnTransactionIcon /> },
+      { label: "Pawn Tickets", href: "/pawn-ticket", icon: <PawnTransactionIcon /> },
     ],
   },
   {
