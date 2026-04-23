@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
-import { Pagination } from "@/components/shared/pagination";
+import { PaginationFooter } from "@/components/shared/pagination";
 import { useBranch } from "@/contexts/branch-context";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { api } from "@/lib/api";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -30,7 +30,7 @@ interface CustomerRow {
   branch: string;
 }
 
-const eyeIcon = (
+const editIcon = (
   <svg
     width="14"
     height="14"
@@ -41,8 +41,8 @@ const eyeIcon = (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
+    <path d="m18 2 4 4-10 10H8v-4L18 2z" />
+    <path d="M13 6 18 11" />
   </svg>
 );
 
@@ -87,8 +87,8 @@ export function CustomerTable() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function openCustomer(customerId: string) {
-    router.push(`/customers/view_user?id=${customerId}`);
+  function openCustomer(customerId: string, mode?: "edit") {
+    router.push(`/customers/view_user?id=${customerId}${mode ? `&mode=${mode}` : ""}`);
   }
 
   const branchNames = useMemo(
@@ -123,39 +123,29 @@ export function CustomerTable() {
       setIsLoading(true);
       setError(null);
 
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        if (!cancelled) {
-          setCustomers([]);
-          setError("Supabase client is unavailable.");
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      const branchId = isAllBranches ? null : selectedBranch.id;
-      let query = supabase
-        .from("customers")
-        .select("id, full_name, contact_number, email, id_presented, branch_id, created_at")
-        .order("created_at", { ascending: false });
-
-      if (branchId) {
-        query = query.eq("branch_id", branchId);
-      }
-
-      const { data, error: supabaseError } = await query;
-
       if (cancelled) return;
 
-      if (supabaseError) {
-        setCustomers([]);
-        setError(supabaseError.message);
-      } else {
+      try {
+        const branchParam = isAllBranches
+          ? ""
+          : `?branchId=${encodeURIComponent(selectedBranch.id)}`;
+        const data = await api.get<CustomerApiRecord[]>(`/customers${branchParam}`);
+
+        if (cancelled) return;
+
         const rows = (data ?? []).map((customer) =>
           mapCustomerRecord(customer as CustomerApiRecord, branchNames),
         );
         setCustomers(rows);
+      } catch (error) {
+        if (cancelled) return;
+
+        const message = error instanceof Error ? error.message : "Failed to load customers.";
+        setCustomers([]);
+        setError(message);
       }
+
+      if (cancelled) return;
 
       setIsLoading(false);
     }
@@ -208,12 +198,12 @@ export function CustomerTable() {
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  openCustomer(row.id);
+                  openCustomer(row.id, "edit");
                 }}
                 className="mx-auto flex h-8 w-8 items-center justify-center rounded-md text-emerald-text transition-colors hover:bg-emerald-surface/50"
-                title={`View ${row.name}`}
+                title={`Edit ${row.name}`}
               >
-                {eyeIcon}
+                {editIcon}
               </button>
             );
           }
@@ -223,7 +213,7 @@ export function CustomerTable() {
       />
 
       {!isLoading && customers.length > 0 && (
-        <Pagination
+        <PaginationFooter
           currentPage={currentPageSafe}
           totalPages={totalPages}
           totalItems={customers.length}

@@ -20,13 +20,16 @@ interface MoaModalProps {
     itemsIncluded: string;
     condition: string;
     remarks: string;
+    memory: string;
     amount: string;
     storageFee: string;
+    parkingFee?: string;
     purchasedDate: string;
     idPresented: string;
     branchName: string;
     branchAddress?: string;
     branchPhone?: string;
+    processedBy?: string;
   };
   isLoading: boolean;
 }
@@ -79,7 +82,8 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading }: MoaMod
 
   const amount = Number(data.amount) || 0;
   const storageFee = Number(data.storageFee) || 0;
-  const netProceeds = amount - storageFee;
+  const parkingFee = Number(data.parkingFee) || 0;
+  const totalDue = amount + storageFee + parkingFee;
 
   // Maturity dates calc (every 10 days)
   const baseDate = data.purchasedDate ? new Date(data.purchasedDate) : new Date();
@@ -199,11 +203,11 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading }: MoaMod
                 </div>
                 <div className="grid grid-cols-2 items-center">
                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.parkingFee || "Parking fee:"}</span>
-                   <span className="font-medium text-zinc-400 text-right pr-4 italic">₱0.00</span>
+                   <span className="font-medium text-zinc-900 text-right pr-4">₱{parkingFee.toLocaleString()}</span>
                 </div>
                 <div className="grid grid-cols-2 items-center border-t border-zinc-200 pt-2">
-                   <span className="font-black uppercase text-emerald-800 text-[9px]">{labels?.netProceeds || "Net Proceeds:"}</span>
-                   <span className="font-black text-emerald-800 text-lg">₱{netProceeds.toLocaleString()}</span>
+                   <span className="font-black uppercase text-emerald-800 text-[9px]">{labels?.totalDue || "Total Due:"}</span>
+                   <span className="font-black text-emerald-800 text-lg">₱{totalDue.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -279,7 +283,11 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading }: MoaMod
              </div>
              <div className="text-center space-y-2">
                 <p className="font-black uppercase text-[9px] text-emerald-900 tracking-widest mb-4">{labels?.authorizedText || "I HEREBY AUTHORIZED"}</p>
-                <div className="h-8 border-b-2 border-zinc-800"></div>
+                <div className="h-8 border-b-2 border-zinc-800 flex items-end justify-center pb-0.5">
+                   {data.processedBy && (
+                     <span className="font-bold text-[11px] uppercase tracking-wider text-zinc-900">{data.processedBy}</span>
+                   )}
+                </div>
                 <p className="font-black uppercase text-[8px] tracking-widest">{labels?.representativeSignature || "(Name and Signature of Representative)"}</p>
              </div>
           </div>
@@ -312,7 +320,7 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading }: MoaMod
              >
                {isLoading ? (
                  <>
-                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                   <span className="anim-loading h-4 w-4 border-white/30 border-t-white rounded-full"/>
                    Saving Record...
                  </>
                ) : (

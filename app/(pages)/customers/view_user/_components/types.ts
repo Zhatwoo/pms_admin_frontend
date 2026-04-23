@@ -7,7 +7,7 @@ export interface CustomerDetail {
   street: string;
   barangay: string;
   city: string;
-  province: string;
+  region: string;
   address: string;
   email: string;
   phone: string;
@@ -16,6 +16,9 @@ export interface CustomerDetail {
   profilePhoto: string | null;
   idFrontPhoto: string | null;
   idBackPhoto: string | null;
+  matchingCustomerCount?: number;
+  matchingBranchCount?: number;
+  matchingCustomerIds?: string[];
   createdAt: string;
   branch: string;
   totalItemsPawned: number;

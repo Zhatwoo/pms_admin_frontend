@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Pagination } from "@/components/shared/pagination";
+import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
 import { InventoryCalendar } from "@/components/shared/inventory-calendar";
 import { useBranch } from "@/contexts/branch-context";
@@ -26,10 +26,10 @@ interface SaleItem {
 
 function StockBadge({ stock }: { stock: number }) {
   if (stock === 0)
-    return <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 border border-red-200">Out of Stock</span>;
+    return <span className="inline-flex items-center rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-300">Out of Stock</span>;
   if (stock <= 3)
-    return <span className="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700 border border-orange-200">Low Stock: {stock}</span>;
-  return <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 border border-green-200">In Stock: {stock}</span>;
+    return <span className="inline-flex items-center rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-[10px] font-bold text-orange-300">Low Stock: {stock}</span>;
+  return <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">In Stock: {stock}</span>;
 }
 
 const categoryOptions = [
@@ -100,8 +100,8 @@ export default function EmployeeItemsForSalePage() {
   }, [branchIdent, category, status, searchQuery, saleViewMode, currentPage]);
 
   return (
-    <div className="space-y-3 pb-4">
-      <div className="flex flex-wrap items-end justify-between gap-3 bg-white p-3 rounded-lg border border-zinc-200">
+    <div className="space-y-4 pb-4 text-text-primary">
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-3xl border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
         <div className="flex flex-wrap items-end gap-3">
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={saleStatusOptions} value={status} onChange={setStatus} />
@@ -112,12 +112,12 @@ export default function EmployeeItemsForSalePage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search items..."
-              className="h-9 rounded-md border border-zinc-300 px-3 text-xs outline-none focus:border-emerald-500 w-44"
+              className="h-9 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500 w-44"
             />
           </div>
         </div>
 
-        <div className="flex rounded-md border border-zinc-200 overflow-hidden">
+        <div className="flex rounded-md border border-zinc-200 overflow-hidden bg-surface">
           <button onClick={() => setSaleViewMode("current")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "current" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>Current</button>
           <button onClick={() => setSaleViewMode("calendar")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>Calendar</button>
           <button onClick={() => setSaleViewMode("history")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${saleViewMode === "history" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>History</button>
@@ -131,7 +131,7 @@ export default function EmployeeItemsForSalePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-emerald-900 text-white">
+                <tr className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white">
                   {["ID", "Item Name", "Category", "Price", "Stock", "Status", "Actions"].map((h) => (
                     <th key={h} className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${h === "Price" ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
@@ -139,13 +139,18 @@ export default function EmployeeItemsForSalePage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={7} className="py-8 text-center text-sm text-zinc-400">Loading branch items...</td></tr>
+                  <tr><td colSpan={7} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <span className="anim-loading h-6 w-6 border-emerald-500/50 border-t-emerald-600 rounded-full" />
+                      <span className="text-[10px] text-emerald-900 font-bold uppercase tracking-widest">Loading branch items...</span>
+                    </div>
+                  </td></tr>
                 ) : saleItems.length === 0 ? (
                   <tr><td colSpan={7} className="py-8 text-center text-sm text-zinc-400">No items for sale found</td></tr>
                 ) : (
                   saleItems.map((item, idx) => (
-                    <tr key={item.id || item.itemId} className={`border-t border-zinc-100 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50"} hover:bg-emerald-50/30 transition-colors`}>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-800">{item.itemId}</td>
+                    <tr key={item.id || item.itemId} className={`border-t border-border-subtle transition-colors ${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary/40"} hover:bg-surface-hover`}>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.itemId}</td>
                       <td className="whitespace-nowrap px-3 py-2">
                         <button
                           onClick={() => setViewingItem(item)}
@@ -154,9 +159,9 @@ export default function EmployeeItemsForSalePage() {
                           {item.itemName}
                         </button>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500">{item.category}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 font-bold italic">{item.availableDate}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-black text-zinc-800">&#8369;{item.price.toLocaleString()}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">{item.category}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs font-bold italic text-text-secondary">{item.availableDate}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-xs font-black text-text-primary">&#8369;{item.price.toLocaleString()}</td>
                       <td className="whitespace-nowrap px-3 py-2"><StatusBadge label={item.status} variant={statusVariant[item.status] || "green"} /></td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {item.status === "Available" ? (
@@ -177,13 +182,19 @@ export default function EmployeeItemsForSalePage() {
       )}
 
       <div className="rounded-lg border border-zinc-200 bg-white">
-        <Pagination currentPage={currentPage} totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+        <PaginationFooter
+          currentPage={currentPage}
+          totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {viewingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md px-4" onClick={() => setViewingItem(null)}>
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl border border-pawn-gold/20 scale-in-center" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-emerald-900 px-8 py-6">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border-main bg-surface shadow-2xl scale-in-center" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-emerald-950 to-emerald-900 px-8 py-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="rounded-full bg-pawn-gold/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-pawn-gold">
                   Item #{viewingItem.itemId}
@@ -193,32 +204,32 @@ export default function EmployeeItemsForSalePage() {
               <h2 className="text-2xl font-black text-white">{viewingItem.itemName}</h2>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="space-y-6 p-8">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-400">Retail Price</p>
-                  <p className="text-xl font-black text-emerald-700">&#8369;{viewingItem.price.toLocaleString()}</p>
+                  <p className="text-[10px] font-black uppercase tracking-tighter text-text-tertiary">Retail Price</p>
+                  <p className="text-xl font-black text-emerald-400">&#8369;{viewingItem.price.toLocaleString()}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-400">Date Expired</p>
-                  <p className="text-sm font-bold text-zinc-800">{viewingItem.availableDate}</p>
+                  <p className="text-[10px] font-black uppercase tracking-tighter text-text-tertiary">Date Expired</p>
+                  <p className="text-sm font-bold text-text-primary">{viewingItem.availableDate}</p>
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-zinc-100">
-                <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-400 mb-2">Detailed Description</p>
-                <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
-                  <p className="text-sm font-medium text-zinc-700 leading-relaxed italic">
+              <div className="border-t border-border-subtle pt-6">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-tighter text-text-tertiary">Detailed Description</p>
+                <div className="rounded-xl border border-border-main bg-surface-secondary/70 p-4">
+                  <p className="text-sm font-medium leading-relaxed italic text-text-primary">
                     "{viewingItem.description || "Fully authenticated item transitioned from pawn inventory after expiration date."}"
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-zinc-100 bg-zinc-50/50 px-8 py-4 flex justify-end">
+            <div className="border-t border-zinc-100 bg-zinc-50/50/50 px-8 py-4 flex justify-end">
               <button
                 onClick={() => setViewingItem(null)}
-                className="rounded-xl bg-zinc-900 px-8 py-2.5 text-xs font-black text-white shadow-lg transition-all hover:bg-black active:scale-95"
+                className="rounded-xl bg-emerald-700 px-8 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-800 active:scale-95"
               >
                 Close View
               </button>

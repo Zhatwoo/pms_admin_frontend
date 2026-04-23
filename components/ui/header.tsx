@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ClockIcon, BellIcon } from "@/lib/icons";
 import { useTheme } from "@/contexts/theme-context";
 import { BranchSelectorDropdown } from "@/components/shared/branch-selector-dropdown";
+import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
+import { useBranch } from "@/contexts/branch-context";
+import { getSupabaseBrowserClient, getTokenFromCookie } from "@/lib/supabase-browser";
+import { toast } from "sonner";
 
 type NotificationTab = "All" | "Transactions" | "Alerts" | "Requests";
 type NotificationGroup = "Today" | "Earlier";
@@ -205,21 +210,140 @@ export function Header({
   branchName,
   hideBranchSelector = false,
 }: HeaderProps) {
+  const { user } = useAuth();
+  const { selectedBranch, isAllBranches } = useBranch();
   const pathname = usePathname();
   const router = useRouter();
   const [time, setTime] = useState("");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");
-  const [notifications, setNotifications] = useState<HeaderNotification[]>(
-    DEFAULT_NOTIFICATIONS,
-  );
+  const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const notificationRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = await api.get<any[]>("/notifications");
+      if (data && Array.isArray(data)) {
+        const now = new Date();
+        const today = now.toISOString().split("T")[0];
+        
+        let readIds: string[] = [];
+        const readStorageKey = user ? `pms_read_notifs_${user.id}` : null;
+        if (readStorageKey) {
+          try {
+            readIds = JSON.parse(localStorage.getItem(readStorageKey) || "[]");
+          } catch {}
+        }
+
+        const mapped: HeaderNotification[] = data.map((item) => {
+          const itemDate = new Date(item.created_at).toISOString().split("T")[0];
+          let isUnread = !item.is_read;
+          if (readIds.includes(item.id)) {
+            isUnread = false;
+          }
+
+          return {
+            id: item.id,
+            title: item.title,
+            subtitle: item.subtitle,
+            category: item.category as any,
+            unread: isUnread,
+            group: itemDate === today ? "Today" : "Earlier",
+          };
+        });
+        setNotifications(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  }, [user]);
+
+  const fetchNotificationsRef = useRef(fetchNotifications);
+  useEffect(() => {
+    fetchNotificationsRef.current = fetchNotifications;
+  }, [fetchNotifications]);
 
   useEffect(() => {
     setTime(formatDateTime());
-    const interval = setInterval(() => setTime(formatDateTime()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+    const clockInterval = setInterval(() => setTime(formatDateTime()), 1000);
+
+    void fetchNotifications();
+
+    // ─── Custom Event Listener (Bulletproof Fallback) ────────────────────
+    const handleTransactionCreated = () => {
+      console.log("[Header] Custom event triggered, refreshing notifications...");
+      void fetchNotificationsRef.current();
+    };
+    window.addEventListener("transaction_created", handleTransactionCreated);
+
+    // ─── Realtime Subscription ───────────────────────────────────────────
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !user) {
+      // Fallback to polling if realtime is unavailable
+      const interval = setInterval(fetchNotifications, 2 * 60 * 1000);
+      return () => {
+        clearInterval(clockInterval);
+        clearInterval(interval);
+      };
+    }
+
+    const token = getTokenFromCookie();
+    if (token) {
+      void supabase.realtime.setAuth(token);
+    }
+
+    const channel = supabase
+      .channel("header-notifications-live-" + (user.id || ''))
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications" },
+        (payload) => {
+          console.log("[Notifications] Realtime event received:", payload);
+          const newNotif = payload.new as any;
+          if (payload.eventType === "INSERT") {
+             const isMatch = !newNotif.branch_id || 
+                             newNotif.branch_id === user?.branchId || 
+                             newNotif.branch_id === selectedBranch?.id ||
+                             isAllBranches ||
+                             user?.role === "admin" || 
+                             user?.role === "super_admin";
+             if (isMatch) {
+                toast.success(newNotif.title, {
+                  description: newNotif.subtitle,
+                });
+                
+                // Add it instantly to the dropdown UI
+                setNotifications((prev) => {
+                  const itemDate = new Date(newNotif.created_at || new Date()).toISOString().split("T")[0];
+                  const today = new Date().toISOString().split("T")[0];
+                  
+                  const mappedItem: HeaderNotification = {
+                    id: newNotif.id,
+                    title: newNotif.title,
+                    subtitle: newNotif.subtitle,
+                    category: newNotif.category as any,
+                    unread: !newNotif.is_read,
+                    group: itemDate === today ? "Today" : "Earlier",
+                  };
+                  return [mappedItem, ...prev];
+                });
+             }
+          } else {
+            // For updates/deletes, fetch the fresh list
+            void fetchNotificationsRef.current();
+          }
+        },
+      )
+      .subscribe((status) => {
+        console.log("[Notifications] Realtime status:", status);
+      });
+
+    return () => {
+      clearInterval(clockInterval);
+      window.removeEventListener("transaction_created", handleTransactionCreated);
+      void supabase.removeChannel(channel);
+    };
+  }, [user, selectedBranch?.id, isAllBranches]);
 
   useEffect(() => {
     const onMouseDown = (event: MouseEvent) => {
@@ -248,6 +372,7 @@ export function Header({
   }, [isNotificationOpen]);
 
   const title = getPageTitle(pathname || "");
+  const isCustomerDetailPage = (pathname || "").includes("view_user");
   const unreadCount = notifications.filter((item) => item.unread).length;
   const badgeCount = Math.max(notificationCount, unreadCount);
 
@@ -265,14 +390,34 @@ export function Header({
     (item) => item.group === "Earlier",
   );
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+  const markAllAsRead = async () => {
+    if (!user) return;
+    const readStorageKey = `pms_read_notifs_${user.id}`;
+    
+    setNotifications((prev) => {
+      const allIds = prev.map((n) => n.id);
+      try {
+        const existing = JSON.parse(localStorage.getItem(readStorageKey) || "[]");
+        const merged = Array.from(new Set([...existing, ...allIds]));
+        localStorage.setItem(readStorageKey, JSON.stringify(merged));
+      } catch {}
+      return prev.map((item) => ({ ...item, unread: false }));
+    });
   };
 
-  const markOneAsRead = (id: string) => {
+  const markOneAsRead = async (id: string) => {
+    if (!user) return;
+    const readStorageKey = `pms_read_notifs_${user.id}`;
+    
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, unread: false } : item)),
     );
+    
+    try {
+      const existing = JSON.parse(localStorage.getItem(readStorageKey) || "[]");
+      const merged = Array.from(new Set([...existing, id]));
+      localStorage.setItem(readStorageKey, JSON.stringify(merged));
+    } catch {}
   };
 
   const handleViewAllNotifications = () => {
@@ -330,7 +475,7 @@ export function Header({
 
       <div className="flex items-center justify-self-end gap-3">
         {/* Branch Selector – superadmin only */}
-        {!hideBranchSelector && <BranchSelectorDropdown />}
+        {!hideBranchSelector && !isCustomerDetailPage && <BranchSelectorDropdown />}
 
         {/* Notifications */}
         <div className="relative" ref={notificationRef}>
@@ -352,9 +497,6 @@ export function Header({
             <div className="absolute right-0 top-12 z-50 w-[420px] rounded-xl border border-border-main bg-header-bg p-4 shadow-xl">
               <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-base font-bold text-text-primary">Notifications</h3>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                  Bell {badgeCount}
-                </span>
               </div>
 
               <div className="mb-3 grid grid-cols-4 gap-1 rounded-lg border border-border-main bg-surface-subtle p-1">

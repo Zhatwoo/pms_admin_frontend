@@ -1,44 +1,93 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
+import Image from "next/image";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { MoaModal } from "./moa-modal";
+import { PhilippineAddressFields } from "@/components/shared/philippine-address-fields";
 
-interface NewPawnModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  branchId?: string;
-  branchName: string;
-  branchAddress?: string;
-  branchPhone?: string;
-  branchAdminName?: string;
-  loggedInUserName?: string;
+const NO_ID_VALUE = "No ID / None";
+const SINGLE_IMAGE_ID_TYPES = new Set(["NBI Clearance", "Police Clearance"]);
+
+type CustomerMode = "new" | "existing";
+
+interface CustomerLookupRecord {
+  id: string;
+  full_name: string;
+  contact_number: string | null;
+  email: string | null;
+  address: string | null;
+  barangay: string | null;
+  city: string | null;
+  region: string | null;
+  id_presented: string | null;
 }
 
-export function NewPawnModal({ 
-  isOpen, 
-  onClose, 
-  branchId, 
-  branchName, 
-  branchAddress,
-  branchPhone,
-  branchAdminName, 
-  loggedInUserName 
-}: NewPawnModalProps) {
-  const [form, setForm] = useState({
+interface TransactionsResponse {
+  transactions: Array<{
+    pawned_item?: { customer_id?: string | null } | null;
+  }>;
+}
+
+function splitFullName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return { firstName: "", middleName: "", lastName: "" };
+  }
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], middleName: "", lastName: "" };
+  }
+
+  if (parts.length === 2) {
+    return { firstName: parts[0], middleName: "", lastName: parts[1] };
+  }
+
+  return {
+    firstName: parts[0],
+    middleName: parts.slice(1, -1).join(" "),
+    lastName: parts[parts.length - 1],
+  };
+}
+
+function getVerificationMode(idPresented: string) {
+  if (!idPresented) {
+    return "pending" as const;
+  }
+
+  if (idPresented === NO_ID_VALUE) {
+    return "no-id" as const;
+  }
+
+  if (SINGLE_IMAGE_ID_TYPES.has(idPresented)) {
+    return "single-document" as const;
+  }
+
+  return "front-back" as const;
+}
+
+function normalizeCustomerName(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function createEmptyForm() {
+  return {
     firstName: "",
     middleName: "",
     lastName: "",
     address: "",
     barangay: "",
     city: "",
-    province: "",
+    region: "",
     contactNo: "",
     email: "",
     idPresented: "",
     unitCode: "",
     unitName: "",
     category: "",
+    categorySpecify: "",
     serialNumber: "",
     itemsIncluded: "",
     condition: "",
@@ -49,8 +98,36 @@ export function NewPawnModal({
     storageFee: false,
     storageFeeAmount: "",
     profilePhoto: null as string | null,
+      itemPhotos: [] as string[],
     idPhoto: null as string | null,
-  });
+    idBackPhoto: null as string | null,
+  };
+}
+
+interface NewPawnModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  branchId?: string;
+  branchName: string;
+  branchAddress?: string;
+  branchPhone?: string;
+  branchAdminName?: string;
+  loggedInUserName?: string;
+  onSuccess?: () => void;
+}
+
+export function NewPawnModal({ 
+  isOpen, 
+  onClose, 
+  branchId, 
+  branchName, 
+  branchAddress,
+  branchPhone,
+  branchAdminName, 
+  loggedInUserName,
+  onSuccess
+}: NewPawnModalProps) {
+  const [form, setForm] = useState(() => createEmptyForm());
 
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
@@ -58,6 +135,13 @@ export function NewPawnModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [isMoaOpen, setIsMoaOpen] = useState(false);
+  const [customerMode, setCustomerMode] = useState<CustomerMode>("new");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [branchCustomers, setBranchCustomers] = useState<CustomerLookupRecord[]>([]);
+  const [customerBranchTransactions, setCustomerBranchTransactions] = useState<Set<string>>(new Set());
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
 
   // Auto-generate Unit Code when modal opens
   useEffect(() => {
@@ -78,10 +162,121 @@ export function NewPawnModal({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !branchId || branchId === "__all__") {
+      return;
+    }
+
+    let isActive = true;
+
+    const fetchNextSerialNumber = async () => {
+      try {
+        const { serialNumber } = await api.get<{ serialNumber: string }>("/pawn-tickets/next-serial-number");
+        if (isActive && serialNumber) {
+          setForm((prev) => ({ ...prev, serialNumber }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch next serial number:", error);
+        if (isActive) {
+          setForm((prev) => ({ ...prev, serialNumber: "PENDING-SN-xxxxx" }));
+        }
+      }
+    };
+
+    void fetchNextSerialNumber();
+
+    return () => {
+      isActive = false;
+    };
+  }, [branchId, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !branchId || branchId === "__all__") {
+      setBranchCustomers([]);
+      setCustomerBranchTransactions(new Set());
+      setCustomerLookupError(null);
+      setIsLoadingCustomers(false);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadBranchCustomers = async () => {
+      setIsLoadingCustomers(true);
+      setCustomerLookupError(null);
+
+      try {
+        const [customers, transactions] = await Promise.all([
+          api.get<CustomerLookupRecord[]>(`/customers?branchId=${encodeURIComponent(branchId)}`),
+          api.get<TransactionsResponse>(
+            `/transactions?branch=${encodeURIComponent(branchId)}&range=all`,
+          ),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        const branchCustomerIds = new Set<string>();
+        for (const transaction of transactions.transactions ?? []) {
+          const customerId = transaction?.pawned_item?.customer_id;
+          if (customerId) {
+            branchCustomerIds.add(customerId);
+          }
+        }
+
+        setBranchCustomers(Array.isArray(customers) ? customers : []);
+        setCustomerBranchTransactions(branchCustomerIds);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setCustomerLookupError(
+          error instanceof Error ? error.message : "Unable to load branch customers.",
+        );
+        setBranchCustomers([]);
+        setCustomerBranchTransactions(new Set());
+      } finally {
+        if (isActive) {
+          setIsLoadingCustomers(false);
+        }
+      }
+    };
+
+    void loadBranchCustomers();
+
+    return () => {
+      isActive = false;
+    };
+  }, [branchId, isOpen]);
+
   const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
     const { name, type, value } = target;
     const checked = "checked" in target ? target.checked : false;
+
+    if (name === "idPresented") {
+      setForm((prev) => ({
+        ...prev,
+        idPresented: value,
+        profilePhoto: null,
+        idPhoto: null,
+        idBackPhoto: null,
+      }));
+      setQrUrl(null);
+      return;
+    }
+
+    if (name === "category") {
+      setForm((prev) => ({
+        ...prev,
+        category: value,
+        categorySpecify: value === "Others" ? prev.categorySpecify : "",
+      }));
+      setQrUrl(null);
+      return;
+    }
 
     setForm((prev) => ({
       ...prev,
@@ -89,46 +284,128 @@ export function NewPawnModal({
     }));
 
     // Reset QR if key fields change
-    if (["unitCode", "unitName", "serialNumber"].includes(name)) {
+    if (["unitCode", "unitName", "serialNumber", "categorySpecify"].includes(name)) {
       setQrUrl(null);
     }
   };
 
-  const handleReset = useCallback(() => {
-    setForm({
-      firstName: "",
-      middleName: "",
-      lastName: "",
-      address: "",
-      barangay: "",
-      city: "",
-      province: "",
-      contactNo: "",
-      email: "",
-      idPresented: "",
-      unitCode: "",
-      unitName: "",
-      category: "",
-      serialNumber: "",
-      itemsIncluded: "",
-      condition: "",
-      memory: "",
-      remarks: "",
-      amount: "",
-      purchasedDate: "",
-      storageFee: false,
-      storageFeeAmount: "",
-      profilePhoto: null,
-      idPhoto: null,
-    });
+  const handleAddItemPhoto = useCallback((dataUrl: string | null) => {
+    if (!dataUrl) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      itemPhotos: [...prev.itemPhotos, dataUrl],
+    }));
+  }, []);
+
+  const handleRemoveItemPhoto = useCallback((indexToRemove: number) => {
+    setForm((prev) => ({
+      ...prev,
+      itemPhotos: prev.itemPhotos.filter((_, index) => index !== indexToRemove),
+    }));
+  }, []);
+
+  const handleClearForm = useCallback(() => {
+    setForm((prev) => ({
+      ...createEmptyForm(),
+      unitCode: prev.unitCode,
+      serialNumber: prev.serialNumber,
+    }));
     setQrUrl(null);
     setPassword("");
     setErrorMessage(null);
+    setCustomerMode("new");
+    setSelectedCustomerId(null);
+    setCustomerSearch("");
+  }, []);
+
+  const handleReset = useCallback(() => {
+    handleClearForm();
+    setBranchCustomers([]);
+    setCustomerBranchTransactions(new Set());
+    setCustomerLookupError(null);
     onClose();
-  }, [onClose]);
+  }, [handleClearForm, onClose]);
+
+  const handleSelectExistingCustomer = useCallback((customer: CustomerLookupRecord) => {
+    const nameParts = splitFullName(customer.full_name);
+
+    setSelectedCustomerId(customer.id);
+    setForm((prev) => ({
+      ...prev,
+      firstName: nameParts.firstName,
+      middleName: nameParts.middleName,
+      lastName: nameParts.lastName,
+      address: customer.address ?? "",
+      barangay: customer.barangay ?? "",
+      city: customer.city ?? "",
+      region: customer.region ?? "",
+      contactNo: customer.contact_number ?? "",
+      email: customer.email ?? "",
+      idPresented: customer.id_presented ?? "",
+      profilePhoto: null,
+        itemPhotos: prev.itemPhotos,
+      idPhoto: null,
+      idBackPhoto: null,
+    }));
+    setCustomerMode("new");
+    setErrorMessage(null);
+    setQrUrl(null);
+  }, []);
+
+  const handleUseAsNewCustomer = useCallback(() => {
+    setSelectedCustomerId(null);
+    setCustomerMode("new");
+    setErrorMessage(null);
+  }, []);
+
+  const handleSwitchToExistingCustomers = useCallback(() => {
+    setCustomerMode("existing");
+  }, []);
+
+  const filteredBranchCustomers = branchCustomers.filter((customer) => {
+    const query = customerSearch.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+
+    return customer.full_name.toLowerCase().includes(query);
+  }).sort((left, right) => {
+    const query = normalizeCustomerName(customerSearch);
+    if (!query) {
+      return left.full_name.localeCompare(right.full_name);
+    }
+
+    const leftExact = normalizeCustomerName(left.full_name) === query;
+    const rightExact = normalizeCustomerName(right.full_name) === query;
+
+    if (leftExact !== rightExact) {
+      return leftExact ? -1 : 1;
+    }
+
+    return left.full_name.localeCompare(right.full_name);
+  });
+
+  const selectedCustomer = selectedCustomerId
+    ? branchCustomers.find((customer) => customer.id === selectedCustomerId) ?? null
+    : null;
+
+  const getResolvedCategory = () => {
+    if (form.category === "Others") {
+      const specify = form.categorySpecify.trim();
+      return specify ? `Others - ${specify}` : "";
+    }
+
+    return form.category.trim();
+  };
 
   const handleGenerateQR = () => {
     // Required fields for QR generation
+    const resolvedCategory = getResolvedCategory();
+    const unitCodeReady = form.unitCode && !form.unitCode.startsWith("PENDING");
+    const serialNumberReady = form.serialNumber && !form.serialNumber.startsWith("PENDING");
     const requiredFields = {
       firstName: "First Name",
       lastName: "Last Name",
@@ -137,9 +414,7 @@ export function NewPawnModal({
       city: "City",
       contactNo: "Contact Number",
       idPresented: "ID Type",
-      unitCode: "Unit Code",
       unitName: "Unit Name",
-      category: "Category",
       amount: "Loan Amount",
       purchasedDate: "Purchased Date"
     };
@@ -149,6 +424,25 @@ export function NewPawnModal({
         setErrorMessage(`${label} is required before generating QR.`);
         return;
       }
+    }
+
+    if (!resolvedCategory) {
+      setErrorMessage(
+        form.category === "Others"
+          ? "Specify the category before generating QR."
+          : "Category is required before generating QR.",
+      );
+      return;
+    }
+
+    if (!unitCodeReady) {
+      setErrorMessage("Unit code is still generating. Please wait and try again.");
+      return;
+    }
+
+    if (!serialNumberReady) {
+      setErrorMessage("Serial number is still generating. Please wait and try again.");
+      return;
     }
 
     setErrorMessage(null);
@@ -163,7 +457,7 @@ export function NewPawnModal({
       form.address && `Addr:${form.address}`,
       form.unitCode && `Code:${form.unitCode}`,
       form.unitName && `Item:${form.unitName}`,
-      form.category && `Cat:${form.category}`,
+      resolvedCategory && `Cat:${resolvedCategory}`,
       form.serialNumber && `SN:${form.serialNumber}`,
       form.amount && `Loan:P${form.amount}`,
       `Branch:${branchName}`
@@ -186,6 +480,10 @@ export function NewPawnModal({
       return;
     }
 
+    const resolvedCategory = getResolvedCategory();
+    const unitCodeReady = form.unitCode && !form.unitCode.startsWith("PENDING");
+    const serialNumberReady = form.serialNumber && !form.serialNumber.startsWith("PENDING");
+
     // 1. Check all required fields - Customer
     const requiredFields = {
       firstName: "First Name",
@@ -195,9 +493,7 @@ export function NewPawnModal({
       city: "City",
       contactNo: "Contact Number",
       idPresented: "ID Type",
-      unitCode: "Unit Code",
       unitName: "Unit Name",
-      category: "Category",
       amount: "Loan Amount",
       purchasedDate: "Purchased Date"
     };
@@ -207,6 +503,30 @@ export function NewPawnModal({
         setErrorMessage(`${label} is required.`);
         return;
       }
+    }
+
+    if (!resolvedCategory) {
+      setErrorMessage(
+        form.category === "Others"
+          ? "Specify the category before generating the ticket."
+          : "Category is required.",
+      );
+      return;
+    }
+
+    if (!unitCodeReady) {
+      setErrorMessage("Unit code is still generating. Please wait and try again.");
+      return;
+    }
+
+    if (!serialNumberReady) {
+      setErrorMessage("Serial number is still generating. Please wait and try again.");
+      return;
+    }
+
+      if (form.itemPhotos.length === 0) {
+      setErrorMessage("Item photo is required before generating the ticket.");
+      return;
     }
 
     // 2. Check QR Code
@@ -245,17 +565,54 @@ export function NewPawnModal({
     const amountValue = Number(form.amount || 0);
     const storageAmount = form.storageFee ? Number(form.storageFeeAmount || 0) : 0;
     const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" ").trim();
+    const verificationMode = getVerificationMode(form.idPresented);
+    const resolvedCategory = getResolvedCategory();
+
+    if (verificationMode === "no-id" && !form.profilePhoto) {
+      setIsSaving(false);
+      setErrorMessage("Customer photo is required when No ID / None is selected.");
+      return;
+    }
+
+    if (verificationMode === "single-document" && !form.idPhoto) {
+      setIsSaving(false);
+      setErrorMessage("Document image is required for clearance verification.");
+      return;
+    }
+
+    if (verificationMode === "front-back" && (!form.idPhoto || !form.idBackPhoto)) {
+      setIsSaving(false);
+      setErrorMessage("Front and back ID photos are required for this ID type.");
+      return;
+    }
+
+      if (form.itemPhotos.length === 0) {
+      setIsSaving(false);
+      setErrorMessage("Item photo is required for pawned items.");
+      return;
+    }
+
+    if (!resolvedCategory) {
+      setIsSaving(false);
+      setErrorMessage(
+        form.category === "Others"
+          ? "Specify the category before finalizing the ticket."
+          : "Category is required before finalizing the ticket.",
+      );
+      return;
+    }
 
     try {
       await api.post('/pawn-tickets', {
         branchId,
         branchName,
+        customerId: selectedCustomerId ?? undefined,
         customer: {
           fullName,
           address: form.address.trim(),
           barangay: form.barangay.trim(),
           city: form.city.trim(),
-          province: form.province.trim(),
+          region: form.region.trim(),
           contactNumber: form.contactNo.trim(),
           email: form.email.trim(),
           idPresented: form.idPresented,
@@ -263,7 +620,7 @@ export function NewPawnModal({
         item: {
           unitCode: form.unitCode.trim(),
           unitName: form.unitName.trim(),
-          category: form.category.trim(),
+          category: resolvedCategory,
           serialNumber: form.serialNumber.trim(),
           itemsIncluded: form.itemsIncluded.trim(),
           condition: form.condition,
@@ -273,20 +630,26 @@ export function NewPawnModal({
           purchasedDate: form.purchasedDate,
           qrCode: qrUrl || undefined,
           profilePhoto: form.profilePhoto || undefined,
+          itemPhotos: form.itemPhotos.length > 0 ? form.itemPhotos : undefined,
           idPhoto: form.idPhoto || undefined,
+          idBackPhoto: form.idBackPhoto || undefined,
         },
         transaction: {
           pawnAmount: amountValue,
           storageFee: storageAmount,
           returnAmount: 0,
-          details: [form.itemsIncluded.trim(), form.idPresented].filter(Boolean).join(' | '),
+          details: [form.itemsIncluded.trim(), form.idPresented, `Processed by: ${loggedInUserName || 'Employee'}`].filter(Boolean).join(' | '),
         },
       });
 
+      if (onSuccess) onSuccess();
       setIsMoaOpen(false);
       onClose();
+      toast.success("New pawn ticket generated successfully!");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      const msg = error instanceof Error ? error.message : String(error);
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
@@ -301,176 +664,290 @@ export function NewPawnModal({
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between bg-white px-6 py-4 border-b border-emerald-50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-900 flex items-center justify-center text-white shadow-lg shadow-emerald-900/20">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800 px-6 py-5 text-white shrink-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-800 flex items-center justify-center text-emerald-300 shadow-inner border border-emerald-700/50">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/90">
+                  {branchName}
+                </p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white leading-none">
+                  New Pawn Ticket
+                </h1>
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleReset} 
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label="Close"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-emerald-950 uppercase tracking-tight leading-none">New Pawn Ticket</h1>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1.5">{branchName}</p>
-            </div>
+            </button>
           </div>
-          
-          <button onClick={handleReset} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors group">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-zinc-400 group-hover:text-zinc-900">
-              <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">
-          <div className="max-w-5xl mx-auto space-y-8">
-            
-            {/* QR Code Generator Section */}
-            <div className="rounded-3xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-4 text-center sm:text-left">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm border border-emerald-100">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight">QR Code Generator</h3>
-                  {errorMessage && errorMessage.includes("before generating QR") ? (
-                    <p className="text-[11px] font-bold text-red-500 animate-pulse">{errorMessage}</p>
-                  ) : (
-                    <p className="text-xs font-medium text-emerald-700/70">Generate a unique QR code for this pawn item using Unit Code, Serial No., and Barcode ID.</p>
-                  )}
-                </div>
-              </div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/30">
+          <div className="max-w-6xl mx-auto space-y-4">
+            <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+              {/* Customer Information */}
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Customer Details</h3>
+                  </div>
 
-              <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
-                {/* Generated QR Preview */}
-                {qrUrl && (
-                  <div className="flex flex-col items-center gap-2">
-                    <img
-                      src={qrUrl}
-                      alt="Generated QR Code"
-                      width={100}
-                      height={100}
-                      className="rounded-xl border-2 border-emerald-200 shadow-md bg-white p-1 animate-in fade-in zoom-in duration-300"
-                      onError={() => setQrUrl(null)}
+                  <div className="relative flex w-full max-w-[19rem] rounded-2xl border border-zinc-200 bg-zinc-100 p-1 shadow-sm">
+                    <span
+                      className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-xl bg-white shadow-sm transition-transform duration-300 ease-out ${customerMode === "new" ? "translate-x-0" : "translate-x-full"}`}
                     />
                     <button
                       type="button"
-                      onClick={() => setQrUrl(null)}
-                      className="text-[10px] font-bold text-red-500 underline hover:text-red-700 transition-colors"
+                      onClick={() => setCustomerMode("new")}
+                      className={`relative z-10 flex-1 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${customerMode === "new" ? "text-emerald-900" : "text-zinc-500"}`}
                     >
-                      Reset QR
+                      New Customer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSwitchToExistingCustomers}
+                      className={`relative z-10 flex-1 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${customerMode === "existing" ? "text-emerald-900" : "text-zinc-500"}`}
+                    >
+                      Existing Customer
                     </button>
                   </div>
-                )}
-
-                {!qrUrl && (
-                  <button
-                    type="button"
-                    onClick={handleGenerateQR}
-                    disabled={isGeneratingQR}
-                    className="w-full sm:w-auto rounded-xl bg-emerald-700 px-8 py-4 text-sm font-black text-white shadow-lg shadow-emerald-700/20 hover:bg-emerald-800 active:scale-95 transition-all uppercase tracking-wider disabled:opacity-60 flex items-center gap-2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-                      <path d="M14 14h3v3m0 4h4v-4m-4 0v-3h4" />
-                    </svg>
-                    {isGeneratingQR ? "Generating..." : "Generate QR Code"}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid lg:grid-cols-2 gap-8">
-              {/* Customer Information */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  </div>
-                  <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Customer Details</h3>
                 </div>
 
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <Input label="First Name" name="firstName" value={form.firstName} onChange={handleChange} />
-                    <Input label="Middle Name" name="middleName" value={form.middleName} onChange={handleChange} />
-                    <Input label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} />
-                  </div>
-                  
-                  <Input label="Street / Subdivision / Compound" name="address" value={form.address} onChange={handleChange} />
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input label="Barangay / District / Locality" name="barangay" value={form.barangay} onChange={handleChange} />
-                    <Input label="City / Municipality" name="city" value={form.city} onChange={handleChange} />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input label="Province" name="province" value={form.province} onChange={handleChange} />
-                    <Input label="Contact No." name="contactNo" value={form.contactNo} onChange={handleChange} placeholder="09XX-XXX-XXXX" />
-                  </div>
-
-                  <Input label="Email Address" name="email" value={form.email} onChange={handleChange} type="email" placeholder="example@email.com" />
-
-                  <div className="space-y-1.5 w-full">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Presented</label>
-                    <select
-                      name="idPresented"
-                      value={form.idPresented}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="">— Select ID Type —</option>
-                      <optgroup label="Government IDs">
-                        <option value="PhilSys / National ID">PhilSys / National ID</option>
-                        <option value="Passport">Passport</option>
-                        <option value="Driver's License">Driver&apos;s License</option>
-                        <option value="SSS ID">SSS ID</option>
-                        <option value="GSIS ID">GSIS ID</option>
-                        <option value="PRC ID">PRC ID</option>
-                        <option value="Voter's ID">Voter&apos;s ID</option>
-                        <option value="PhilHealth ID">PhilHealth ID</option>
-                        <option value="Pag-IBIG ID">Pag-IBIG ID</option>
-                        <option value="Senior Citizen ID">Senior Citizen ID</option>
-                        <option value="PWD ID">PWD ID</option>
-                        <option value="Postal ID">Postal ID</option>
-                        <option value="NBI Clearance">NBI Clearance</option>
-                        <option value="Police Clearance">Police Clearance</option>
-                        <option value="Barangay ID">Barangay ID</option>
-                        <option value="OFW ID">OFW ID</option>
-                        <option value="UMID">UMID</option>
-                      </optgroup>
-                      <optgroup label="Other">
-                        <option value="No ID / None">No ID / None — Take Customer Photo</option>
-                      </optgroup>
-                    </select>
-                  </div>
-
-                  {/* Camera capture section */}
-                  <div className="space-y-3 p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
-                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em] flex items-center gap-2">
-                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                       ID & Verification Scan
-                    </span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <PhotoUpload 
-                        label="ID Photo / Serial" 
-                        onCapture={(data) => setForm(prev => ({ ...prev, idPhoto: data }))}
-                      />
-                      <PhotoUpload 
-                        label="Customer Facing View" 
-                        onCapture={(data) => setForm(prev => ({ ...prev, profilePhoto: data }))}
-                      />
+                {selectedCustomer && customerMode === "new" && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Loaded branch customer</p>
+                        <p className="mt-1 text-sm font-black text-emerald-950">{selectedCustomer.full_name}</p>
+                        <p className="mt-0.5 text-xs font-medium text-emerald-800/70">This contract will reuse the selected branch record.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSwitchToExistingCustomers}
+                          className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 transition-colors hover:bg-emerald-50"
+                        >
+                          Change Customer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleUseAsNewCustomer}
+                          className="rounded-xl border border-emerald-200 bg-emerald-700 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-emerald-800"
+                        >
+                          Use As New
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleClearForm}
+                          className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600 transition-colors hover:bg-zinc-50"
+                        >
+                          Clear Form
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {customerMode === "existing" ? (
+                  <div className="space-y-4 rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Search by name only</p>
+                      <p className="text-xs font-medium text-zinc-500">
+                          Find a branch customer, review the contact details, and load the record into the pawn form.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-700">Exact name match required</p>
+                      <p className="mt-1 font-medium">
+                        Double-check the spelling before selecting a customer. Rewards and future cross-branch matching use the exact full name.
+                      </p>
+                    </div>
+
+                    <Input
+                      label="Customer Name"
+                      name="customerSearch"
+                      value={customerSearch}
+                        onChange={(event) => setCustomerSearch(event.target.value)}
+                        placeholder="Search existing customer by exact full name"
+                    />
+
+                    {isLoadingCustomers ? (
+                      <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm font-medium text-zinc-400">
+                        Loading branch customers...
+                      </div>
+                    ) : customerLookupError ? (
+                      <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        {customerLookupError}
+                      </div>
+                    ) : filteredBranchCustomers.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm font-medium text-zinc-400">
+                        No matching branch customer found.
+                      </div>
+                    ) : (
+                      <div className="max-h-[24rem] space-y-3 overflow-y-auto pr-1">
+                        {filteredBranchCustomers.map((customer) => {
+                          const statusLabel = customerBranchTransactions.has(customer.id)
+                            ? "Existing customer"
+                            : "First time transaction";
+
+                          return (
+                            <button
+                              key={customer.id}
+                              type="button"
+                              onClick={() => handleSelectExistingCustomer(customer)}
+                              className={`w-full rounded-2xl border px-4 py-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${selectedCustomerId === customer.id ? "border-emerald-400 bg-emerald-50 shadow-sm" : "border-zinc-200 bg-white hover:border-emerald-200"}`}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0 space-y-1">
+                                  <p className="truncate text-sm font-black text-zinc-900">{customer.full_name}</p>
+                                  <p className="truncate text-xs font-medium text-zinc-500">
+                                    {customer.contact_number || "No contact number"}
+                                  </p>
+                                  <p className="truncate text-xs font-medium text-zinc-500">
+                                    {customer.email || "No email address"}
+                                  </p>
+                                </div>
+
+                                <span className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${customerBranchTransactions.has(customer.id) ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                                  {statusLabel}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      <Input label="First Name" name="firstName" value={form.firstName} onChange={handleChange} readOnly={Boolean(selectedCustomerId)} />
+                      <Input label="Middle Name" name="middleName" value={form.middleName} onChange={handleChange} readOnly={Boolean(selectedCustomerId)} />
+                      <Input label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} readOnly={Boolean(selectedCustomerId)} />
+                    </div>
+
+                    <PhilippineAddressFields
+                      key={selectedCustomerId || "new-customer"}
+                      value={{
+                        address: form.address,
+                        barangay: form.barangay,
+                        city: form.city,
+                        region: form.region,
+                      }}
+                      disabled={Boolean(selectedCustomerId)}
+                      onFieldChange={(field, nextValue) => {
+                        setForm((prev) => ({ ...prev, [field]: nextValue }));
+                      }}
+                    />
+
+                    <Input label="Contact No." name="contactNo" value={form.contactNo} onChange={handleChange} placeholder="09XX-XXX-XXXX" readOnly={Boolean(selectedCustomerId)} />
+
+                    <Input label="Email Address" name="email" value={form.email} onChange={handleChange} type="email" placeholder="example@email.com" readOnly={Boolean(selectedCustomerId)} />
+
+                    <div className="space-y-1.5 w-full">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Presented</label>
+                      <select
+                        name="idPresented"
+                        value={form.idPresented}
+                        onChange={handleChange}
+                        disabled={Boolean(selectedCustomerId)}
+                        className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-100 [&:-webkit-autofill]:[transition:background-color_5000s_ease-in-out_0s]"
+                      >
+                        <option value="">— Select ID Type —</option>
+                        <optgroup label="Government IDs">
+                          <option value="PhilSys / National ID">PhilSys / National ID</option>
+                          <option value="Passport">Passport</option>
+                          <option value="Driver's License">Driver&apos;s License</option>
+                          <option value="SSS ID">SSS ID</option>
+                          <option value="GSIS ID">GSIS ID</option>
+                          <option value="PRC ID">PRC ID</option>
+                          <option value="Voter's ID">Voter&apos;s ID</option>
+                          <option value="PhilHealth ID">PhilHealth ID</option>
+                          <option value="Pag-IBIG ID">Pag-IBIG ID</option>
+                          <option value="Senior Citizen ID">Senior Citizen ID</option>
+                          <option value="PWD ID">PWD ID</option>
+                          <option value="Postal ID">Postal ID</option>
+                          <option value="NBI Clearance">NBI Clearance</option>
+                          <option value="Police Clearance">Police Clearance</option>
+                          <option value="Barangay ID">Barangay ID</option>
+                          <option value="OFW ID">OFW ID</option>
+                          <option value="UMID">UMID</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                          <option value="No ID / None">No ID / None — Take Customer Photo</option>
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    {/* Camera capture section */}
+                    <div className="space-y-3 p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
+                      <span className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em] flex items-center gap-2">
+                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                         {getVerificationMode(form.idPresented) === "no-id"
+                           ? "Customer Photo"
+                           : getVerificationMode(form.idPresented) === "single-document"
+                             ? "Document Upload"
+                             : getVerificationMode(form.idPresented) === "front-back"
+                               ? "ID Front / Back"
+                               : "ID & Verification"}
+                      </span>
+
+                      {getVerificationMode(form.idPresented) === "pending" ? (
+                        <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-4 py-6 text-center text-xs font-medium text-zinc-400">
+                          Select an ID type to show the required verification photo fields.
+                        </div>
+                      ) : getVerificationMode(form.idPresented) === "no-id" ? (
+                        <div className="grid grid-cols-1 gap-3">
+                          <PhotoUpload 
+                            label="Take Customer Facing Photo" 
+                            onCapture={(data) => setForm(prev => ({ ...prev, profilePhoto: data }))}
+                          />
+                        </div>
+                      ) : getVerificationMode(form.idPresented) === "single-document" ? (
+                        <div className="grid grid-cols-1 gap-3">
+                          <PhotoUpload 
+                            label="Upload Image" 
+                            onCapture={(data) => setForm(prev => ({ ...prev, idPhoto: data }))}
+                          />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          <PhotoUpload 
+                            label="Front of ID" 
+                            onCapture={(data) => setForm(prev => ({ ...prev, idPhoto: data }))}
+                          />
+                          <PhotoUpload 
+                            label="Back of ID" 
+                            onCapture={(data) => setForm(prev => ({ ...prev, idBackPhoto: data }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Unit Information */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 mb-2">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-1">
                   <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                   </div>
@@ -490,10 +967,94 @@ export function NewPawnModal({
                     <Input label="Unit Name" name="unitName" value={form.unitName} onChange={handleChange} bg="bg-zinc-100" />
                   </div>
 
-                  <Input label="Category" name="category" value={form.category} onChange={handleChange} bg="bg-zinc-100" />
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4 space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Item Photo</p>
+                        <p className="text-xs font-medium text-zinc-500">Capture every angle of the pawned item for inventory review.</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
+                        {form.itemPhotos.length} photo{form.itemPhotos.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="sm:col-span-1 h-full">
+                        <PhotoUpload
+                          label="Capture Item Photo"
+                          frameClassName="h-32 sm:h-full min-h-[8rem] w-full"
+                          allowMultipleCapture
+                          onCapture={handleAddItemPhoto}
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 rounded-2xl border border-dashed border-zinc-200 bg-white p-3 flex flex-col">
+                        {form.itemPhotos.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                            {form.itemPhotos.map((photo, index) => (
+                              <div key={`${photo.slice(0, 24)}-${index}`} className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm">
+                                <Image
+                                  src={photo}
+                                  alt={`Item photo ${index + 1}`}
+                                  width={320}
+                                  height={240}
+                                  unoptimized
+                                  className="h-full w-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveItemPhoto(index)}
+                                  className="absolute right-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 transition group-hover:opacity-100"
+                                >
+                                  Remove
+                                </button>
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white">
+                                  {index + 1}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-1 h-full min-h-[8rem] items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 text-center text-xs font-medium text-zinc-400">
+                            No item photos captured yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 w-full">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Category</label>
+                    <select
+                      name="category"
+                      value={form.category}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer [&:-webkit-autofill]:[transition:background-color_5000s_ease-in-out_0s]"
+                    >
+                      <option value="">— Select Category —</option>
+                      <option value="Smartphone">Smartphone</option>
+                      <option value="Laptop & PC">Laptop & PC</option>
+                      <option value="Appliances">Appliances</option>
+                      <option value="Gaming Console">Gaming Console</option>
+                      <option value="Camera">Camera</option>
+                      <option value="Smartwatch">Smartwatch</option>
+                      <option value="Audio and Earphone">Audio and Earphone</option>
+                      <option value="Others">Others</option>
+                    </select>
+                  </div>
+
+                  {form.category === "Others" && (
+                    <Input
+                      label="Specify Category"
+                      name="categorySpecify"
+                      value={form.categorySpecify}
+                      onChange={handleChange}
+                      bg="bg-zinc-100"
+                      placeholder="Enter specific category"
+                    />
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label="Serial Number" name="serialNumber" value={form.serialNumber} onChange={handleChange} bg="bg-zinc-100" />
+                    <Input label="Serial Number" name="serialNumber" value={form.serialNumber} onChange={handleChange} bg="bg-zinc-200" readOnly={true} />
                     <Input label="Items Included" name="itemsIncluded" value={form.itemsIncluded} onChange={handleChange} bg="bg-zinc-100" />
                   </div>
 
@@ -504,7 +1065,7 @@ export function NewPawnModal({
                         name="condition"
                         value={form.condition}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer [&:-webkit-autofill]:[transition:background-color_5000s_ease-in-out_0s]"
                       >
                         <option value="">Select Condition</option>
                         <option value="New">New</option>
@@ -585,26 +1146,68 @@ export function NewPawnModal({
           </div>
           
           <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-4 sm:pt-0">
-             <div className="text-right">
+             <div className="text-right hidden sm:block">
                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">Total Loan Amount</p>
-                <p className="text-2xl font-black text-emerald-900 tracking-tighter">₱ {Number(form.amount || 0).toLocaleString()}</p>
+                <p className="text-xl font-black text-emerald-900 tracking-tighter">₱ {Number(form.amount || 0).toLocaleString()}</p>
              </div>
              
-             {qrUrl && (
+             {qrUrl ? (
+               <div className="flex items-center gap-4">
+                 <div className="relative group shrink-0">
+                   <Image 
+                     src={qrUrl} 
+                     alt="QR Preview" 
+                     width={44} 
+                     height={44} 
+                     unoptimized
+                     className="rounded-lg shadow-sm border border-emerald-200 bg-white p-0.5" 
+                   />
+                   <button 
+                     onClick={() => setQrUrl(null)} 
+                     className="absolute -top-1.5 -right-1.5 bg-zinc-900 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-lg opacity-0 group-hover:opacity-100 transition-colors"
+                   >
+                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                   </button>
+                 </div>
+                 <button
+                   type="button"
+                   onClick={handleGenerateTicket}
+                   disabled={isSaving}
+                   className="bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white font-black px-6 py-3 rounded-xl shadow-lg shadow-emerald-700/20 transition-all active:scale-[0.98] uppercase tracking-tight flex items-center gap-2"
+                 >
+                   {isSaving ? (
+                    <div className="flex items-center gap-2">
+                      <span className="anim-loading h-5 w-5 border-white/30 border-t-white rounded-full" />
+                      <span>Generating Ticket...</span>
+                    </div>
+                  ) : "Print Pawn Ticket"}
+                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+                 </button>
+               </div>
+             ) : (
                <button
                  type="button"
-                 onClick={handleGenerateTicket}
-                 disabled={isSaving}
-                 className="bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white font-black px-8 py-4 rounded-xl shadow-xl shadow-emerald-700/20 transition-all active:scale-[0.98] text-lg uppercase tracking-tight flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                 onClick={handleGenerateQR}
+                 disabled={isGeneratingQR}
+                 className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 font-black px-6 py-3 rounded-xl transition-all active:scale-[0.98] uppercase tracking-tight flex items-center gap-2 relative shadow-sm"
                >
-                 {isSaving ? 'Processing...' : 'Generate Ticket'}
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h3v3m0 4h4v-4m-4 0v-3h4" /></svg>
+                 {isGeneratingQR ? 'Generating QR...' : 'Generate QR Code'}
+                 {errorMessage && errorMessage.includes("before generating QR") && (
+                   <span className="absolute -top-2 -right-2 flex h-3 w-3">
+                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                     <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                   </span>
+                 )}
                </button>
              )}
           </div>
           {errorMessage && (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-              {errorMessage}
+            <div className="absolute top-4 right-6 left-6 z-50 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+              <p>{errorMessage}</p>
+              <button onClick={() => setErrorMessage(null)} className="text-red-500 hover:text-red-700 p-1">
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
           )}
         </div>
@@ -620,7 +1223,8 @@ export function NewPawnModal({
           idPresented: form.idPresented || "",
           branchName: branchName || "Pasig branch",
           branchAddress: branchAddress || "",
-          branchPhone: branchPhone || ""
+          branchPhone: branchPhone || "",
+          processedBy: loggedInUserName || branchAdminName || "AUTHORIZED PERSONNEL"
         }}
         isLoading={isSaving}
       />
@@ -654,7 +1258,7 @@ function Input({
   return (
     <div className="space-y-1.5 w-full">
       {label && <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">{label}</label>}
-      <div className={`relative flex items-center rounded-xl border border-zinc-200 ${bg} focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all ${readOnly ? 'opacity-70 bg-zinc-100' : ''}`}>
+      <div className={`relative flex items-center overflow-hidden rounded-xl border border-zinc-200 ${bg} focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all ${readOnly ? 'opacity-70 bg-zinc-100' : ''}`}>
         {prefix && <span className="pl-4 text-zinc-400 font-bold">{prefix}</span>}
         <input
           name={name}
@@ -663,14 +1267,24 @@ function Input({
           placeholder={placeholder}
           type={type}
           readOnly={readOnly}
-          className={`w-full bg-transparent ${prefix ? 'pl-2' : 'px-4'} ${size === 'sm' ? 'py-2' : 'py-3'} text-sm font-bold text-zinc-900 outline-none placeholder:text-zinc-300 ${readOnly ? 'cursor-not-allowed select-none' : ''}`}
+          className={`w-full bg-transparent ${prefix ? 'pl-2' : 'px-4'} ${size === 'sm' ? 'py-2' : 'py-3'} text-sm font-bold text-zinc-900 outline-none placeholder:text-zinc-300 ${readOnly ? 'cursor-not-allowed select-none' : ''} [&:-webkit-autofill]:[transition:background-color_5000s_ease-in-out_0s]`}
         />
       </div>
     </div>
   );
 }
 
-function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl: string | null) => void }) {
+function PhotoUpload({
+  label,
+  onCapture,
+  frameClassName = "aspect-[4/3]",
+  allowMultipleCapture = false,
+}: {
+  label: string;
+  onCapture?: (dataUrl: string | null) => void;
+  frameClassName?: string;
+  allowMultipleCapture?: boolean;
+}) {
   const [photo, setPhoto] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -717,12 +1331,25 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     setPhoto(dataUrl);
     if (onCapture) onCapture(dataUrl);
-    stopCamera();
-  }, [stopCamera, onCapture]);
+    if (!allowMultipleCapture) {
+      stopCamera();
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch(() => undefined);
+      }
+      setIsStreaming(true);
+    });
+  }, [allowMultipleCapture, stopCamera, onCapture]);
 
   const retake = () => {
-    setPhoto(null);
-    if (onCapture) onCapture(null);
+    if (!allowMultipleCapture) {
+      setPhoto(null);
+      if (onCapture) onCapture(null);
+    }
     openCamera();
   };
 
@@ -730,20 +1357,26 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
     <>
       {/* Thumbnail / Placeholder */}
       <div
-        onClick={photo ? undefined : openCamera}
-        className={`aspect-[4/3] rounded-2xl border-2 border-dashed bg-white flex flex-col items-center justify-center text-center p-4 transition-all group relative overflow-hidden
-          ${ photo ? "border-emerald-400 cursor-default" : "border-zinc-200 hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer" }`}
+        onClick={allowMultipleCapture || !photo ? openCamera : undefined}
+        className={`${frameClassName} rounded-2xl border-2 border-dashed bg-white flex flex-col items-center justify-center text-center p-4 transition-all group relative overflow-hidden
+          ${ photo ? "border-emerald-400 cursor-pointer" : "border-zinc-200 hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer" }`}
       >
-        {photo ? (
+        {photo && !allowMultipleCapture ? (
           <>
-            <img src={photo} alt={label} className="absolute inset-0 w-full h-full object-cover rounded-2xl" />
+            <Image
+              src={photo}
+              alt={label}
+              fill
+              unoptimized
+              className="rounded-2xl object-cover"
+            />
             <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-2xl">
               <button
                 type="button"
                 onClick={retake}
                 className="bg-white text-emerald-700 font-black text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-lg shadow hover:bg-emerald-50 transition"
               >
-                Retake
+                {allowMultipleCapture ? "Capture Again" : "Retake"}
               </button>
             </div>
           </>
@@ -755,6 +1388,9 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
               </svg>
             </div>
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest group-hover:text-emerald-700 transition-colors">{label}</p>
+            {allowMultipleCapture && photo && (
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-600/70">Ready for next shot</p>
+            )}
           </>
         )}
       </div>
@@ -815,7 +1451,13 @@ function PhotoUpload({ label, onCapture }: { label: string; onCapture?: (dataUrl
               >
                 <span className="w-10 h-10 rounded-full bg-emerald-600 block" />
               </button>
-              <div className="w-[76px]" />{/* spacer */}
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-5 py-2 rounded-xl bg-emerald-600 text-xs font-black text-white hover:bg-emerald-500 transition"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

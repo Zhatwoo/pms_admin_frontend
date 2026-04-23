@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { DataTable } from "@/components/shared/data-table";
-import { Pagination } from "@/components/shared/pagination";
+import { PaginationFooter } from "@/components/shared/pagination";
 import type { Column } from "@/components/shared/data-table";
 
 export type LedgerEntryType =
@@ -13,6 +13,7 @@ export type LedgerEntryType =
   | "fund_transfer_in"
   | "fund_transfer_out"
   | "start"
+  | "end"
   | "other";
 
 export interface LedgerEntry {
@@ -44,14 +45,15 @@ const TYPE_CONFIG: Record<
   LedgerEntryType,
   { label: string; bgClass: string; dotClass: string }
 > = {
-  pawn: { label: "Pawn", bgClass: "bg-orange-100 text-orange-700", dotClass: "bg-orange-500" },
-  buy_back: { label: "Buy Back", bgClass: "bg-blue-100 text-blue-700", dotClass: "bg-blue-500" },
-  renewal: { label: "Renewal", bgClass: "bg-teal-100 text-teal-700", dotClass: "bg-teal-500" },
-  sale: { label: "Sale", bgClass: "bg-purple-100 text-purple-700", dotClass: "bg-purple-500" },
-  fund_transfer_in: { label: "Fund In", bgClass: "bg-emerald-100 text-emerald-700", dotClass: "bg-emerald-500" },
-  fund_transfer_out: { label: "Fund Out", bgClass: "bg-red-100 text-red-600", dotClass: "bg-red-500" },
-  start: { label: "Opening", bgClass: "bg-indigo-100 text-indigo-700", dotClass: "bg-indigo-500" },
-  other: { label: "Other", bgClass: "bg-zinc-100 text-zinc-600", dotClass: "bg-zinc-400" },
+  pawn: { label: "Pawn", bgClass: "bg-orange-500/15 text-orange-300", dotClass: "bg-orange-400" },
+  buy_back: { label: "Buy Back", bgClass: "bg-blue-500/15 text-blue-300", dotClass: "bg-blue-400" },
+  renewal: { label: "Renewal", bgClass: "bg-teal-500/15 text-teal-300", dotClass: "bg-teal-400" },
+  sale: { label: "Sale", bgClass: "bg-purple-500/15 text-purple-300", dotClass: "bg-purple-400" },
+  fund_transfer_in: { label: "Fund In", bgClass: "bg-emerald-500/15 text-emerald-300", dotClass: "bg-emerald-400" },
+  fund_transfer_out: { label: "Fund Out", bgClass: "bg-red-500/15 text-red-300", dotClass: "bg-red-400" },
+  start: { label: "Opening", bgClass: "bg-indigo-500/15 text-indigo-300", dotClass: "bg-indigo-400" },
+  end: { label: "Closing", bgClass: "bg-amber-500/15 text-amber-300", dotClass: "bg-amber-400" },
+  other: { label: "Other", bgClass: "bg-slate-500/15 text-slate-300", dotClass: "bg-slate-400" },
 };
 
 function fmt(n: number) {
@@ -171,7 +173,7 @@ export function FinanceLedgerTable({
       <div className="flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+          className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 transition-colors hover:bg-emerald-500/20"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 6 2 18 2 18 9" />
@@ -327,13 +329,14 @@ export function FinanceLedgerTable({
       </div>
 
       {filtered.length > ITEMS_PER_PAGE && (
-        <div className="rounded-lg border border-border-main bg-surface print:hidden">
-          <Pagination
+        <div className="overflow-hidden rounded-lg border border-border-main bg-surface print:hidden">
+          <PaginationFooter
             currentPage={currentPage}
             totalPages={totalPages}
             totalItems={filtered.length}
             itemsPerPage={ITEMS_PER_PAGE}
             onPageChange={setCurrentPage}
+            className="border-t-0"
           />
         </div>
       )}
@@ -355,27 +358,27 @@ const BREAKDOWN_ITEMS: {
   color: string;
   direction: "in" | "out" | "neutral";
 }[] = [
-  { key: "pawnOut", label: "Pawn Out", color: "text-orange-600", direction: "out" },
-  { key: "buyBackIn", label: "Buy Back", color: "text-blue-600", direction: "in" },
-  { key: "renewalIn", label: "Renewals", color: "text-teal-600", direction: "in" },
-  { key: "saleIn", label: "Sales", color: "text-purple-600", direction: "in" },
-  { key: "fundTransferIn", label: "Fund In", color: "text-emerald-600", direction: "in" },
-  { key: "fundTransferOut", label: "Fund Out", color: "text-red-600", direction: "out" },
+  { key: "pawnOut", label: "Pawn Out", color: "text-orange-300", direction: "out" },
+  { key: "buyBackIn", label: "Buy Back", color: "text-blue-300", direction: "in" },
+  { key: "renewalIn", label: "Renewals", color: "text-teal-300", direction: "in" },
+  { key: "saleIn", label: "Sales", color: "text-purple-300", direction: "in" },
+  { key: "fundTransferIn", label: "Fund In", color: "text-emerald-300", direction: "in" },
+  { key: "fundTransferOut", label: "Fund Out", color: "text-red-300", direction: "out" },
 ];
 
 export function FinanceSummaryCards({ breakdown, todayCashIn, todayCashOut }: FinanceSummaryCardsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
       {todayCashIn != null && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Today In</p>
-          <p className="mt-0.5 text-sm font-extrabold text-emerald-700">{fmt(todayCashIn)}</p>
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Today In</p>
+          <p className="mt-0.5 text-sm font-extrabold text-emerald-200">{fmt(todayCashIn)}</p>
         </div>
       )}
       {todayCashOut != null && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Today Out</p>
-          <p className="mt-0.5 text-sm font-extrabold text-red-700">{fmt(todayCashOut)}</p>
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-red-300">Today Out</p>
+          <p className="mt-0.5 text-sm font-extrabold text-red-200">{fmt(todayCashOut)}</p>
         </div>
       )}
       {BREAKDOWN_ITEMS.map((item) => {
@@ -410,6 +413,7 @@ const TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "fund_transfer_in", label: "Fund Transfer In" },
   { value: "fund_transfer_out", label: "Fund Transfer Out" },
   { value: "start", label: "Opening Balance" },
+  { value: "end", label: "Closing Balance" },
   { value: "other", label: "Other" },
 ];
 

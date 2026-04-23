@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { StatCard } from "@/components/shared/stat-card";
+import { useAuth } from "@/contexts/auth-context";
+import { api } from "@/lib/api";
 
 const folderIcon = (
   <svg
@@ -76,8 +79,26 @@ interface OverallSummaryStatsProps {
 }
 
 export function OverallSummaryStats({ data }: OverallSummaryStatsProps) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
+  const [liveCompanyBalance, setLiveCompanyBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (isSuperAdmin) {
+      api.get<any[]>('/branch-finance/summary')
+        .then((res) => {
+           if (!active) return;
+           const total = res.reduce((acc, curr) => acc + (curr.currentBalance || 0), 0);
+           setLiveCompanyBalance(total);
+        })
+        .catch(console.error);
+    }
+    return () => { active = false; };
+  }, [isSuperAdmin]);
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
       <StatCard
         label="Total Contracts"
         value={data?.totalContracts || 0}
@@ -106,15 +127,19 @@ export function OverallSummaryStats({ data }: OverallSummaryStatsProps) {
             {salesIcon}
           </div>
           <div>
-            <p className="text-xs font-medium text-emerald-100">
+            <p className="text-[11px] uppercase tracking-wide font-bold text-emerald-100">
               Total Overall Sales
             </p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-yellow-500">
-              {data?.totalOverallSales || "₱ 0"}
+            <p className="mt-1 text-2xl font-bold tracking-tight text-white">
+              {isSuperAdmin 
+                ? `₱ ${liveCompanyBalance?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}`
+                : data?.totalOverallSales || "₱ 0"}
             </p>
           </div>
         </div>
       </div>
+
+
     </div>
   );
 }
