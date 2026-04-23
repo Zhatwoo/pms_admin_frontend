@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, type ChangeEvent } from "react";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { calculateGadgetInterest } from "@/lib/interest";
 /* ── Inline SVG Icon Components (replacing lucide-react) ── */
 function X({ className }: { className?: string }) {
@@ -140,7 +141,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
         unit_code: selectedItem.unitCode,
         pawn_amount: Number(selectedItem.amount),
         storage_fee: interestCalc.interestAmount,
-        details: `Redeemed by ${selectedItem.name} | Days: ${interestCalc.daysPassed}`,
+        details: `Redeemed by ${selectedItem.name} | Days: ${interestCalc.daysPassed} | Processed by: ${adminForm.processedBy || 'Admin'}`,
         related_pawned_item_id: selectedItem.id
       });
 
@@ -150,8 +151,11 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
         onSuccess();
       }
       onClose();
+      toast.success("Item redeemed successfully!");
     } catch (err: any) {
-      setError(err.message || "Action failed.");
+      const msg = err.message || "Failed to process transaction.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsConfirming(false);
     }
@@ -160,28 +164,37 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-950/80 backdrop-blur-sm p-4 text-zinc-900">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 text-zinc-900">
+      <div className="fixed inset-0 bg-emerald-950/40 backdrop-blur-md transition-opacity" onClick={onClose} />
       <div 
-        className="relative w-full max-w-7xl h-[90vh] overflow-hidden rounded-2xl border border-emerald-500/20 bg-white shadow-2xl flex flex-col animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-7xl h-[90vh] flex flex-col bg-white rounded-3xl shadow-2xl shadow-emerald-900/20 overflow-hidden animate-in fade-in zoom-in-95 duration-300 relative z-10"
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between bg-white px-6 py-4 border-b border-emerald-50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-600/20">
-              <Undo2 className="w-6 h-6" />
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800 px-6 py-5 text-white shrink-0 relative z-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-800 flex items-center justify-center text-emerald-300 shadow-inner border border-emerald-700/50">
+                <Undo2 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/90">
+                  {branchName} | Active Pawn
+                </p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white leading-none">
+                  Redeem Pawn Ticket
+                </h1>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-black text-emerald-950 uppercase tracking-tight">Redeem Pawn Ticket</h2>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{branchName} | Active Pawn</p>
-            </div>
+            
+            <button 
+              onClick={onClose} 
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-emerald-50 rounded-full transition-colors text-emerald-900/40 hover:text-emerald-900"
-          >
-            <X className="w-6 h-6" />
-          </button>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
@@ -389,7 +402,12 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
                         disabled={isConfirming}
                         className="w-full h-14 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white rounded-xl font-black uppercase tracking-wider shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                       >
-                        {isConfirming ? "Processing..." : (
+                        {isConfirming ? (
+                          <div className="flex items-center gap-2">
+                            <span className="anim-loading h-5 w-5 border-white/30 border-t-white rounded-full" />
+                            <span>Processing...</span>
+                          </div>
+                        ) : (
                           <>
                             Confirm Redemption
                             <ArrowRight className="w-5 h-5" />

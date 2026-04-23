@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { CreateUserModal } from "./_components/create-user-modal";
@@ -225,6 +226,7 @@ export default function UserManagementPage() {
 
     setUsers((currentUsers) => [mapUserRecord(createdUser), ...currentUsers]);
     setIsCreateModalOpen(false);
+    toast.success("User created successfully!");
   }
 
   function handleUserClick(target: UserRecord) {
@@ -249,12 +251,11 @@ export default function UserManagementPage() {
       if (selectedUser?.id === userToDelete.id) {
         setIsDrawerOpen(false);
       }
+      toast.success("User deleted successfully!");
     } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Failed to delete user.",
-      );
+      const msg = deleteError instanceof Error ? deleteError.message : "Failed to delete user.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsDeletingUserId(null);
     }
@@ -284,12 +285,11 @@ export default function UserManagementPage() {
         ),
       );
       setIsStatusModalOpen(false);
+      toast.success("Account status updated successfully!");
     } catch (updateError) {
-      setError(
-        updateError instanceof Error
-          ? updateError.message
-          : "Failed to update user.",
-      );
+      const msg = updateError instanceof Error ? updateError.message : "Failed to update user.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setUpdatingUserId(null);
     }
@@ -311,12 +311,11 @@ export default function UserManagementPage() {
       setUsers((current) =>
         current.map((u) => (u.id === id ? mapUserRecord(updated) : u)),
       );
+      toast.success("User updated successfully!");
     } catch (updateError) {
-      setError(
-        updateError instanceof Error
-          ? updateError.message
-          : "Failed to update user profile.",
-      );
+      const msg = updateError instanceof Error ? updateError.message : "Failed to update user profile.";
+      setError(msg);
+      toast.error(msg);
       throw updateError;
     } finally {
       setUpdatingUserId(null);

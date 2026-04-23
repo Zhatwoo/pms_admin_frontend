@@ -59,8 +59,11 @@ export default function EmployeeSettingsPage() {
 
   const handleDiscard = () => {
     setFullName(user?.fullName || "");
+    setEmail(user?.email || "");
     setToast(null);
   };
+
+
 
   return (
     <div className="space-y-6">
