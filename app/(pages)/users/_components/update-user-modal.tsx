@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type {
-  BranchOption,
-  CreateableUserRole,
-  UserRecord,
-} from "../page";
+import type { BranchOption, UserRecord, UserRole } from "../page";
 
 interface UpdateUserModalProps {
   user: UserRecord | null;
@@ -16,11 +12,16 @@ interface UpdateUserModalProps {
 
 interface FormState {
   fullName: string;
-  role: CreateableUserRole;
+  role: UserRole;
   branchId: string;
 }
 
-const roleOptions: CreateableUserRole[] = ["ADMIN", "EMPLOYEE"];
+/** Roles a super admin may assign when updating a user (matches backend `Role`). */
+const roleOptions: UserRole[] = ["SUPER_ADMIN", "ADMIN", "EMPLOYEE"];
+
+function roleOptionLabel(role: UserRole): string {
+  return role === "SUPER_ADMIN" ? "SUPER ADMIN" : role;
+}
 
 export function UpdateUserModal({
   user,
@@ -40,7 +41,7 @@ export function UpdateUserModal({
     if (user) {
       setForm({
         fullName: user.fullName,
-        role: user.role as CreateableUserRole,
+        role: user.role,
         branchId: user.branchId || "",
       });
     }
@@ -78,7 +79,7 @@ export function UpdateUserModal({
     try {
       await onUpdateUser(user.id, {
         fullName: trimmedFullName,
-        role: form.role as any,
+        role: form.role,
         branchId: form.branchId,
       });
       onClose();
@@ -184,12 +185,12 @@ export function UpdateUserModal({
               </label>
               <select
                 value={form.role}
-                onChange={(event) => updateField("role", event.target.value as CreateableUserRole)}
+                onChange={(event) => updateField("role", event.target.value as UserRole)}
                 className="h-12 w-full rounded-md border border-input-border bg-input-bg px-4 text-base text-text-primary outline-none transition-all focus:border-emerald-700/50 focus:ring-4 focus:ring-emerald-700/5"
               >
                 {roleOptions.map((role) => (
                   <option key={role} value={role}>
-                    {role}
+                    {roleOptionLabel(role)}
                   </option>
                 ))}
               </select>
