@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 /* Align `dark:*` utilities with ThemeProvider (html.light / html.dark), not OS preference */
@@ -9,7 +10,7 @@ html {
 }
 
 :root {
-  --font-inter: "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-inter: "Inter", "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
   --background: #ffffff;
   --foreground: #171717;
   --pawn-sidebar: #1a472a;
