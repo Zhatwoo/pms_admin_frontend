@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { ExpirationStats } from "./_components/expiration-stats";
 import { ExpirationTabs } from "./_components/expiration-tabs";
@@ -74,15 +75,9 @@ export default function ExpirationMonitoringPage() {
     thirtyDays: [],
   });
 
-  const [toast, setToast] = useState<string | null>(null);
   const [isBlasting, setIsBlasting] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [renewingId, setRenewingId] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
 
   useEffect(() => {
     async function fetchExpirationData() {
@@ -129,10 +124,10 @@ export default function ExpirationMonitoringPage() {
         `/dashboard/expiration-monitoring/email-blast${query}`,
         { bucket: activeTab },
       );
-      showToast(res?.message || "Email blast sent to customers.");
+      toast.success(res?.message || "Email blast sent to customers.");
     } catch (error) {
       console.error(error);
-      showToast(error instanceof Error ? error.message : "Failed to initiate email blast.");
+      toast.error(error instanceof Error ? error.message : "Failed to initiate email blast.");
     } finally {
       setIsBlasting(false);
     }
@@ -146,9 +141,9 @@ export default function ExpirationMonitoringPage() {
         `/dashboard/expiration-monitoring/${id}/send-email${query}`,
         {},
       );
-      showToast(res?.message || `Email sent to ${customer}.`);
+      toast.success(res?.message || `Email sent to ${customer}.`);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : `Failed to send email to ${customer}.`);
+      toast.error(error instanceof Error ? error.message : `Failed to send email to ${customer}.`);
     } finally {
       setSendingId(null);
     }
@@ -162,7 +157,7 @@ export default function ExpirationMonitoringPage() {
         renewal_date: today,
         amount_paid: 0,
       });
-      showToast("Item renewed successfully.");
+      toast.success("Item renewed successfully.");
       const query = isAllBranches ? "" : `?branch=${encodeURIComponent(selectedBranch.id)}`;
       const data = await api.get<ExpirationMonitoringResponse>(
         `/dashboard/expiration-monitoring${query}`
@@ -172,7 +167,7 @@ export default function ExpirationMonitoringPage() {
         setBuckets(data.buckets);
       }
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to renew item.");
+      toast.error(error instanceof Error ? error.message : "Failed to renew item.");
     } finally {
       setRenewingId(null);
     }
@@ -180,14 +175,6 @@ export default function ExpirationMonitoringPage() {
 
   return (
     <div className="space-y-5 relative">
-      {toast ? (
-        <div className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center">
-          <div className="rounded-xl border border-emerald-300 bg-emerald-100 px-5 py-3 text-sm font-semibold text-emerald-900 shadow-xl transition-all">
-            {toast}
-          </div>
-        </div>
-      ) : null}
-
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <p className="mt-1 text-sm text-zinc-500">

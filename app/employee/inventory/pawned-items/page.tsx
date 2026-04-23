@@ -217,7 +217,12 @@ export default function EmployeePawnedItemsPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={8} className="py-8 text-center text-sm text-zinc-400">Loading branch inventory...</td></tr>
+                  <tr><td colSpan={8} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <span className="anim-loading h-6 w-6 border-emerald-500/50 border-t-emerald-600 rounded-full" />
+                      <span className="text-[10px] text-emerald-900 font-bold uppercase tracking-widest">Loading branch inventory...</span>
+                    </div>
+                  </td></tr>
                 ) : pawnedItems.length === 0 ? (
                   <tr><td colSpan={8} className="py-8 text-center text-sm text-zinc-400">No pawned items found for this branch</td></tr>
                 ) : (

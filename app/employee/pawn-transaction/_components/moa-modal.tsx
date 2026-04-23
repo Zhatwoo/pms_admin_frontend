@@ -320,7 +320,7 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading }: MoaMod
              >
                {isLoading ? (
                  <>
-                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                   <span className="anim-loading h-4 w-4 border-white/30 border-t-white rounded-full"/>
                    Saving Record...
                  </>
                ) : (
