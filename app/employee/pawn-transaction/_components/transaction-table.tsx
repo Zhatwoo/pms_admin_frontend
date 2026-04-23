@@ -3,16 +3,17 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { formatPeso } from "@/lib/currency";
 import { formatTimeWithAmPm } from "@/lib/time";
 
-type PurposeType =
+export type PurposeType =
   | "Start"
   | "Buy Back"
   | "Renew"
   | "Sold Item"
   | "Pawn"
   | "Fund Transfer"
-  | "Cash Transfer";
+  | "Cash Transfer"
+  | "Buy Out";
 
-interface TransactionRow {
+export interface TransactionRow {
   transactionNo: string;
   purpose: PurposeType;
   buyBack: string;
@@ -28,9 +29,21 @@ interface TransactionRow {
   unitCode: string;
   pawn: string;
   storage: string;
+  customerName?: string;
+  customerAddress?: string;
+  customerPhone?: string;
+  customerMiddleName?: string;
+  idPresented?: string;
   qrCode?: string;
+  serialNumber?: string;
+  itemsIncluded?: string;
+  condition?: string;
+  category?: string;
+  memoryStorage?: string;
+  remarks?: string;
   relatedPawnedItemId?: string | null;
   relatedSaleItemId?: string | null;
+  details?: string;
 }
 
 const columns = [
@@ -64,6 +77,7 @@ const purposeVariant: Record<
   Pawn: "purple",
   "Fund Transfer": "blue",
   "Cash Transfer": "blue",
+  "Buy Out": "purple",
 };
 
 function isHighlightedPawn(value: string): boolean {

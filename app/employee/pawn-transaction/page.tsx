@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { TransactionActions } from "./_components/transaction-actions";
+import { TransactionActions, type FilterType } from "./_components/transaction-actions";
 import { api } from "@/lib/api";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { TransactionStats } from "./_components/transaction-stats";
-import { TransactionTable } from "./_components/transaction-table";
+import { TransactionTable, type TransactionRow, type PurposeType } from "./_components/transaction-table";
 import { RenewModal } from "./_components/renew-modal";
 import { NewPawnModal } from "./_components/new-pawn-modal";
 import { RedeemModal } from "./_components/redeem-modal";
@@ -21,17 +21,27 @@ import { ConfirmPasswordModal } from "@/components/shared/confirm-password-modal
 import { Role } from "@/types";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { ActionButton } from "@/components/shared/action-button";
 
-type PurposeType =
-  | "Start"
-  | "Buy Back"
-  | "Renew"
-  | "Sold Item"
-  | "Pawn"
-  | "Fund Transfer"
-  | "Cash Transfer";
+const downloadIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
 
-type FilterType = "All" | "Renew" | "Sales / Transfer" | "Redeem" | "Buy Back";
+const printerIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 6 2 18 2 18 9" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </svg>
+);
+
+
+
+
 
 const filterToPurpose: Record<FilterType, PurposeType | null> = {
   "All": null,
@@ -39,40 +49,13 @@ const filterToPurpose: Record<FilterType, PurposeType | null> = {
   "Sales / Transfer": "Sold Item",
   "Redeem": "Pawn",
   "Buy Back": "Buy Back",
+  "Pawn": "Pawn",
+  "Start": "Start",
+  "Buy Out": "Buy Out",
+  "Sold Item": "Sold Item",
 };
 
-interface TransactionRow {
-  transactionNo: string;
-  purpose: PurposeType;
-  buyBack: string;
-  percentage: string;
-  buyOut: string;
-  sold: string;
-  date: string;
-  time: string;
-  cashIn: string;
-  cashOut: string;
-  returnVal: string;
-  unit: string;
-  unitCode: string;
-  pawn: string;
-  storage: string;
-  customerName?: string;
-  customerAddress?: string;
-  customerPhone?: string;
-  customerMiddleName?: string;
-  idPresented?: string;
-  qrCode?: string;
-  serialNumber?: string;
-  itemsIncluded?: string;
-  condition?: string;
-  category?: string;
-  memoryStorage?: string;
-  remarks?: string;
-  relatedPawnedItemId?: string | null;
-  relatedSaleItemId?: string | null;
-  details?: string;
-}
+
 
 interface ApiTransaction {
   transaction_no: string;
@@ -196,6 +179,8 @@ export default function EmployeePawnTransactionsPage() {
   const [isMoaReprintOpen, setIsMoaReprintOpen] = useState(false);
   const [reprintData, setReprintData] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionRow | null>(null);
   const [currentStats, setCurrentStats] = useState({
     pawnedToday: 0, 
@@ -291,11 +276,33 @@ export default function EmployeePawnTransactionsPage() {
   }, [selectedBranch.id]);
 
   const filteredTransactions = useMemo(() => {
-    if (activeFilter === "All") return allTransactions;
-    const targetPurpose = filterToPurpose[activeFilter];
-    if (!targetPurpose) return allTransactions;
-    return allTransactions.filter((t) => t.purpose === targetPurpose);
-  }, [allTransactions, activeFilter]);
+    let result = allTransactions;
+
+    if (activeFilter !== "All") {
+      const targetPurpose = filterToPurpose[activeFilter];
+      if (targetPurpose) {
+        result = result.filter((t) => t.purpose === targetPurpose);
+      }
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.transactionNo.toLowerCase().includes(q) ||
+          t.customerName?.toLowerCase().includes(q) ||
+          t.unit?.toLowerCase().includes(q) ||
+          t.unitCode?.toLowerCase().includes(q)
+      );
+    }
+
+    if (dateFilter) {
+      // API date format is usually YYYY-MM-DD
+      result = result.filter((t) => t.date === dateFilter);
+    }
+
+    return result;
+  }, [allTransactions, activeFilter, searchQuery, dateFilter]);
 
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
@@ -451,6 +458,13 @@ export default function EmployeePawnTransactionsPage() {
 
   return (
     <div className="space-y-3 pb-4">
+      <div>
+        <h1 className="text-2xl font-bold text-emerald-950 dark:text-white">Pawn Transactions</h1>
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+          Live transaction records across all branches with employee-style QR and print access.
+        </p>
+      </div>
+
       <TransactionActions
         activeFilter={activeFilter}
         onFilterChange={(f) => setActiveFilter(f)}
@@ -458,14 +472,85 @@ export default function EmployeePawnTransactionsPage() {
         onRedeem={() => handleActionWithPassword(() => setIsRedeemModalOpen(true))}
         onBuyBack={() => handleActionWithPassword(() => setIsBuyBackModalOpen(true))}
         onSalesTransfer={() => handleActionWithPassword(() => setIsSalesTransferModalOpen(true))}
-        onExportCSV={handleExportCSV}
-        onPrintReport={handlePrintReport}
         onNewPawn={() => handleActionWithPassword(openNewPawnForm)}
         onStartDay={() => setBalanceModal({ open: true, type: "starting" })}
         onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
       />
 
       <TransactionStats data={currentStats} />
+
+      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-border-main bg-surface p-4 shadow-sm transition-colors duration-300">
+        <div className="min-w-[240px] flex-1">
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+            Search Transactions
+          </label>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by transaction no, customer, item, or branch"
+            className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+          />
+        </div>
+
+        <div className="w-48">
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+            Purpose Filter
+          </label>
+          <select
+            value={activeFilter}
+            onChange={(e) => {
+              setActiveFilter(e.target.value as FilterType);
+              setCurrentPage(1);
+            }}
+            className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+          >
+            <option value="All">All Purposes</option>
+            <option value="Renew">Renew</option>
+            <option value="Sales / Transfer">Sales / Transfer</option>
+            <option value="Redeem">Redeem</option>
+            <option value="Buy Back">Buy Back</option>
+            <option value="Pawn">Pawn</option>
+            <option value="Start">Start</option>
+            <option value="Buy Out">Buy Out</option>
+            <option value="Sold Item">Sold Item</option>
+          </select>
+        </div>
+
+        <div className="w-48">
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+            Date Filter
+          </label>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => {
+              setDateFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 text-zinc-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ActionButton variant="outline" onClick={handleExportCSV}>
+            <span className="flex items-center gap-1.5">
+              {downloadIcon}
+              Export CSV
+            </span>
+          </ActionButton>
+          <ActionButton
+            variant="primary"
+            className="border-pawn-gold bg-emerald-700 text-pawn-gold"
+            onClick={handlePrintReport}
+          >
+            <span className="flex items-center gap-1.5">
+              {printerIcon}
+              Print Report
+            </span>
+          </ActionButton>
+        </div>
+      </div>
 
             <TransactionTable 
               data={paginatedTransactions} 
