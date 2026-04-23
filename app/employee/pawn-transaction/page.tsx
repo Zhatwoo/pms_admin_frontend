@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { TransactionActions } from "./_components/transaction-actions";
 import { api } from "@/lib/api";
 import { PaginationFooter } from "@/components/shared/pagination";
@@ -185,6 +186,7 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
 export default function EmployeePawnTransactionsPage() {
   const { selectedBranch, branches, canSwitchBranch } = useBranch();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [branchAdminName, setBranchAdminName] = useState("");
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [isNewPawnModalOpen, setIsNewPawnModalOpen] = useState(false);
@@ -207,6 +209,7 @@ export default function EmployeePawnTransactionsPage() {
   });
   const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [highlightedTransactionNo, setHighlightedTransactionNo] = useState<string | null>(null);
   const [balanceModal, setBalanceModal] = useState<{ open: boolean; type: "starting" | "ending" }>({
     open: false,
     type: "starting",
@@ -217,6 +220,7 @@ export default function EmployeePawnTransactionsPage() {
   });
   const [viewRange, setViewRange] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
   const [currentPage, setCurrentPage] = useState(1);
+  const highlightedTransactionRef = useRef<string | null>(null);
 
   const fetchTransactions = useCallback(async () => {
     if (selectedBranch.id === "__all__" && !canSwitchBranch) return;
@@ -301,6 +305,53 @@ export default function EmployeePawnTransactionsPage() {
       currentPage * ITEMS_PER_PAGE,
     );
   }, [filteredTransactions, currentPage]);
+
+  useEffect(() => {
+    const transactionNo = searchParams.get("transactionNo");
+
+    if (!transactionNo) {
+      return;
+    }
+
+    const matchingIndex = filteredTransactions.findIndex((transaction) => transaction.transactionNo === transactionNo);
+    if (matchingIndex < 0) {
+      return;
+    }
+
+    const nextPage = Math.floor(matchingIndex / ITEMS_PER_PAGE) + 1;
+    if (nextPage !== currentPage) {
+      setCurrentPage(nextPage);
+    }
+  }, [currentPage, filteredTransactions, searchParams]);
+
+  useEffect(() => {
+    const transactionNo = searchParams.get("transactionNo");
+    const shouldHighlight = searchParams.get("highlightTransaction") === "true";
+
+    if (!transactionNo) {
+      highlightedTransactionRef.current = null;
+      setHighlightedTransactionNo(null);
+      return;
+    }
+
+    const matchingTransaction = allTransactions.find((transaction) => transaction.transactionNo === transactionNo);
+    if (!matchingTransaction) {
+      return;
+    }
+
+    setSelectedTransaction(matchingTransaction);
+
+    if (shouldHighlight && highlightedTransactionRef.current !== transactionNo) {
+      highlightedTransactionRef.current = transactionNo;
+      setHighlightedTransactionNo(transactionNo);
+
+      const timeout = window.setTimeout(() => {
+        setHighlightedTransactionNo(null);
+      }, 4000);
+
+      return () => window.clearTimeout(timeout);
+    }
+  }, [allTransactions, searchParams]);
 
   useEffect(() => {
     async function fetchBranchAdmin() {
@@ -393,7 +444,7 @@ export default function EmployeePawnTransactionsPage() {
     setIsMoaReprintOpen(true);
   }, [allTransactions, selectedBranch, branches, user, branchAdminName]);
 
-  const handleTransactionSuccess = useCallback(() => {
+  const handleTransactionSuccess = useCallback((_transactionNo?: string) => {
     void fetchTransactionsRef.current();
     window.dispatchEvent(new CustomEvent("transaction_created"));
   }, []);
@@ -420,6 +471,7 @@ export default function EmployeePawnTransactionsPage() {
               data={paginatedTransactions} 
               onReprint={handleReprint} 
               onViewDetails={setSelectedTransaction}
+              highlightedTransactionNo={highlightedTransactionNo}
               viewRange={viewRange}
               onRangeChange={setViewRange}
             />
