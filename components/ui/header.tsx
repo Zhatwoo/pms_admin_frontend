@@ -387,11 +387,6 @@ export function Header({
 
   const title = getPageTitle(pathname || "");
   const isCustomerDetailPage = (pathname || "").includes("view_user");
-  const isAllBranchesView = (branchName ?? "").toLowerCase() === "all branches";
-  const superAdminScopeLabel = isAllBranchesView ? "All Branches" : "Branch View";
-  const superAdminScopeClass = isAllBranchesView
-    ? "border-emerald-700 bg-pawn-sidebar text-pawn-gold"
-    : "border-emerald-300 bg-emerald-50 text-emerald-800";
   const unreadCount = notifications.filter((item) => item.unread).length;
   const badgeCount = Math.max(notificationCount, unreadCount);
 
@@ -529,7 +524,7 @@ export function Header({
       <div className="flex min-w-0 flex-col gap-2 justify-self-start">
         <div className="flex min-w-0 items-center gap-4">
           <h1 className="text-3xl font-bold text-text-primary leading-none">{title}</h1>
-          {branchName && !isSuperAdmin && (
+          {branchName && (
             <div className="flex items-center gap-4">
               <span className="h-6 w-px bg-border-main" />
               <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
@@ -538,20 +533,6 @@ export function Header({
             </div>
           )}
         </div>
-
-        {isSuperAdmin && (
-          <div className="inline-flex flex-wrap items-center gap-2 px-1 py-1">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-700 bg-pawn-sidebar px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-pawn-gold shadow-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-pawn-gold" />
-              Super Admin
-            </span>
-            <span
-              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] shadow-sm ${superAdminScopeClass}`}
-            >
-              {superAdminScopeLabel}
-            </span>
-          </div>
-        )}
       </div>
 
       <div className="flex items-center justify-self-center gap-3">
