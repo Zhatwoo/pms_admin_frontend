@@ -9,6 +9,7 @@ interface UpdateUserModalProps {
   availableRoles: UserRole[];
   onClose: () => void;
   onUpdateUser: (id: string, input: UpdateUserInput) => Promise<void>;
+  canEditRole?: boolean;
 }
 
 interface FormState {
@@ -29,6 +30,7 @@ export function UpdateUserModal({
   availableRoles,
   onClose,
   onUpdateUser,
+  canEditRole = true,
 }: UpdateUserModalProps) {
   const [form, setForm] = useState<FormState>({
     fullName: "",
@@ -38,9 +40,11 @@ export function UpdateUserModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const isSuperAdminRole = isGlobalRole(form.role);
+  const shouldAllowRoleChange = canEditRole && availableRoles.length > 0;
   const isRoleCrossingSuperAdminBoundary =
-    (form.role === "SUPER_ADMIN" && user?.role !== "SUPER_ADMIN") ||
-    (user?.role === "SUPER_ADMIN" && form.role !== "SUPER_ADMIN");
+    shouldAllowRoleChange &&
+    ((form.role === "SUPER_ADMIN" && user?.role !== "SUPER_ADMIN") ||
+      (user?.role === "SUPER_ADMIN" && form.role !== "SUPER_ADMIN"));
 
   useEffect(() => {
     if (user) {
@@ -93,11 +97,16 @@ export function UpdateUserModal({
     setIsSubmitting(true);
 
     try {
-      await onUpdateUser(user.id, {
+      const payload: UpdateUserInput = {
         fullName: trimmedFullName,
-        role: form.role,
-        branchId: isSuperAdminRole ? null : undefined,
-      });
+      };
+
+      if (shouldAllowRoleChange) {
+        payload.role = form.role;
+        payload.branchId = isSuperAdminRole ? null : undefined;
+      }
+
+      await onUpdateUser(user.id, payload);
       onClose();
     } catch (updateError) {
       setError(
@@ -112,12 +121,14 @@ export function UpdateUserModal({
 
   if (!user) return null;
 
-  const assignmentTitle = isSuperAdminRole
+  const effectiveRole = shouldAllowRoleChange ? form.role : user.role;
+  const isGlobalAccess = isGlobalRole(effectiveRole);
+  const assignmentTitle = isGlobalAccess
     ? "All Branches"
     : user.branchId
     ? user.branch
     : "No Branch Assigned";
-  const assignmentDescription = isSuperAdminRole
+  const assignmentDescription = isGlobalAccess
     ? "This role is global and can view data across every branch."
     : user.branchId
     ? "Branch transfers are managed from the User Details panel opened from the eye icon."
@@ -207,25 +218,39 @@ export function UpdateUserModal({
                 />
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-sm font-bold uppercase tracking-wide text-zinc-500 dark:text-text-tertiary">
-                  Role
-                </label>
-                <select
-                  value={form.role}
-                  onChange={(event) => updateRole(event.target.value as UserRole)}
-                  className="h-12 w-full rounded-md border border-input-border bg-input-bg px-4 text-base text-text-primary outline-none transition-all focus:border-emerald-700/50 focus:ring-4 focus:ring-emerald-700/5"
-                >
-                  {availableRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {roleOptionLabel(role)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {shouldAllowRoleChange ? (
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold uppercase tracking-wide text-zinc-500 dark:text-text-tertiary">
+                    Role
+                  </label>
+                  <select
+                    value={form.role}
+                    onChange={(event) => updateRole(event.target.value as UserRole)}
+                    className="h-12 w-full rounded-md border border-input-border bg-input-bg px-4 text-base text-text-primary outline-none transition-all focus:border-emerald-700/50 focus:ring-4 focus:ring-emerald-700/5"
+                  >
+                    {availableRoles.map((role) => (
+                      <option key={role} value={role}>
+                        {roleOptionLabel(role)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold uppercase tracking-wide text-zinc-500 dark:text-text-tertiary">
+                    Role
+                  </label>
+                  <input
+                    type="text"
+                    value={roleOptionLabel(user.role)}
+                    disabled
+                    className="h-12 w-full cursor-not-allowed rounded-md border border-input-border bg-zinc-50/50 px-4 text-base text-text-muted outline-none dark:bg-surface-secondary"
+                  />
+                </div>
+              )}
               <div className="md:col-span-2">
                 <label className="mb-1.5 block text-sm font-bold uppercase tracking-wide text-zinc-500 dark:text-text-tertiary">
-                  {isSuperAdminRole ? "Access Scope" : "Branch Assignment"}
+                  {isGlobalAccess ? "Access Scope" : "Branch Assignment"}
                 </label>
                 <div className="rounded-xl border border-border-main bg-surface-secondary px-4 py-4">
                   <div className="flex items-start justify-between gap-4">
@@ -238,7 +263,7 @@ export function UpdateUserModal({
                       </p>
                     </div>
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      {isSuperAdminRole ? "Global Access" : "View Only"}
+                      {isGlobalAccess ? "Global Access" : "View Only"}
                     </span>
                   </div>
                 </div>
@@ -248,9 +273,11 @@ export function UpdateUserModal({
             <div className="rounded-xl border border-emerald-border bg-emerald-surface px-4 py-3 text-base text-emerald-text">
               {isRoleCrossingSuperAdminBoundary
                 ? "Changing Super Admin access requires your password confirmation before the change is applied."
-                : isSuperAdminRole
+                : isGlobalAccess
                 ? "Super Admin accounts have access to every branch. This account will not be tied to a single branch."
-                : "Need to move this user to another branch? Open the User Details panel from the eye icon and use the transfer section there."}
+                : shouldAllowRoleChange
+                ? "Need to move this user to another branch? Open the User Details panel from the eye icon and use the transfer section there."
+                : "Admins can only update the full name here. Role and branch assignment are view-only."}
             </div>
 
             <div className="flex flex-col-reverse gap-2 border-t border-border-main pt-4 sm:flex-row sm:justify-end">
