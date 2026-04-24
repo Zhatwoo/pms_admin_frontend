@@ -438,7 +438,6 @@ export default function PawnedItemsPage() {
   const [allDayItems, setAllDayItems] = useState<PawnedItem[]>([]); // unfiltered day items for category counts
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const viewingItem = pawnedItems.find((item) => item.id === selectedItemId) ?? null;
 
   // Category counts (list mode)
   const [categoryList, setCategoryList] = useState<CategoryCount[]>([]);
@@ -446,6 +445,19 @@ export default function PawnedItemsPage() {
 
   // Calendar day-panel category filter — derived from fetched items (no extra API call)
   const [calendarCategory, setCalendarCategory] = useState("all");
+
+  const selectedDateLabel = selectedDate
+    ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+    : "";
+
+  const viewingItem =
+    pawnedItems.find((item) => item.id === selectedItemId) ||
+    allDayItems.find((item) => item.id === selectedItemId) ||
+    null;
 
   // Compute calendar categories from ALL items on the selected day (unfiltered)
   const calendarCategoryList: CategoryCount[] = (() => {
@@ -550,7 +562,18 @@ export default function PawnedItemsPage() {
       }
     }
     fetchData();
-  }, [selectedBranch.id, isAllBranches, viewMode, category, status, searchQuery, selectedDate, calendarCategory, currentPage]);
+  }, [
+    isAllBranches,
+    selectedBranch.id,
+    viewMode,
+    category,
+    status,
+    searchQuery,
+    selectedDate,
+    currentPage,
+    itemsPerPage,
+    calendarCategory,
+  ]);
 
   const handleSaveRemarks = useCallback(async (itemId: string, remarks: string) => {
     try {

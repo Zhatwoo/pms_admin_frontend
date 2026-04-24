@@ -148,8 +148,10 @@ export default function SettingsPage() {
 
   const canEditMoa = isSuperAdmin && isMoaEditMode && !isMoaLocked;
 
-  const lineInputClass = "border-b-2 border-emerald-800/30 bg-white/40 px-2 text-xs font-bold text-zinc-900 outline-none w-full h-8 transition-all focus:border-emerald-700 focus:bg-white focus:shadow-sm";
-  const labelInputClass = "border-b-2 border-emerald-800/30 bg-white/40 px-2 text-xs font-bold text-zinc-900 outline-none h-8 transition-all focus:border-emerald-700 focus:bg-white focus:shadow-sm";
+  const lineInputClass =
+    "h-5 w-full border-b border-zinc-500 bg-transparent px-1 text-[10px] text-zinc-800 outline-none disabled:cursor-not-allowed disabled:text-zinc-800 disabled:opacity-100";
+  const labelInputClass =
+    "h-5 border-none bg-transparent px-0 text-[10px] outline-none read-only:cursor-default";
 
   const updateMoaField = (field: keyof typeof moaFields, value: string) => {
     setMoaFields((prev) => ({ ...prev, [field]: value }));
@@ -229,14 +231,11 @@ export default function SettingsPage() {
     field: keyof typeof topLabels,
     widthClass: string,
   ) => {
-    if (!canEditMoa) {
-      return <span className={widthClass}>{topLabels[field]}</span>;
-    }
-
     return (
       <input
         value={topLabels[field]}
         onChange={(e) => updateTopLabel(field, e.target.value)}
+        readOnly={!canEditMoa}
         className={`${labelInputClass} ${widthClass}`}
       />
     );
@@ -246,14 +245,11 @@ export default function SettingsPage() {
     field: keyof typeof topLabels,
     className: string,
   ) => {
-    if (!canEditMoa) {
-      return <span className={className}>{topLabels[field]}</span>;
-    }
-
     return (
       <input
         value={topLabels[field]}
         onChange={(e) => updateTopLabel(field, e.target.value)}
+        readOnly={!canEditMoa}
         className={`${labelInputClass} ${className}`}
       />
     );
@@ -567,7 +563,7 @@ export default function SettingsPage() {
                   <div className="space-y-3 leading-6">
                     <p>
                       {renderEditableLabel("customerIntro", "inline")}
-                      <span className="inline-block w-80 align-middle">
+                      <span className="inline-block w-52 align-middle">
                         <input
                           value={moaFields.customerName}
                           onChange={(e) => updateMoaField("customerName", e.target.value)}
@@ -576,7 +572,7 @@ export default function SettingsPage() {
                         />
                       </span>
                       {renderEditableLabel("legalAgeResident", "inline")}
-                      <span className="inline-block w-[500px] align-middle">
+                      <span className="inline-block w-64 align-middle">
                         <input
                           value={moaFields.customerAddress}
                           onChange={(e) => updateMoaField("customerAddress", e.target.value)}
@@ -746,40 +742,29 @@ export default function SettingsPage() {
                   </div>
 
                   <p className="border-y border-emerald-900/40 bg-emerald-50 py-1 text-center text-[10px] font-bold uppercase text-emerald-950">
-                    {canEditMoa ? (
-                      <input
-                        value={topLabels.adviseText}
-                        onChange={(e) => updateTopLabel("adviseText", e.target.value)}
-                        className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase text-emerald-950 outline-none"
-                      />
-                    ) : (
-                      topLabels.adviseText
-                    )}
+                    <input
+                      value={topLabels.adviseText}
+                      onChange={(e) => updateTopLabel("adviseText", e.target.value)}
+                      readOnly={!canEditMoa}
+                      className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase text-emerald-950 outline-none read-only:cursor-default"
+                    />
                   </p>
 
                   <div className="space-y-2">
                     <p className="text-center text-[10px] font-bold uppercase underline">
-                      {canEditMoa ? (
-                        <input
-                          value={topLabels.termsHeading}
-                          onChange={(e) => updateTopLabel("termsHeading", e.target.value)}
-                          className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase outline-none"
-                        />
-                      ) : (
-                        topLabels.termsHeading
-                      )}
-                    </p>
-                    {canEditMoa ? (
-                      <textarea
-                        value={termsText}
-                        onChange={(e) => setTermsText(e.target.value)}
-                        className="min-h-[500px] w-full resize-y rounded-lg border border-zinc-300 bg-white p-5 text-xs leading-loose outline-none shadow-inner focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      <input
+                        value={topLabels.termsHeading}
+                        onChange={(e) => updateTopLabel("termsHeading", e.target.value)}
+                        readOnly={!canEditMoa}
+                        className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase outline-none read-only:cursor-default"
                       />
-                    ) : (
-                      <div className="whitespace-pre-wrap p-3 text-[10px] leading-relaxed text-zinc-800 bg-emerald-50/10 rounded-lg">
-                        {termsText}
-                      </div>
-                    )}
+                    </p>
+                    <textarea
+                      value={termsText}
+                      onChange={(e) => setTermsText(e.target.value)}
+                      readOnly={!canEditMoa}
+                      className="min-h-[200px] w-full resize-none rounded-sm border border-zinc-300 bg-transparent p-3 text-[10px] leading-relaxed text-zinc-800 outline-none focus:border-emerald-500 read-only:cursor-default"
+                    />
                   </div>
 
                   <div className="grid gap-8 pt-4 md:grid-cols-2">
