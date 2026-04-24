@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
 import { InventoryAuditModal } from "@/components/shared/inventory-audit-modal";
+import { useBranch } from "@/contexts/branch-context";
 
 type PawnedStatus = "Active" | "Redeemed" | "Expired";
 type ViewMode = "list" | "calendar";
@@ -445,6 +446,19 @@ export default function PawnedItemsPage() {
   // Calendar day-panel category filter — derived from fetched items (no extra API call)
   const [calendarCategory, setCalendarCategory] = useState("all");
 
+  const selectedDateLabel = selectedDate
+    ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+    : "";
+
+  const viewingItem =
+    pawnedItems.find((item) => item.id === selectedItemId) ||
+    allDayItems.find((item) => item.id === selectedItemId) ||
+    null;
+
   // Compute calendar categories from ALL items on the selected day (unfiltered)
   const calendarCategoryList: CategoryCount[] = (() => {
     if (viewMode !== "calendar" || !selectedDate) return [];
@@ -548,7 +562,18 @@ export default function PawnedItemsPage() {
       }
     }
     fetchData();
-  }, [branch, category, status, searchQuery, currentPage]);
+  }, [
+    isAllBranches,
+    selectedBranch.id,
+    viewMode,
+    category,
+    status,
+    searchQuery,
+    selectedDate,
+    currentPage,
+    itemsPerPage,
+    calendarCategory,
+  ]);
 
   const handleSaveRemarks = useCallback(async (itemId: string, remarks: string) => {
     try {
@@ -879,7 +904,7 @@ export default function PawnedItemsPage() {
         />
       </div>
 
-      {viewingItem && <ViewModal item={viewingItem} onClose={() => setViewingItem(null)} onSaveRemarks={handleSaveRemarks} userRole={userRole} />}
+      {viewingItem && <ViewModal item={viewingItem} onClose={() => setSelectedItemId(null)} onSaveRemarks={handleSaveRemarks} userRole={userRole} />}
 
       {isQrScanOpen && (
         <InventoryAuditModal
