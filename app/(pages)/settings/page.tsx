@@ -150,8 +150,8 @@ export default function SettingsPage() {
 
   const lineInputClass =
     "h-5 w-full border-b border-zinc-500 bg-transparent px-1 text-[10px] outline-none disabled:cursor-not-allowed";
-  const labelInputClass =
-    "h-5 border-b border-zinc-500 bg-transparent px-1 text-[10px] outline-none disabled:cursor-not-allowed";
+  const editableLabelClass =
+    "inline-block bg-transparent text-[10px] outline-none";
 
   const updateMoaField = (field: keyof typeof moaFields, value: string) => {
     setMoaFields((prev) => ({ ...prev, [field]: value }));
@@ -231,16 +231,15 @@ export default function SettingsPage() {
     field: keyof typeof topLabels,
     widthClass: string,
   ) => {
-    if (!canEditMoa) {
-      return <span className={widthClass}>{topLabels[field]}</span>;
-    }
-
     return (
-      <input
-        value={topLabels[field]}
-        onChange={(e) => updateTopLabel(field, e.target.value)}
-        className={`${labelInputClass} ${widthClass}`}
-      />
+      <span
+        contentEditable={canEditMoa}
+        suppressContentEditableWarning
+        onInput={(e) => updateTopLabel(field, e.currentTarget.textContent ?? "")}
+        className={`${editableLabelClass} ${widthClass}`}
+      >
+        {topLabels[field]}
+      </span>
     );
   };
 
@@ -248,16 +247,15 @@ export default function SettingsPage() {
     field: keyof typeof topLabels,
     className: string,
   ) => {
-    if (!canEditMoa) {
-      return <span className={className}>{topLabels[field]}</span>;
-    }
-
     return (
-      <input
-        value={topLabels[field]}
-        onChange={(e) => updateTopLabel(field, e.target.value)}
-        className={`${labelInputClass} ${className}`}
-      />
+      <span
+        contentEditable={canEditMoa}
+        suppressContentEditableWarning
+        onInput={(e) => updateTopLabel(field, e.currentTarget.textContent ?? "")}
+        className={`${editableLabelClass} ${className}`}
+      >
+        {topLabels[field]}
+      </span>
     );
   };
 
@@ -438,7 +436,7 @@ export default function SettingsPage() {
                       <input
                         value={moaFields.unitCode}
                         onChange={(e) => updateMoaField("unitCode", e.target.value)}
-                        disabled={!canEditMoa}
+                        readOnly={!canEditMoa}
                         className={lineInputClass}
                       />
                     </div>
@@ -454,21 +452,21 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.maturityDate1st}
                               onChange={(e) => updateMoaField("maturityDate1st", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                             <span>2nd</span>
                             <input
                               value={moaFields.maturityDate2nd}
                               onChange={(e) => updateMoaField("maturityDate2nd", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                             <span>3rd</span>
                             <input
                               value={moaFields.maturityDate3rd}
                               onChange={(e) => updateMoaField("maturityDate3rd", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -477,7 +475,7 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.expiryDate}
                               onChange={(e) => updateMoaField("expiryDate", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -489,7 +487,7 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.purchasedDate}
                               onChange={(e) => updateMoaField("purchasedDate", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -498,7 +496,7 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.idsPresented}
                               onChange={(e) => updateMoaField("idsPresented", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -512,7 +510,7 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.purchasedDate}
                               onChange={(e) => updateMoaField("purchasedDate", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -521,7 +519,7 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.idsPresented}
                               onChange={(e) => updateMoaField("idsPresented", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -534,21 +532,21 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.maturityDate1st}
                               onChange={(e) => updateMoaField("maturityDate1st", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                             <span>2nd</span>
                             <input
                               value={moaFields.maturityDate2nd}
                               onChange={(e) => updateMoaField("maturityDate2nd", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                             <span>3rd</span>
                             <input
                               value={moaFields.maturityDate3rd}
                               onChange={(e) => updateMoaField("maturityDate3rd", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -557,7 +555,7 @@ export default function SettingsPage() {
                             <input
                               value={moaFields.expiryDate}
                               onChange={(e) => updateMoaField("expiryDate", e.target.value)}
-                              disabled={!canEditMoa}
+                              readOnly={!canEditMoa}
                               className={lineInputClass}
                             />
                           </div>
@@ -573,7 +571,7 @@ export default function SettingsPage() {
                         <input
                           value={moaFields.customerName}
                           onChange={(e) => updateMoaField("customerName", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </span>
@@ -582,7 +580,7 @@ export default function SettingsPage() {
                         <input
                           value={moaFields.customerAddress}
                           onChange={(e) => updateMoaField("customerAddress", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </span>
@@ -594,7 +592,7 @@ export default function SettingsPage() {
                         <input
                           value={moaFields.principalAmount}
                           onChange={(e) => updateMoaField("principalAmount", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </span>
@@ -603,7 +601,7 @@ export default function SettingsPage() {
                         <input
                           value={moaFields.interestAmount}
                           onChange={(e) => updateMoaField("interestAmount", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </span>
@@ -612,7 +610,7 @@ export default function SettingsPage() {
                         <input
                           value={moaFields.penaltyAmount}
                           onChange={(e) => updateMoaField("penaltyAmount", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </span>
@@ -628,28 +626,28 @@ export default function SettingsPage() {
                         <input
                           value={moaFields.amount}
                           onChange={(e) => updateMoaField("amount", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         {renderEditableLabel("storageFee", "inline")}
                         <input
                           value={moaFields.storageFee}
                           onChange={(e) => updateMoaField("storageFee", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         {renderEditableLabel("parkingFee", "inline")}
                         <input
                           value={moaFields.parkingFee}
                           onChange={(e) => updateMoaField("parkingFee", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         {renderEditableLabel("netProceeds", "inline")}
                         <input
                           value={moaFields.netProceeds}
                           onChange={(e) => updateMoaField("netProceeds", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </div>
@@ -662,35 +660,35 @@ export default function SettingsPage() {
                         <input
                           value={moaFields.brandModel}
                           onChange={(e) => updateMoaField("brandModel", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         {renderEditableLabel("itemsIncluded", "inline")}
                         <input
                           value={moaFields.itemsIncluded}
                           onChange={(e) => updateMoaField("itemsIncluded", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         {renderEditableLabel("condition", "inline")}
                         <input
                           value={moaFields.condition}
                           onChange={(e) => updateMoaField("condition", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         {renderEditableLabel("serialNo", "inline")}
                         <input
                           value={moaFields.serialNo}
                           onChange={(e) => updateMoaField("serialNo", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         {renderEditableLabel("memory", "inline")}
                         <input
                           value={moaFields.memory}
                           onChange={(e) => updateMoaField("memory", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </div>
@@ -710,7 +708,7 @@ export default function SettingsPage() {
                         <input
                           value={row.date}
                           onChange={(e) => updateExtensionRow(index, "date", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         <input
@@ -718,7 +716,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             updateExtensionRow(index, "storage", e.target.value)
                           }
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         <input
@@ -726,7 +724,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             updateExtensionRow(index, "period", e.target.value)
                           }
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         <input
@@ -734,54 +732,45 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             updateExtensionRow(index, "extend", e.target.value)
                           }
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                         <input
                           value={row.sign}
                           onChange={(e) => updateExtensionRow(index, "sign", e.target.value)}
-                          disabled={!canEditMoa}
+                          readOnly={!canEditMoa}
                           className={lineInputClass}
                         />
                       </div>
                     ))}
                   </div>
 
-                  <p className="border-y border-emerald-900/40 bg-emerald-50 py-1 text-center text-[10px] font-bold uppercase text-emerald-950">
-                    {canEditMoa ? (
-                      <input
-                        value={topLabels.adviseText}
-                        onChange={(e) => updateTopLabel("adviseText", e.target.value)}
-                        className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase text-emerald-950 outline-none"
-                      />
-                    ) : (
-                      topLabels.adviseText
-                    )}
+                  <p
+                    contentEditable={canEditMoa}
+                    suppressContentEditableWarning
+                    onInput={(e) => updateTopLabel("adviseText", e.currentTarget.textContent ?? "")}
+                    className="border-y border-emerald-900/40 bg-emerald-50 py-1 text-center text-[10px] font-bold uppercase text-emerald-950 outline-none"
+                  >
+                    {topLabels.adviseText}
                   </p>
 
                   <div className="space-y-2">
-                    <p className="text-center text-[10px] font-bold uppercase underline">
-                      {canEditMoa ? (
-                        <input
-                          value={topLabels.termsHeading}
-                          onChange={(e) => updateTopLabel("termsHeading", e.target.value)}
-                          className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase outline-none"
-                        />
-                      ) : (
-                        topLabels.termsHeading
-                      )}
+                    <p
+                      contentEditable={canEditMoa}
+                      suppressContentEditableWarning
+                      onInput={(e) => updateTopLabel("termsHeading", e.currentTarget.textContent ?? "")}
+                      className="text-center text-[10px] font-bold uppercase underline outline-none"
+                    >
+                      {topLabels.termsHeading}
                     </p>
-                    {canEditMoa ? (
-                      <textarea
-                        value={termsText}
-                        onChange={(e) => setTermsText(e.target.value)}
-                        className="min-h-[200px] w-full resize-none rounded-sm border border-zinc-300 bg-transparent p-3 text-[10px] leading-relaxed outline-none focus:border-emerald-500"
-                      />
-                    ) : (
-                      <div className="whitespace-pre-wrap p-3 text-[10px] leading-relaxed text-zinc-800 bg-emerald-50/10 rounded-lg">
-                        {termsText}
-                      </div>
-                    )}
+                    <div
+                      contentEditable={canEditMoa}
+                      suppressContentEditableWarning
+                      onInput={(e) => setTermsText(e.currentTarget.textContent ?? "")}
+                      className="min-h-[200px] whitespace-pre-wrap rounded-sm border border-zinc-300 bg-transparent p-3 text-[10px] leading-relaxed text-zinc-800 outline-none"
+                    >
+                      {termsText}
+                    </div>
                   </div>
 
                   <div className="grid gap-8 pt-4 md:grid-cols-2">
@@ -789,7 +778,7 @@ export default function SettingsPage() {
                       <input
                         value={moaFields.sellerName}
                         onChange={(e) => updateMoaField("sellerName", e.target.value)}
-                        disabled={!canEditMoa}
+                        readOnly={!canEditMoa}
                         className={lineInputClass}
                       />
                       <p className="text-[9px]">{renderEditableLabel("sellerSignature", "inline")}</p>
@@ -801,7 +790,7 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           updateMoaField("representativeName", e.target.value)
                         }
-                        disabled={!canEditMoa}
+                        readOnly={!canEditMoa}
                         className={lineInputClass}
                       />
                       <p className="text-[9px]">{renderEditableLabel("representativeSignature", "inline")}</p>
