@@ -9,7 +9,7 @@ interface AuthLandingPageProps {
   onSignUpClick?: () => void;
 }
 
-const navItems = ["HOME", "HOW IT WORKS", "CATEGORIES", "WHY US", "REVIEWS", "CONTACT US"];
+const navItems = ["HOME", "HOW IT WORKS", "CATEGORIES", "WHY US", "REVIEWS", "BRANCHES", "CONTACT US"];
 
 const steps = [
   {
@@ -155,26 +155,23 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
   const [reviewIndex, setReviewIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const lastScrollY = useRef(0);
 
   const totalSlides = allReviews.length;
 
   const goToReview = (next: number) => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    setTimeout(() => {
-      setReviewIndex((next + totalSlides) % totalSlides);
-      setIsAnimating(false);
-    }, 200);
+    setReviewIndex((next + totalSlides) % totalSlides);
   };
 
   const prevReview = () => goToReview(reviewIndex - 1);
   const nextReview = () => goToReview(reviewIndex + 1);
 
-  // Get 3 visible reviews: prev, center, next
-  const visibleReviews = [-1, 0, 1].map((offset) => {
-    const idx = (reviewIndex + offset + totalSlides) % totalSlides;
-    return { ...allReviews[idx], isCenter: offset === 0 };
-  });
+  // For seamless sliding, we wrap the reviews
+  const extendedReviews = [
+    allReviews[allReviews.length - 1],
+    ...allReviews,
+    allReviews[0],
+  ];
 
   const handleScroll = (e: React.MouseEvent, id: string, item: string) => {
     e.preventDefault();
@@ -188,12 +185,10 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
   };
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.target.classList.toggle("is-visible", e.isIntersecting)),
-      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
-    );
-    document.querySelectorAll(".reveal-on-scroll").forEach((el) => observer.observe(el));
+    // Reveal on scroll elements are now handled via CSS View Timelines in globals.css
+  }, []);
 
+  useEffect(() => {
     const handleScrollSync = () => {
       const sections = document.querySelectorAll("section[id]");
       const { scrollY, innerHeight } = window;
@@ -223,7 +218,7 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
 
       <div className="relative z-10">
         {/* ── NAV ── */}
-        <nav className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between bg-emerald-900/90 px-12 backdrop-blur-sm">
+        <nav className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-emerald-900/90 px-12 backdrop-blur-sm">
           <Image src="/logo.png" alt="JCLB" width={48} height={48} className="rounded-lg cursor-pointer" onClick={(e) => handleScroll(e as any, "home", "HOME")} />
           <div className="relative hidden items-center gap-8 md:flex">
             {navItems.map((item, index) => {
@@ -315,7 +310,7 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
         </section>
 
         {/* ── HOW IT WORKS ── */}
-        <section id="how-it-works" className="bg-white px-6 pt-20 pb-32 md:px-12 md:pt-28 md:pb-40">
+        <section id="how-it-works" className="bg-white px-6 py-48 md:px-12 md:py-64">
           <div className="mx-auto max-w-6xl reveal-on-scroll">
             <h2 className="text-4xl font-black text-emerald-900 md:text-5xl">
               <span className="text-amber-400">3</span> Steps to Get Your Cash
@@ -339,7 +334,7 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
         </section>
 
         {/* ── CATEGORIES ── */}
-        <section id="categories" className="bg-emerald-900/90 px-6 pt-20 pb-32 md:px-12 md:pt-28 md:pb-40">
+        <section id="categories" className="bg-emerald-900/90 px-6 py-48 md:px-12 md:py-64">
           <div className="mx-auto max-w-6xl reveal-on-scroll">
             <p className="text-sm font-bold uppercase tracking-widest text-amber-400">WHAT WE BUY</p>
             <h2 className="mt-2 text-4xl font-black text-white md:text-5xl">
@@ -364,7 +359,7 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
         </section>
 
         {/* ── WHY US ── */}
-        <section id="why-us" className="bg-white px-6 py-20 md:px-12 md:py-28">
+        <section id="why-us" className="bg-white px-6 pt-32 pb-20 md:px-12 md:pt-48 md:pb-28">
           <div className="mx-auto flex max-w-6xl flex-col gap-12 lg:flex-row reveal-on-scroll">
             <div className="flex-1">
               <p className="text-sm font-bold uppercase tracking-widest text-amber-500">WHY CHOOSE US?</p>
@@ -402,7 +397,7 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
         </section>
 
         {/* ── REVIEWS CAROUSEL ── */}
-        <section id="reviews" className="bg-white px-6 py-20 md:px-12 md:py-28">
+        <section id="reviews" className="bg-white px-6 py-48 md:px-12 md:py-64">
           <div className="mx-auto max-w-6xl reveal-on-scroll">
             <p className="text-sm font-bold uppercase tracking-widest text-amber-500">CUSTOMER REVIEWS</p>
             <h2 className="mt-2 text-4xl font-black text-emerald-900 md:text-5xl">What Our Sellers Say</h2>
@@ -416,38 +411,46 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
                 </svg>
               </button>
 
-              {/* Cards */}
-              <div className={`flex flex-1 gap-4 overflow-hidden transition-opacity duration-200 ${isAnimating ? "opacity-0 scale-[0.98]" : "opacity-100 scale-100"}`}
-                style={{ transition: "opacity 0.2s ease, transform 0.2s ease" }}>
-                {visibleReviews.map((review, i) => (
-                  <div key={`${review.name}-${i}`}
-                    className={`flex-1 rounded-2xl p-6 shadow-lg transition-all duration-300 ${
-                      review.isCenter
-                        ? "bg-emerald-900 text-white scale-105 shadow-2xl z-10"
-                        : "bg-emerald-50/80 text-emerald-900 scale-95 opacity-70"
-                    }`}>
-                    {/* Stars */}
-                    <div className="flex gap-1 mb-4">
-                      {[...Array(5)].map((_, si) => (
-                        <svg key={si} className={`h-4 w-4 ${review.isCenter ? "text-amber-400" : "text-amber-400"}`} fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <p className={`text-sm leading-relaxed mb-6 ${review.isCenter ? "text-white/90" : "text-zinc-600"}`}>
-                      &ldquo;{review.quote}&rdquo;
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${review.isCenter ? "bg-amber-400 text-emerald-900" : "bg-emerald-900 text-white"}`}>
-                        {review.initials}
+              {/* Carousel Track Container */}
+              <div className="flex-1 overflow-hidden py-10">
+                <div 
+                  className="flex transition-transform duration-500 ease-out"
+                  style={{ transform: `translateX(${(1 - (reviewIndex + 1)) * 33.333}%)` }}
+                >
+                  {extendedReviews.map((review, i) => {
+                    const isCenter = i === reviewIndex + 1;
+                    return (
+                      <div key={`${review.name}-${i}`} className="w-full md:w-1/3 shrink-0 px-4 transition-all duration-500">
+                        <div className={`h-full rounded-2xl p-6 shadow-lg transition-all duration-500 ${
+                          isCenter
+                            ? "bg-emerald-900 text-white scale-105 shadow-2xl z-10"
+                            : "bg-emerald-50/80 text-emerald-900 scale-95 opacity-50"
+                        }`}>
+                          {/* Stars */}
+                          <div className="flex gap-1 mb-4">
+                            {[...Array(5)].map((_, si) => (
+                              <svg key={si} className={`h-4 w-4 text-amber-400`} fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <p className={`text-sm leading-relaxed mb-6 ${isCenter ? "text-white/90" : "text-zinc-600"}`}>
+                            &ldquo;{review.quote}&rdquo;
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${isCenter ? "bg-amber-400 text-emerald-900" : "bg-emerald-900 text-white"}`}>
+                              {review.initials}
+                            </div>
+                            <div>
+                              <p className={`font-bold text-sm ${isCenter ? "text-white" : "text-emerald-900"}`}>{review.name}</p>
+                              <p className={`text-xs ${isCenter ? "text-white/60" : "text-zinc-400"}`}>{review.sold}</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className={`font-bold text-sm ${review.isCenter ? "text-white" : "text-emerald-900"}`}>{review.name}</p>
-                        <p className={`text-xs ${review.isCenter ? "text-white/60" : "text-zinc-400"}`}>{review.sold}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Right arrow */}
@@ -470,7 +473,7 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
         </section>
 
         {/* ── BRANCH LOCATIONS ── */}
-        <section id="locations" className="bg-white px-6 pt-20 pb-32 md:px-12 md:pt-28 md:pb-40">
+        <section id="branches" className="bg-white px-6 pt-20 pb-32 md:px-12 md:pt-28 md:pb-40">
           <div className="mx-auto max-w-6xl reveal-on-scroll">
             <p className="text-sm font-bold uppercase tracking-widest text-amber-500">FIND US</p>
             <h2 className="mt-2 text-4xl font-black text-emerald-900 md:text-5xl">Our Branch Locations</h2>
@@ -529,14 +532,14 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
         </section>
 
         {/* ── CONTACT CTA ── */}
-        <section id="contact-us" className="bg-emerald-900/90 px-6 py-20 md:px-12 md:py-28">
+        <section id="contact-us" className="bg-red-600 px-6 py-20 md:px-12 md:py-28">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-8 md:flex-row reveal-on-scroll">
             <div className="text-center md:text-left">
               <h2 className="text-4xl font-black text-white md:text-5xl">Ready to Turn Your Items Into Cash?</h2>
               <p className="mt-3 text-xl text-white/60">It only takes a minute to start.</p>
             </div>
             <button onClick={onSignUpClick ?? onLoginClick}
-              className="shrink-0 rounded-xl bg-amber-400 px-10 py-5 font-black text-emerald-900 shadow-2xl transition-all hover:scale-105 hover:bg-amber-300 active:scale-95">
+              className="shrink-0 rounded-xl bg-emerald-900 px-10 py-5 font-black text-white shadow-2xl transition-all hover:scale-105 hover:bg-emerald-800 active:scale-95">
               GET STARTED
             </button>
           </div>
@@ -544,8 +547,8 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
 
         {/* ── FOOTER ── */}
         <footer className="bg-emerald-900 px-8 py-12 md:px-16">
-          <div className="mx-auto max-w-6xl">
-            <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
+          <div className="mx-auto w-full max-w-[1400px]">
+            <div className="grid grid-cols-1 gap-12 md:grid-cols-4 md:gap-16 lg:gap-24">
               {/* Brand */}
               <div className="md:col-span-1">
                 <div className="flex items-center gap-3 mb-4">
@@ -562,29 +565,33 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
               </div>
 
               {/* Quick Links */}
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-amber-400 mb-4">QUICK LINKS</p>
-                <ul className="space-y-2.5">
-                  {["How It Works", "What We Buy", "Why Choose Us", "Reviews", "Get Started"].map((link) => (
-                    <li key={link}>
-                      <a href="#" className="flex items-center gap-2 text-sm text-white/60 hover:text-amber-400 transition-colors">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
-                        {link}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+              <div className="md:flex md:justify-center">
+                <div className="w-fit">
+                  <p className="text-xs font-black uppercase tracking-widest text-amber-400 mb-4">QUICK LINKS</p>
+                  <ul className="space-y-2.5">
+                    {["How It Works", "What We Buy", "Why Choose Us", "Reviews", "Get Started"].map((link) => (
+                      <li key={link}>
+                        <a href="#" className="flex items-center gap-2 text-sm text-white/60 hover:text-amber-400 transition-colors">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                          {link}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               {/* What We Buy */}
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-amber-400 mb-4">WHAT WE BUY</p>
-                <div className="flex flex-wrap gap-2">
-                  {["Smartphones", "Laptops", "Gaming Consoles", "Cameras", "Tablets", "Watches"].map((item) => (
-                    <span key={item} className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60">
-                      {item}
-                    </span>
-                  ))}
+              <div className="md:flex md:justify-center">
+                <div className="w-fit">
+                  <p className="text-xs font-black uppercase tracking-widest text-amber-400 mb-4">WHAT WE BUY</p>
+                  <div className="flex flex-wrap gap-2 max-w-[200px]">
+                    {["Smartphones", "Laptops", "Gaming Consoles", "Cameras", "Tablets", "Watches"].map((item) => (
+                      <span key={item} className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -611,19 +618,25 @@ export function AuthLandingPage({ onLoginClick, onSignUpClick }: AuthLandingPage
               </div>
             </div>
 
-            {/* Bottom bar */}
-            <div className="mt-10 border-t border-white/10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex flex-wrap gap-3">
+            <div className="mt-10 border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-white/40">
+              {/* Left: Badges */}
+              <div className="flex flex-wrap justify-center md:justify-start gap-3">
                 {["✓ 100% Legit", "✓ BSP Registered", "✓ 24hr Quick Payout"].map((badge) => (
-                  <span key={badge} className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-bold text-amber-400">
+                  <span key={badge} className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 font-bold text-amber-400 whitespace-nowrap">
                     {badge}
                   </span>
                 ))}
               </div>
-              <div className="flex items-center gap-4 text-xs text-white/40">
+
+              {/* Middle: Copyright */}
+              <div className="text-center whitespace-nowrap">
                 <span>&copy; 2026 JCLB Buy Back Shop. All rights reserved.</span>
-                <span className="hidden md:block">Made with ❤️ for our customers</span>
-                <span className="hidden md:block italic text-amber-400/60">&ldquo;Madaling Kausap&rdquo;</span>
+              </div>
+
+              {/* Right: Slogans */}
+              <div className="flex items-center gap-4 text-center md:text-right whitespace-nowrap">
+                <span>Made with ❤️ for our customers</span>
+                <span className="italic text-amber-400/60">&ldquo;Madaling Kausap&rdquo;</span>
               </div>
             </div>
           </div>
