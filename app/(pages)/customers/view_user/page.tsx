@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ActionButton } from "@/components/shared/action-button";
@@ -626,6 +626,8 @@ function EmployeeCustomerDetailContent() {
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
   const [activityLogs, setActivityLogs] = useState<BackendActivityLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [activeHighlightLogId, setActiveHighlightLogId] = useState("");
+  const highlightTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   const [reviewContext, setReviewContext] = useState<ReviewContext | null>(null);
 
@@ -753,17 +755,42 @@ function EmployeeCustomerDetailContent() {
   }, [customer, initialAction]);
 
   useEffect(() => {
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
+    }
+
     if (!highlightLogId) {
+      setActiveHighlightLogId("");
+      return;
+    }
+
+    setActiveHighlightLogId(highlightLogId);
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      setActiveHighlightLogId("");
+      highlightTimeoutRef.current = null;
+    }, 3000);
+
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = null;
+      }
+    };
+  }, [highlightLogId]);
+
+  useEffect(() => {
+    if (!activeHighlightLogId) {
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(`activity-log-${highlightLogId}`);
+      const target = document.getElementById(`activity-log-${activeHighlightLogId}`);
       target?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [highlightLogId, activityLogs, transactionRecords, customer]);
+  }, [activeHighlightLogId, activityLogs, transactionRecords, customer]);
 
   useEffect(() => {
     setIsViewOpen(false);
@@ -1188,7 +1215,7 @@ function EmployeeCustomerDetailContent() {
                 }
 
                 return sorted.map((item) => {
-                  const isHighlighted = item.key === highlightLogId;
+                  const isHighlighted = item.key === activeHighlightLogId;
 
                   if (item.kind === "edit_request" && item.rawDetails) {
                     const rd = item.rawDetails;
@@ -1234,7 +1261,7 @@ function EmployeeCustomerDetailContent() {
                       <div
                         key={item.key}
                         id={`activity-log-${item.key}`}
-                        className={`flex scroll-mt-24 items-start gap-3 px-5 py-4 transition-colors ${isHighlighted ? "bg-emerald-50/80 ring-2 ring-inset ring-emerald-500/25" : "hover:bg-surface-secondary/50"}`}
+                        className={`flex scroll-mt-24 items-start gap-3 border-l-4 px-5 py-4 transition-colors ${isHighlighted ? "border-emerald-500/80 bg-surface-subtle/60 dark:border-emerald-300/80 dark:bg-emerald-950/20" : "border-transparent hover:bg-surface-secondary/50"}`}
                       >
                         <div className="mt-0.5 flex-shrink-0">
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/15 text-blue-400">
@@ -1321,7 +1348,7 @@ function EmployeeCustomerDetailContent() {
                       <div
                         key={item.key}
                         id={`activity-log-${item.key}`}
-                        className={`flex scroll-mt-24 items-start gap-3 px-5 py-4 transition-colors ${isHighlighted ? "bg-emerald-50/80 ring-2 ring-inset ring-emerald-500/25" : "hover:bg-surface-secondary/50"}`}
+                        className={`flex scroll-mt-24 items-start gap-3 border-l-4 px-5 py-4 transition-colors ${isHighlighted ? "border-emerald-500/80 bg-surface-subtle/60 dark:border-emerald-300/80 dark:bg-emerald-950/20" : "border-transparent hover:bg-surface-secondary/50"}`}
                       >
                         <div className="mt-0.5 flex-shrink-0">
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
@@ -1363,7 +1390,7 @@ function EmployeeCustomerDetailContent() {
                     <div
                       key={item.key}
                       id={`activity-log-${item.key}`}
-                      className={`flex scroll-mt-24 items-start gap-3 px-5 py-4 transition-colors ${isHighlighted ? "bg-emerald-50/80 ring-2 ring-inset ring-emerald-500/25" : "hover:bg-surface-secondary/50"}`}
+                      className={`flex scroll-mt-24 items-start gap-3 border-l-4 px-5 py-4 transition-colors ${isHighlighted ? "border-emerald-500/80 bg-surface-subtle/60 dark:border-emerald-300/80 dark:bg-emerald-950/20" : "border-transparent hover:bg-surface-secondary/50"}`}
                     >
                       <div className="mt-0.5 flex-shrink-0">{iconMap[item.kind]}</div>
                       <div className="min-w-0 flex-1">

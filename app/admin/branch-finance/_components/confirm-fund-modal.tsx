@@ -38,6 +38,12 @@ export function ConfirmFundModal({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofName, setProofName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasMaxAmount = Number.isFinite(amount) && amount > 0;
+
+  const formatAmountError = () =>
+    hasMaxAmount
+      ? `Amount cannot exceed ₱${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`
+      : "Enter a valid amount.";
 
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +61,11 @@ export function ConfirmFundModal({
     e.preventDefault();
     const parsed = Number(receivedAmount.replace(/,/g, ""));
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      setError("Enter a valid amount.");
+      setError(formatAmountError());
+      return;
+    }
+    if (hasMaxAmount && parsed > amount) {
+      setError(formatAmountError());
       return;
     }
     if (!proofFile) {
@@ -133,7 +143,24 @@ export function ConfirmFundModal({
             <input
               type="text"
               value={receivedAmount}
-              onChange={(e) => setReceivedAmount(e.target.value.replace(/[^0-9.,]/g, ""))}
+              onChange={(e) => {
+                const nextValue = e.target.value.replace(/[^0-9.,]/g, "");
+                if (!hasMaxAmount) {
+                  setReceivedAmount(nextValue);
+                  setError(null);
+                  return;
+                }
+
+                const parsed = Number(nextValue.replace(/,/g, ""));
+                if (Number.isFinite(parsed) && parsed > amount) {
+                  setReceivedAmount(String(amount));
+                  setError(formatAmountError());
+                  return;
+                }
+
+                setReceivedAmount(nextValue);
+                setError(null);
+              }}
               className="w-full rounded-lg border border-input-border bg-input-bg p-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               placeholder="Enter actual amount received"
               required
