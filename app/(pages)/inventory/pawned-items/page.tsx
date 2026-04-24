@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
+import { InventoryAuditModal } from "@/components/shared/inventory-audit-modal";
 
 type PawnedStatus = "Active" | "Redeemed" | "Expired";
 type ViewMode = "list" | "calendar";
@@ -208,29 +209,7 @@ export default function PawnedItemsPage() {
     }
   }, []);
 
-  const handleMarkExpired = useCallback(async (itemId: string) => {
-    if (!confirm("Mark this item as Expired? It will be auto-transferred to Items For Sale.")) return;
-    try {
-      await api.post(`/inventory/pawned/${itemId}/expire`, {});
-      setPawnedItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, status: "Expired" as PawnedStatus } : i)));
-    } catch (err) {
-      console.error("Failed to expire item:", err);
-    }
-  }, []);
-
-  const handleDelete = useCallback(async (itemId: string) => {
-    if (!confirm("Are you sure you want to delete this pawned item? This cannot be undone.")) return;
-    try {
-      await api.delete(`/inventory/pawned/${itemId}`);
-      setPawnedItems((prev) => prev.filter((i) => i.id !== itemId));
-    } catch (err) {
-      console.error("Failed to delete item:", err);
-    }
-  }, []);
-
-  const handleQRScan = useCallback(() => {
-    alert("QR Scanner will open here. Scan all items in the vault to tally physical count vs system inventory.");
-  }, []);
+  const [isQrScanOpen, setIsQrScanOpen] = useState(false);
 
   return (
     <div className="space-y-3 pb-4">
@@ -263,7 +242,7 @@ export default function PawnedItemsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={handleQRScan} className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-500/50">
+          <button onClick={() => setIsQrScanOpen(true)} className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-500/50">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
             </svg>
@@ -375,6 +354,13 @@ export default function PawnedItemsPage() {
       </div>
 
       {viewingItem && <ViewModal item={viewingItem} onClose={() => setViewingItem(null)} onSaveRemarks={handleSaveRemarks} userRole={userRole} />}
+
+      {isQrScanOpen && (
+        <InventoryAuditModal
+          isOpen={isQrScanOpen}
+          onConfirm={() => setIsQrScanOpen(false)}
+        />
+      )}
     </div>
   );
 }

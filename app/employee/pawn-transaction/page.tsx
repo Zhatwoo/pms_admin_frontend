@@ -23,8 +23,11 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type PurposeType =
   | "Start"
+  | "End"
   | "Buy Back"
   | "Renew"
+  | "Reappraise"
+  | "Redeem"
   | "Sold Item"
   | "Pawn"
   | "Fund Transfer"
@@ -36,7 +39,7 @@ const filterToPurpose: Record<FilterType, PurposeType | null> = {
   "All": null,
   "Renew": "Renew",
   "Sales / Transfer": "Sold Item",
-  "Redeem": "Pawn",
+  "Redeem": "Redeem",
   "Buy Back": "Buy Back",
 };
 

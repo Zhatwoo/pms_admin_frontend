@@ -17,28 +17,7 @@ interface SaleItem {
   availableDate: string;
   price: number;
   status: "Available" | "Sold";
-  stockLevel: number;
   originalPawnId?: string;
-}
-
-function StockBadge({ stock }: { stock: number }) {
-  if (stock === 0)
-    return (
-      <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 border border-red-200">
-        Out of Stock
-      </span>
-    );
-  if (stock <= 3)
-    return (
-      <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-bold text-orange-700 border border-orange-200">
-        Low Stock: {stock}
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700 border border-green-200">
-      In Stock: {stock}
-    </span>
-  );
 }
 
 const branchOptions = [
@@ -127,11 +106,6 @@ export default function ItemsForSalePage() {
   const [selectedItem, setSelectedItem] = useState<SaleItem | null>(null);
   const itemsPerPage = 10;
 
-  // Low stock banner: items Available with stockLevel <= 3
-  const lowStockCount = saleItems.filter(
-    (i) => i.status === "Available" && i.stockLevel <= 3
-  ).length;
-
   useEffect(() => {
     setCurrentPage(1);
   }, [branch, category, status, searchQuery, saleViewMode]);
@@ -215,39 +189,6 @@ export default function ItemsForSalePage() {
         </div>
       </div>
 
-      {/* ── Low Stock Alert Banner ──────────────────────────── */}
-      {lowStockCount > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50 p-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-base font-bold text-orange-800">Low Stock Alert</p>
-              <p className="text-xs text-orange-600 font-medium">
-                You have {lowStockCount} item(s) running low on stock (&le; 3).
-              </p>
-            </div>
-          </div>
-          <button className="text-xs font-bold text-orange-700 hover:text-orange-900 border border-orange-300 rounded px-4 py-2 transition-colors bg-surface">
-            Review Items
-          </button>
-        </div>
-      )}
-
       {/* ── Items For Sale Table ────────────────────────────── */}
       <div className="overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300">
         <div className="overflow-x-auto">
@@ -269,13 +210,13 @@ export default function ItemsForSalePage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-base text-zinc-400">
+                  <td colSpan={8} className="py-8 text-center text-base text-zinc-400">
                     Loading...
                   </td>
                 </tr>
               ) : saleItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-base text-zinc-400">
+                  <td colSpan={8} className="py-8 text-center text-base text-zinc-400">
                     {saleViewMode === "history" ? "No sold items in history" : "No items for sale found"}
                   </td>
                 </tr>
