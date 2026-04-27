@@ -119,7 +119,7 @@ export function TransactionTable({
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && data.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
