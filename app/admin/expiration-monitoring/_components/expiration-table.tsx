@@ -1,5 +1,6 @@
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
+import { useEffect, useState } from "react";
 
 const columns: Column[] = [
   { key: "ticketNo", label: "Ticket No." },
@@ -80,6 +81,7 @@ interface ExpirationTableProps {
   renewingId?: string | null;
   onSendEmail?: (id: string, customer: string) => void;
   onRenew?: (id: string) => void;
+  highlightTicketNo?: string | null;
 }
 
 export function ExpirationTable({ 
@@ -89,7 +91,19 @@ export function ExpirationTable({
   renewingId,
   onSendEmail,
   onRenew,
+  highlightTicketNo,
 }: ExpirationTableProps) {
+  const [pulsing, setPulsing] = useState(true);
+
+  useEffect(() => {
+    if (highlightTicketNo) {
+      const timer = setTimeout(() => {
+        setPulsing(false);
+      }, 5000); // stop pulsing after 5s
+      return () => clearTimeout(timer);
+    }
+  }, [highlightTicketNo]);
+
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border-main bg-surface p-8 text-center">
@@ -116,6 +130,11 @@ export function ExpirationTable({
     <DataTable
       columns={columns}
       data={data}
+      rowClassName={(row) => 
+        highlightTicketNo === row.ticketNo && pulsing 
+          ? "bg-amber-100/50 hover:bg-amber-100 transition-all duration-1000 ring-2 ring-amber-400 z-10 relative shadow-sm" 
+          : ""
+      }
       renderCell={(key, value, row) => {
         if (key === "principal" || key === "totalDue") {
           return (

@@ -28,6 +28,7 @@ interface ScannedItemDetails {
   customerIdPresented?: string;
   scanPayload?: string;
   serialNumber?: string;
+  scanSerialNumber?: string;
   itemPhotos?: string[];
   item_photos?: string[];
 }
@@ -90,7 +91,7 @@ function parseScanPayload(value: string): ParsedScan {
   const rawValue = decodeScanPayload(value).trim();
   const codeMatch = rawValue.match(/(?:^|\|)\s*Code:\s*([^|]+)/i);
   const itemMatch = rawValue.match(/(?:^|\|)\s*Item:\s*([^|]+)/i);
-  const serialMatch = rawValue.match(/(?:^|\|)\s*SN:\s*([^|]+)/i);
+  const serialMatch = rawValue.match(/(?:^|\|)\s*(?:SN|Serial(?:\s*No\.?|\s*Number)?|Serial #):\s*([^|]+)/i);
 
   const itemId = (codeMatch?.[1] ?? rawValue).trim();
 
@@ -305,13 +306,16 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
 
     try {
       const data = await api.get<ScannedItemDetails>(`/inventory/item/${encodeURIComponent(cleanItemId)}`);
+      const fetchedSerialNumber = typeof data.serialNumber === "string" ? data.serialNumber.trim() : "";
+      const resolvedSerialNumber = fetchedSerialNumber || parsed.serialNumber;
 
       if (String(data.status || "").toLowerCase() !== "active") {
         setScanStage("failed");
         setRejectedScanItem({
           ...data,
           scanPayload: parsed.rawValue,
-          serialNumber: parsed.serialNumber,
+          serialNumber: resolvedSerialNumber,
+          scanSerialNumber: parsed.serialNumber,
         });
         setPendingItem(null);
         setError("Only active pawned items are accepted.");
@@ -321,7 +325,8 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
       setPendingItem({
         ...data,
         scanPayload: parsed.rawValue,
-        serialNumber: parsed.serialNumber,
+        serialNumber: resolvedSerialNumber,
+        scanSerialNumber: parsed.serialNumber,
       });
       setScanStage("matched");
     } catch (scanError) {
@@ -602,12 +607,15 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
   const cameraFields = [
     { label: "Item ID", value: activeItem?.itemId || detectedScan?.itemId || "N/A" },
     { label: "Item Name", value: activeItem?.itemName || detectedScan?.itemName || "N/A" },
+    { label: "Serial Number", value: activeItem?.serialNumber || activeItem?.scanSerialNumber || detectedScan?.serialNumber || "N/A" },
     { label: "Category", value: activeItem?.category || "N/A" },
     { label: "Amount", value: formatCurrency(activeItem?.amount) },
     { label: "Branch", value: activeItem?.branch || "N/A" },
     { label: "Pawn Date", value: activeItem?.pawnDate || "N/A" },
     { label: "Status", value: activeItem?.status || "N/A" },
   ];
+
+  const resolvedScanSerial = activeItem?.serialNumber || activeItem?.scanSerialNumber || detectedScan?.serialNumber || "N/A";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-3 py-3 backdrop-blur-xl lg:px-6 lg:py-6">
@@ -624,35 +632,35 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
           </svg>
         </button>
         <div className="grid h-full min-h-0 lg:grid-cols-[1.25fr_.88fr]">
-          <section className="relative flex min-h-0 flex-col bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_40%),linear-gradient(180deg,_#03150f_0%,_#07140f_100%)] p-4 text-white lg:p-6">
+          <section className="relative flex min-h-0 flex-col overflow-hidden bg-white p-4 text-zinc-900 lg:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-200/70">Opening Workflow</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-700/70">Opening Workflow</p>
                 <h2 className="mt-2 text-2xl font-black leading-tight lg:text-3xl">Inventory QR Scan</h2>
-                <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 lg:text-sm">
+                <p className="mt-2 max-w-xl text-xs leading-5 text-zinc-600 lg:text-sm">
                   The camera opens automatically so you can scan each pawned item QR code before starting the day.
                 </p>
               </div>
 
-              <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-[10px] font-bold text-emerald-100 lg:px-4 lg:text-xs">
+              <div className="rounded-full border border-emerald-200 bg-white px-3 py-2 text-[10px] font-bold text-emerald-700 shadow-sm lg:px-4 lg:text-xs">
                 {scannedItems.length} Verified
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/60 lg:mt-5 lg:text-xs">
+            <div className="mt-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500 lg:mt-5 lg:text-xs">
               <span
-                className={`h-2.5 w-2.5 rounded-full ${cameraState === "ready" ? "bg-emerald-400 animate-pulse" : cameraState === "loading" ? "bg-amber-300 animate-pulse" : cameraState === "unsupported" ? "bg-sky-300" : "bg-rose-400"}`}
+                className={`h-2.5 w-2.5 rounded-full ${cameraState === "ready" ? "bg-emerald-500 animate-pulse" : cameraState === "loading" ? "bg-amber-400 animate-pulse" : cameraState === "unsupported" ? "bg-sky-400" : "bg-rose-400"}`}
               />
               <span>{cameraStatusLabel}</span>
             </div>
 
-            <div className="relative mt-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/30 shadow-[0_30px_90px_rgba(0,0,0,0.35)] lg:mt-5">
+            <div className="relative mt-4 overflow-hidden rounded-[1.5rem] border border-emerald-100 bg-zinc-50 shadow-[0_24px_70px_rgba(15,23,42,0.05)] lg:mt-5">
               <div className="relative aspect-[16/10] w-full lg:aspect-[16/9]">
                 <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover" autoPlay playsInline muted />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/5 to-black/70" />
+                <div className="absolute inset-0 bg-black/8" />
 
                 <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <div className={`animate-scan-glow relative h-[68%] w-[78%] rounded-[1.75rem] border bg-transparent shadow-[0_0_0_9999px_rgba(0,0,0,0.18)] ${scanStage === "failed" ? "border-rose-300/80" : scanStage === "duplicate" ? "border-amber-300/80" : "border-emerald-300/80"}`}>
+                  <div className={`animate-scan-glow relative h-[68%] w-[78%] rounded-[1.75rem] border bg-transparent shadow-[0_0_0_9999px_rgba(255,255,255,0.08)] ${scanStage === "failed" ? "border-rose-300/80" : scanStage === "duplicate" ? "border-amber-300/80" : "border-emerald-300/90"}`}>
                     <span className={`absolute left-0 top-0 h-8 w-8 -translate-x-1 -translate-y-1 rounded-tl-[1.5rem] border-l-2 border-t-2 ${scanStage === "failed" ? "border-rose-300" : scanStage === "duplicate" ? "border-amber-300" : "border-emerald-300"}`} />
                     <span className={`absolute right-0 top-0 h-8 w-8 translate-x-1 -translate-y-1 rounded-tr-[1.5rem] border-r-2 border-t-2 ${scanStage === "failed" ? "border-rose-300" : scanStage === "duplicate" ? "border-amber-300" : "border-emerald-300"}`} />
                     <span className={`absolute bottom-0 left-0 h-8 w-8 -translate-x-1 translate-y-1 rounded-bl-[1.5rem] border-b-2 border-l-2 ${scanStage === "failed" ? "border-rose-300" : scanStage === "duplicate" ? "border-amber-300" : "border-emerald-300"}`} />
@@ -664,21 +672,21 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
                       />
                     )}
 
-                    <div className="absolute inset-x-6 top-6 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.28em] text-white/60">
+                    <div className="absolute inset-x-6 top-6 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.28em] text-emerald-950/55">
                       <span>QR Scan Window</span>
                       <span>{scanStageLabel}</span>
                     </div>
 
                     {tally && tally.totalInSystem === 0 && !isCheckingTally && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 text-center p-8 z-10 animate-in fade-in duration-500">
-                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4 text-emerald-400">
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 p-8 text-center animate-in fade-in duration-500">
+                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                             <polyline points="22 4 12 14.01 9 11.01" />
                           </svg>
                         </div>
-                        <h4 className="text-lg font-black text-white uppercase tracking-tight">Empty Inventory</h4>
-                        <p className="mt-2 text-xs text-white/60 font-bold max-w-xs leading-relaxed">
+                        <h4 className="text-lg font-black tracking-tight text-zinc-900 uppercase">Empty Inventory</h4>
+                        <p className="mt-2 max-w-xs text-xs font-semibold leading-relaxed text-zinc-600">
                           No active pawned items found for this branch. You can complete the audit immediately.
                         </p>
                       </div>
@@ -697,31 +705,31 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
               </div>
             </div>
 
-            <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-3xl border border-white/10 bg-black/20 p-4 backdrop-blur-sm scrollbar-hide">
+            <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-3xl border border-zinc-100 bg-zinc-50 p-4 shadow-sm scrollbar-hide">
               {(pendingItem || detectedScan) && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center justify-between gap-3">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3 border-b border-zinc-200 pb-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/45">Pawned Item Details</p>
-                      <h3 className="mt-1 text-sm font-black text-white/90">Key fields from the verified QR payload</h3>
+                      <p className="text-[10px] font-black uppercase tracking-[0.35em] text-emerald-700/70">Pawned Item Details</p>
+                      <h3 className="mt-1 text-sm font-black text-zinc-900">Key fields from the verified item record</h3>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-white/60">
+                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-700">
                       {activeItem ? "Fetched" : "Decoded"}
                     </span>
                   </div>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {cameraFields.map((field) => (
-                      <div key={field.label} className="rounded-2xl border border-white/10 bg-white/8 p-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/50">{field.label}</p>
-                        <p className="mt-2 break-words text-sm font-bold text-white">{field.value}</p>
+                      <div key={field.label} className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">{field.label}</p>
+                        <p className="mt-2 break-words text-sm font-bold text-zinc-900">{field.value}</p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-3 rounded-2xl border border-white/10 bg-white/8 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/50">QR Payload</p>
-                    <p className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-[12px] leading-5 font-semibold text-white">
+                  <div className="mt-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">QR Payload</p>
+                    <p className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-[12px] font-semibold leading-5 text-zinc-700">
                       {activeItem?.scanPayload || detectedScan?.rawValue || "N/A"}
                     </p>
                   </div>
@@ -729,18 +737,18 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
               )}
 
               {!pendingItem && !detectedScan && (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-white/70">
-                  <p className="text-sm font-bold">Waiting for QR input</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-white/45">The decoded payload will appear here after scanning</p>
+                <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-6 text-center text-zinc-500">
+                  <p className="text-sm font-bold text-zinc-700">Waiting for QR input</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-zinc-400">The decoded payload will appear here after scanning</p>
                 </div>
               )}
             </div>
           </section>
 
-          <aside className="flex h-full min-h-0 flex-col overflow-y-auto bg-white p-4 lg:p-6 scrollbar-hide">
-            <div className="rounded-3xl border border-zinc-100 bg-zinc-50 p-4 shadow-sm lg:p-5">
+          <aside className="flex h-full min-h-0 flex-col overflow-y-auto bg-gradient-to-b from-white to-zinc-50 p-4 scrollbar-hide lg:p-6">
+            <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm lg:p-5">
               <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">Manual fallback</p>
                   <h3 className="mt-1 text-lg font-black text-zinc-900 lg:text-xl">Scan or type an item code</h3>
                   <p className="mt-2 text-xs leading-5 text-zinc-500 lg:text-sm">
@@ -766,7 +774,7 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
                   <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Code: 10-jclb-11543 | Item: oppo a94 | SN: ..."
+                    placeholder="Code: 10-jclb-11543 | Item: oppo a94 | Serial: ..."
                     value={currentScan}
                     onChange={(event) => setCurrentScan(event.target.value)}
                     disabled={isLoading}
@@ -851,7 +859,7 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
               </div>
 
               {pendingItem ? (
-                <div className="mt-4 space-y-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="mt-4 space-y-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-sm">
                   <div className="flex items-start gap-4">
                     <div className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-2xl border border-zinc-100 bg-white p-2 shadow-sm">
                       {ownerPhoto && !pendingPhotoBroken ? (
@@ -901,9 +909,9 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-white p-4">
+                  <div className="rounded-2xl bg-white p-4 shadow-sm">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Serial number</p>
-                    <p className="mt-2 break-words text-sm font-bold text-zinc-800">{pendingItem.serialNumber || detectedScan?.serialNumber || "N/A"}</p>
+                    <p className="mt-2 break-words text-sm font-bold text-zinc-900">{resolvedScanSerial}</p>
                   </div>
                   <div className="flex gap-3">
                     <button
@@ -1076,7 +1084,7 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose }: InventoryAud
                   </div>
                   <div className="rounded-2xl bg-zinc-50 p-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-400">Serial</p>
-                    <p className="mt-2 break-words text-sm font-black text-zinc-900">{selectedVerifiedItem.serialNumber || detectedScan?.serialNumber || "N/A"}</p>
+                    <p className="mt-2 break-words text-sm font-black text-zinc-900">{selectedVerifiedItem.serialNumber || selectedVerifiedItem.scanSerialNumber || detectedScan?.serialNumber || "N/A"}</p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl bg-zinc-50 p-4">
