@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
@@ -51,10 +52,13 @@ interface ExpirationMonitoringResponse {
   };
 }
 
-export default function ExpirationMonitoringPage() {
+function ExpirationMonitoringPageContent() {
   const [activeTab, setActiveTab] = useState("30days");
   const { selectedBranch, isAllBranches } = useBranch();
   const [isLoading, setIsLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const highlightTicketNo = searchParams?.get("ticketNo");
+  const highlightTransaction = searchParams?.get("highlightTransaction");
 
   const [stats, setStats] = useState({
     overdue: 0,
@@ -99,6 +103,20 @@ export default function ExpirationMonitoringPage() {
     }
     fetchExpirationData();
   }, [selectedBranch.id, isAllBranches]);
+
+  useEffect(() => {
+    if (highlightTicketNo && highlightTransaction === "true" && buckets) {
+      if (buckets.overdue.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("overdue");
+      } else if (buckets.threeDays.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("3days");
+      } else if (buckets.sevenDays.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("7days");
+      } else if (buckets.thirtyDays.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("30days");
+      }
+    }
+  }, [highlightTicketNo, highlightTransaction, buckets]);
 
   const getActiveItems = (): ExpirationItem[] => {
     switch (activeTab) {
@@ -215,7 +233,16 @@ export default function ExpirationMonitoringPage() {
         renewingId={renewingId}
         onSendEmail={handleSendEmail}
         onRenew={handleRenew}
+        highlightTicketNo={highlightTicketNo}
       />
     </div>
+  );
+}
+
+export default function ExpirationMonitoringPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-zinc-500">Loading...</div>}>
+      <ExpirationMonitoringPageContent />
+    </Suspense>
   );
 }

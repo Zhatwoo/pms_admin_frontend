@@ -6,6 +6,7 @@ import {
   buildPawnTransactionHighlightHref,
   extractTransactionNoFromText,
 } from "@/lib/pawn-transaction-navigation";
+import { useAuth } from "@/contexts/auth-context";
 
 export interface NotificationItem {
   id: string | number;
@@ -55,11 +56,11 @@ const arrowIcon = (
 export function NotificationsPanel({ notifications = [] }: NotificationsPanelProps) {
   const router = useRouter();
   const { branches, setSelectedBranch } = useBranch();
+  const { user } = useAuth();
 
   function handleNotificationClick(item: NotificationItem) {
-    const transactionNo = extractTransactionNoFromText(item.message);
-    if (!transactionNo) return;
-
+    const isExpiration = item.message.startsWith("Expiration Alert:");
+    
     // If notification has a branchId, switch to that branch first
     if (item.branchId) {
       const targetBranch = branches.find((b) => b.id === item.branchId);
@@ -68,7 +69,20 @@ export function NotificationsPanel({ notifications = [] }: NotificationsPanelPro
       }
     }
 
-    router.push(buildPawnTransactionHighlightHref(transactionNo, "super_admin"));
+    if (isExpiration) {
+      const ticketNoMatch = item.message.match(/Expiration Alert:\s*([A-Z0-9-]+)/i);
+      const ticketNo = ticketNoMatch ? ticketNoMatch[1] : null;
+      if (ticketNo) {
+        const route = user?.role === "super_admin" ? "/expiration-monitoring" : user?.role === "admin" ? "/admin/expiration-monitoring" : "/employee/expiration-monitoring";
+        router.push(`${route}?ticketNo=${ticketNo}&highlightTransaction=true`);
+        return;
+      }
+    }
+
+    const transactionNo = extractTransactionNoFromText(item.message);
+    if (!transactionNo) return;
+
+    router.push(buildPawnTransactionHighlightHref(transactionNo, user?.role === "super_admin" ? "super_admin" : "employee"));
   }
 
   return (
@@ -89,8 +103,9 @@ export function NotificationsPanel({ notifications = [] }: NotificationsPanelPro
           </div>
         ) : (
           notifications.map((item) => {
+            const isExpiration = item.message.startsWith("Expiration Alert:");
             const transactionNo = extractTransactionNoFromText(item.message);
-            const isClickable = Boolean(transactionNo);
+            const isClickable = isExpiration || Boolean(transactionNo);
 
             const content = (
               <>
@@ -122,7 +137,7 @@ export function NotificationsPanel({ notifications = [] }: NotificationsPanelPro
                 type="button"
                 onClick={() => handleNotificationClick(item)}
                 className="flex w-full items-start gap-3 rounded-md border border-border-subtle bg-surface-secondary p-3 text-left transition-colors hover:border-emerald-400/50 hover:bg-emerald-50/10"
-                title={`Go to transaction ${transactionNo}`}
+                title={isExpiration ? "Go to expiration monitoring" : `Go to transaction ${transactionNo}`}
               >
                 {content}
               </button>
