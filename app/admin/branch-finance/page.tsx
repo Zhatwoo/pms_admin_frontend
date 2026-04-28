@@ -15,6 +15,8 @@ import { FinanceQueueSection } from "@/components/shared/finance-queue-section";
 import { ConfirmFundModal } from "./_components/confirm-fund-modal";
 import { RequestFundsModal } from "./_components/request-funds-modal";
 import type { RequestFundsData } from "./_components/request-funds-modal";
+import { RequestExpensesModal } from "./_components/request-expenses-modal";
+import type { RequestExpensesData } from "./_components/request-expenses-modal";
 import {
   FinanceSummaryCards,
   LedgerTypeFilter,
@@ -119,6 +121,7 @@ export default function AdminBranchFinancePage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedConfirmRequest, setSelectedConfirmRequest] = useState<FundRequestRecord | null>(null);
 
@@ -182,6 +185,27 @@ export default function AdminBranchFinancePage() {
         await loadFinanceData();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to submit fund request.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [loadFinanceData, showToast],
+  );
+
+  const handleRequestExpenses = useCallback(
+    async (data: RequestExpensesData) => {
+      setIsSubmitting(true);
+      try {
+        await api.post<FundRequestRecord>("/fund-requests", {
+          amountRequested: data.amount,
+          purpose: data.category, // e.g. "Expense - Supplies"
+          notes: data.notes,
+        });
+        setExpenseModalOpen(false);
+        showToast("Expense request submitted to Super Admin.");
+        await loadFinanceData();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to submit expense request.");
       } finally {
         setIsSubmitting(false);
       }
@@ -382,12 +406,20 @@ export default function AdminBranchFinancePage() {
             Request additional funds from Super Admin and monitor approval and transfer status in real time.
           </p>
         </div>
-        <button
-          onClick={() => setRequestModalOpen(true)}
-          className="rounded-lg border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-700"
-        >
-          Request Funds
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setExpenseModalOpen(true)}
+            className="rounded-lg border border-red-700 bg-red-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-700"
+          >
+            Request Expenses
+          </button>
+          <button
+            onClick={() => setRequestModalOpen(true)}
+            className="rounded-lg border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+          >
+            Request Funds
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -773,6 +805,7 @@ export default function AdminBranchFinancePage() {
       ) : null}
 
       <RequestFundsModal isOpen={requestModalOpen} onClose={() => setRequestModalOpen(false)} onSubmit={handleRequestFunds} />
+      <RequestExpensesModal isOpen={expenseModalOpen} onClose={() => setExpenseModalOpen(false)} onSubmit={handleRequestExpenses} />
 
       <ConfirmFundModal
         isOpen={confirmModalOpen}
