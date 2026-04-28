@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useBranch } from "@/contexts/branch-context";
 import { calculateGadgetInterest } from "@/lib/interest";
@@ -22,9 +23,12 @@ function csvCell(value: string) {
 
 type ApiPurpose =
   | "Start"
+  | "End"
   | "Buy Back"
   | "Buy Out"
   | "Renew"
+  | "Reappraise"
+  | "Redeem"
   | "Sold Item"
   | "Sale"
   | "Pawn"
@@ -152,13 +156,15 @@ const ITEMS_PER_PAGE = 10;
 
 export default function PawnTransactionsPage() {
   const { selectedBranch, branches, isAllBranches } = useBranch();
+  const searchParams = useSearchParams();
+  const highlightTransactionNo = searchParams.get("transactionNo");
+  const shouldHighlight = searchParams.get("highlightTransaction") === "true";
+  const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
+
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [search, setSearch] = useState("");
   const [purposeFilter, setPurposeFilter] = useState<TransactionPurposeFilter>("All");
-  const [dateFilter, setDateFilter] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  });
+  const [dateFilter, setDateFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [viewingTransaction, setViewingTransaction] =
     useState<TransactionRow | null>(null);
@@ -177,6 +183,7 @@ export default function PawnTransactionsPage() {
     serialNumber: string;
     itemsIncluded: string;
     condition: string;
+    memory: string;
     remarks: string;
     amount: string;
     storageFee: string;
@@ -194,7 +201,7 @@ export default function PawnTransactionsPage() {
       setIsLoading(true);
 
       try {
-        const dateQuery = dateFilter ? `&date=${dateFilter}` : "&range=all";
+        const dateQuery = dateFilter ? `&date=${dateFilter}` : `&range=daily`;
         const branchParam = isAllBranches
           ? ""
           : `branch=${encodeURIComponent(selectedBranch.id)}`;
@@ -260,6 +267,25 @@ export default function PawnTransactionsPage() {
       active = false;
     };
   }, [selectedBranch.id, dateFilter, isAllBranches]);
+
+  // When navigating from a notification, clear date filter so the transaction is visible
+  useEffect(() => {
+    if (shouldHighlight && highlightTransactionNo) {
+      setDateFilter("");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldHighlight, highlightTransactionNo]);
+
+  // Scroll to and highlight the target transaction row after data loads
+  useEffect(() => {
+    if (!shouldHighlight || !highlightTransactionNo || isLoading) return;
+    const timer = setTimeout(() => {
+      if (highlightRowRef.current) {
+        highlightRowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [shouldHighlight, highlightTransactionNo, isLoading, transactions]);
 
   const filteredTransactions = transactions.filter((transaction) => {
     const matchesPurpose = purposeFilter === "All" || transaction.purpose === purposeFilter;
@@ -372,6 +398,7 @@ export default function PawnTransactionsPage() {
         itemsIncluded: transaction.itemsIncluded || "---",
         condition: transaction.condition || "---",
         remarks: transaction.remarks || transaction.notes || "---",
+        memory: transaction.memoryStorage || transaction.notes || "---",
         amount: transaction.pawn,
         storageFee: transaction.storage,
         purchasedDate: transaction.date,
@@ -407,7 +434,10 @@ export default function PawnTransactionsPage() {
         selectedBranchLabel={selectedBranch.name}
         onSearchChange={setSearch}
         onPurposeFilterChange={setPurposeFilter}
-        onDateFilterChange={setDateFilter}
+        onDateFilterChange={(value) => {
+          setDateFilter(value);
+          setCurrentPage(1);
+        }}
         onExportCSV={handleExportCSV}
         onPrintReport={handlePrintReport}
       />
@@ -417,6 +447,9 @@ export default function PawnTransactionsPage() {
         isLoading={isLoading}
         onViewDetails={setViewingTransaction}
         onPrint={handlePrintSlip}
+        highlightTransactionNo={shouldHighlight ? highlightTransactionNo : null}
+        highlightRowRef={highlightRowRef}
+        isToday={!dateFilter || dateFilter === new Date().toISOString().split("T")[0]}
       />
 
       {totalPages > 1 ? (

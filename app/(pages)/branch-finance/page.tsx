@@ -25,6 +25,7 @@ import {
   FinanceSummaryCards,
   LedgerTypeFilter,
 } from "@/components/shared/finance-ledger-table";
+import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 import type {
   LedgerEntry,
   FinanceSummaryBreakdown,
@@ -118,7 +119,7 @@ interface UserRecord {
 }
 
 export default function BranchFinancePage() {
-  const { selectedBranch, isAllBranches } = useBranch();
+  const { selectedBranch, isAllBranches, setSelectedBranch, branches: contextBranches } = useBranch();
 
   const [managers, setManagers] = useState<Manager[]>([]);
   const [managersByBranch, setManagersByBranch] = useState<Record<string, Manager[]>>({});
@@ -129,13 +130,13 @@ export default function BranchFinancePage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [branchFilter, setBranchFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const branchFilter = isAllBranches ? "all" : selectedBranch.id;
+  const [dateFilter, setDateFilter] = useState("");
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedRejectRequest, setSelectedRejectRequest] = useState<FundRequestRecord | null>(null);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [selectedTransferRequest, setSelectedTransferRequest] = useState<FundRequestRecord | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
   const [financeSummaries, setFinanceSummaries] = useState<BranchFinanceSummaryItem[]>([]);
@@ -166,7 +167,7 @@ export default function BranchFinancePage() {
       const [dashboardData, requestData, transactionResponse, summaryData, ledgerData, usersData] = await Promise.all([
         api.get<DashboardSummary>("/dashboard"),
         api.get<FundRequestRecord[]>(`/fund-requests${branchQuery}`),
-        api.get<ApiTransaction[] | TransactionsResponse>(`/transactions${branchQuery}`),
+        api.get<ApiTransaction[] | TransactionsResponse>(`/transactions${branchQuery ? branchQuery + "&" : "?"}range=all`),
         api.get<BranchFinanceSummaryItem[]>(`/branch-finance/summary${branchQuery}`),
         api.get<{ entries: LedgerEntry[]; total: number }>(`/branch-finance/ledger${branchQuery ? branchQuery + "&" : "?"}limit=100`),
         api.get<UserRecord[]>("/users").catch(() => [] as UserRecord[]),
@@ -292,9 +293,6 @@ export default function BranchFinancePage() {
     };
   }, [loadFinanceData]);
 
-  useEffect(() => {
-    setBranchFilter(isAllBranches ? "all" : selectedBranch.id);
-  }, [isAllBranches, selectedBranch.id]);
 
   const branchBalances = useMemo<BranchBalance[]>(() => {
     // Prefer branch-finance summary because it reflects latest daily_balances math.
@@ -350,11 +348,12 @@ export default function BranchFinancePage() {
       ? financeSummaries
       : financeSummaries.filter((s) => s.branchId === selectedBranch.id);
     const agg: FinanceSummaryBreakdown = {
-      pawnOut: 0, buyBackIn: 0, renewalIn: 0, saleIn: 0,
+      pawnOut: 0, redeemIn: 0, buyBackIn: 0, renewalIn: 0, saleIn: 0,
       fundTransferIn: 0, fundTransferOut: 0, startBalance: 0, other: 0,
     };
     for (const s of scoped) {
       agg.pawnOut += s.breakdown.pawnOut;
+      agg.redeemIn += s.breakdown.redeemIn ?? 0;
       agg.buyBackIn += s.breakdown.buyBackIn;
       agg.renewalIn += s.breakdown.renewalIn;
       agg.saleIn += s.breakdown.saleIn;
@@ -387,7 +386,8 @@ export default function BranchFinancePage() {
 
   const handleRejectConfirm = useCallback(
     async (reason: string) => {
-      if (!selectedRejectRequest) return;
+      if (!selectedRejectRequest || isSubmitting) return;
+      setIsSubmitting(true);
       try {
         await api.patch<FundRequestRecord>(`/fund-requests/${selectedRejectRequest.id}/review`, {
           decision: "rejected",
@@ -399,13 +399,17 @@ export default function BranchFinancePage() {
         await loadFinanceData();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to reject request.");
+      } finally {
+        setIsSubmitting(false);
       }
     },
-    [loadFinanceData, selectedRejectRequest, showToast],
+    [isSubmitting, loadFinanceData, selectedRejectRequest, showToast],
   );
 
   const handleTransferSubmit = useCallback(
     async (data: UnifiedFundResult) => {
+      if (isSubmitting) return;
+      setIsSubmitting(true);
       try {
         if (selectedTransferRequest) {
           const approvedAmount = data.amount || selectedTransferRequest.amountRequested;
@@ -448,9 +452,11 @@ export default function BranchFinancePage() {
         await loadFinanceData();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to transfer funds.");
+      } finally {
+        setIsSubmitting(false);
       }
     },
-    [loadFinanceData, selectedTransferRequest, showToast],
+    [isSubmitting, loadFinanceData, selectedTransferRequest, showToast],
   );
 
   const handleHeaderTransfer = useCallback(() => {
@@ -460,12 +466,17 @@ export default function BranchFinancePage() {
     });
   }, [loadFinanceData]);
 
+  const handleBranchFilterChange = useCallback((val: string) => {
+    const target = contextBranches.find((b) => b.id === (val === "all" ? "__all__" : val));
+    if (target) {
+      setSelectedBranch(target);
+    }
+  }, [contextBranches, setSelectedBranch]);
+
   const clearFilters = useCallback(() => {
     setSearchQuery("");
-    setBranchFilter(isAllBranches ? "all" : selectedBranch.id);
-    setDateFrom("");
-    setDateTo("");
-  }, [isAllBranches, selectedBranch.id]);
+    setDateFilter("");
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -489,12 +500,12 @@ export default function BranchFinancePage() {
         </div>
       ) : null}
 
-      {isLoading ? (
-        <div className="rounded-xl border border-border-main bg-surface px-5 py-10 text-sm text-text-tertiary">
-          Loading branch finance data...
+      {!dashboard && isLoading ? (
+        <div className="flex items-center justify-center rounded-xl border border-border-main bg-surface px-5 py-10 text-sm text-text-tertiary">
+          <LoadingSpinnerLabel text="Loading branch finance data..." className="text-sm text-text-tertiary" />
         </div>
-      ) : (
-        <>
+      ) : dashboard ? (
+        <div className="space-y-6">
           <BalanceOverview
             isAllBranches={isAllBranches}
             selectedBranchId={selectedBranch.id}
@@ -503,8 +514,10 @@ export default function BranchFinancePage() {
             onAddFunds={handleHeaderTransfer}
           />
 
-          <div className="rounded-lg border border-border-main bg-surface-secondary px-4 py-3 text-[11px] text-text-muted">
-            Branch admins submit requests first. Super Admin can fulfill directly from management or route the transfer through another branch. Source-branch deductions must be confirmed before destination receipt confirmations can complete the transfer.
+          <div>
+            <p className="mt-1 text-sm text-text-tertiary">
+              Branch admins submit requests first. Super Admin can fulfill directly from management or route the transfer through another branch. Source-branch deductions must be confirmed before destination receipt confirmations can complete the transfer.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -561,7 +574,7 @@ export default function BranchFinancePage() {
                   </div>
                 ))
               ) : (
-                <div className="rounded-xl border border-blue-200 bg-white p-4 text-sm text-text-tertiary">
+                <div className="py-6 text-center text-sm text-text-tertiary">
                   No requests are waiting for review.
                 </div>
               )}
@@ -579,7 +592,7 @@ export default function BranchFinancePage() {
               expanded
             >
               {queues.sourceConfirmation.length === 0 && queues.destinationConfirmation.length === 0 ? (
-                <div className="rounded-xl border border-orange-200 bg-white p-4 text-sm text-text-tertiary">
+                <div className="py-6 text-center text-sm text-text-tertiary">
                   No transfers are waiting for confirmation.
                 </div>
               ) : (
@@ -684,11 +697,9 @@ export default function BranchFinancePage() {
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               branchFilter={branchFilter}
-              onBranchFilterChange={setBranchFilter}
-              dateFrom={dateFrom}
-              onDateFromChange={setDateFrom}
-              dateTo={dateTo}
-              onDateToChange={setDateTo}
+              onBranchFilterChange={handleBranchFilterChange}
+              dateFilter={dateFilter}
+              onDateFilterChange={setDateFilter}
               branches={availableBranches}
               onClearFilters={clearFilters}
             />
@@ -697,8 +708,7 @@ export default function BranchFinancePage() {
               transactions={transactions}
               searchQuery={searchQuery}
               branchFilter={branchFilter}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
+              dateFilter={dateFilter}
             />
           </div>
 
@@ -771,8 +781,8 @@ export default function BranchFinancePage() {
               branchCode={isAllBranches ? null : (financeSummaries[0]?.branchCode ?? selectedBranch.code ?? null)}
             />
           </div>
-        </>
-      )}
+          </div>
+      ) : null}
 
       <RejectRequestModal
         isOpen={rejectModalOpen}

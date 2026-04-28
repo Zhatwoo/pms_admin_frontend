@@ -13,13 +13,21 @@ export default function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, isSessionExpiryActive, requireReLogin } = useAuth();
   const { selectedBranch } = useBranch();
   const router = useRouter();
 
   useEffect(() => {
     const hasToken = document.cookie.includes("pms_token");
+    const hadPreviousSession = document.cookie.includes("pms_was_logged_in=1");
     if (!isLoading && !user && !hasToken) {
+      if (hadPreviousSession) {
+        requireReLogin();
+        return;
+      }
+      if (isSessionExpiryActive) {
+        return;
+      }
       router.replace("/login");
       return;
     }
@@ -27,15 +35,7 @@ export default function ProtectedLayout({
     if (!isLoading && user && user.role !== "admin") {
       router.replace(getDefaultRouteForRole(user.role));
     }
-  }, [isLoading, user, router]);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-pawn-content">
-        <div className="text-sm text-text-tertiary">Loading...</div>
-      </div>
-    );
-  }
+  }, [isLoading, isSessionExpiryActive, requireReLogin, router, user]);
 
   if (!user) {
     return null;
@@ -63,7 +63,7 @@ export default function ProtectedLayout({
       userRole={user.role}
       onLogout={logout}
       branchName={selectedBranch.name}
-      hideBranchSelector={true}
+      hideBranchSelector={false}
     >
       {children}
     </AppLayout>

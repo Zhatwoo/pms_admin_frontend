@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { TransactionActions } from "./_components/transaction-actions";
+import { useSearchParams } from "next/navigation";
+import { TransactionActions, type FilterType } from "./_components/transaction-actions";
 import { api } from "@/lib/api";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { TransactionStats } from "./_components/transaction-stats";
-import { TransactionTable } from "./_components/transaction-table";
+import { TransactionTable, type TransactionRow, type PurposeType } from "./_components/transaction-table";
 import { RenewModal } from "./_components/renew-modal";
 import { NewPawnModal } from "./_components/new-pawn-modal";
 import { RedeemModal } from "./_components/redeem-modal";
 import { BuyBackModal } from "./_components/buy-back-modal";
 import { SalesTransferModal } from "./_components/sales-transfer-modal";
 import { MoaModal } from "./_components/moa-modal";
+import { ActionButton } from "@/components/shared/action-button";
 import { DailyBalanceConfirmation } from "@/components/shared/daily-balance-confirmation";
 import { TransactionDetailsModal } from "@/components/shared/transaction-details-modal";
 import { useBranch } from "@/contexts/branch-context";
@@ -23,8 +25,11 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type PurposeType =
   | "Start"
+  | "End"
   | "Buy Back"
   | "Renew"
+  | "Reappraise"
+  | "Redeem"
   | "Sold Item"
   | "Pawn"
   | "Fund Transfer"
@@ -36,42 +41,49 @@ const filterToPurpose: Record<FilterType, PurposeType | null> = {
   "All": null,
   "Renew": "Renew",
   "Sales / Transfer": "Sold Item",
-  "Redeem": "Pawn",
+  "Redeem": "Redeem",
   "Buy Back": "Buy Back",
+  "Pawn": "Pawn",
+  "Start": "Start",
+  "Buy Out": "Buy Out",
+  "Sold Item": "Sold Item",
 };
 
-interface TransactionRow {
-  transactionNo: string;
-  purpose: PurposeType;
-  buyBack: string;
-  percentage: string;
-  buyOut: string;
-  sold: string;
-  date: string;
-  time: string;
-  cashIn: string;
-  cashOut: string;
-  returnVal: string;
-  unit: string;
-  unitCode: string;
-  pawn: string;
-  storage: string;
-  customerName?: string;
-  customerAddress?: string;
-  customerPhone?: string;
-  customerMiddleName?: string;
-  idPresented?: string;
-  qrCode?: string;
-  serialNumber?: string;
-  itemsIncluded?: string;
-  condition?: string;
-  category?: string;
-  memoryStorage?: string;
-  remarks?: string;
-  relatedPawnedItemId?: string | null;
-  relatedSaleItemId?: string | null;
-  details?: string;
-}
+const downloadIcon = (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+const printerIcon = (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 9V2h12v7" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </svg>
+);
+
+
 
 interface ApiTransaction {
   transaction_no: string;
@@ -185,6 +197,7 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
 export default function EmployeePawnTransactionsPage() {
   const { selectedBranch, branches, canSwitchBranch } = useBranch();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [branchAdminName, setBranchAdminName] = useState("");
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [isNewPawnModalOpen, setIsNewPawnModalOpen] = useState(false);
@@ -194,29 +207,34 @@ export default function EmployeePawnTransactionsPage() {
   const [isMoaReprintOpen, setIsMoaReprintOpen] = useState(false);
   const [reprintData, setReprintData] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionRow | null>(null);
   const [currentStats, setCurrentStats] = useState({
-    pawnedToday: 0, 
-    buyBack: 0, 
-    renewed: 0, 
+    pawnedToday: 0,
+    buyBack: 0,
+    renewed: 0,
     soldItem: 0,
     redeemed: 0,
     transfer: 0,
-    startingBalance: 0, 
+    startingBalance: 0,
     endingBalance: 0,
   });
   const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [highlightedTransactionNo, setHighlightedTransactionNo] = useState<string | null>(null);
   const [balanceModal, setBalanceModal] = useState<{ open: boolean; type: "starting" | "ending" }>({
     open: false,
     type: "starting",
   });
+  const [expectedCash, setExpectedCash] = useState("0");
   const [passwordModal, setPasswordModal] = useState<{ open: boolean; onConfirm: () => void }>({
     open: false,
     onConfirm: () => { },
   });
   const [viewRange, setViewRange] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
   const [currentPage, setCurrentPage] = useState(1);
+  const highlightedTransactionRef = useRef<string | null>(null);
 
   const fetchTransactions = useCallback(async () => {
     if (selectedBranch.id === "__all__" && !canSwitchBranch) return;
@@ -262,9 +280,9 @@ export default function EmployeePawnTransactionsPage() {
       .channel(channelName)
       .on(
         "postgres_changes",
-        { 
-          event: "*", 
-          schema: "public", 
+        {
+          event: "*",
+          schema: "public",
           table: "transactions"
         },
         (payload) => {
@@ -273,7 +291,7 @@ export default function EmployeePawnTransactionsPage() {
           if (newTx && newTx.branch_id === selectedBranch.id) {
             void fetchTransactionsRef.current();
           } else if (payload.eventType === "DELETE") {
-             void fetchTransactionsRef.current();
+            void fetchTransactionsRef.current();
           }
         }
       )
@@ -287,11 +305,35 @@ export default function EmployeePawnTransactionsPage() {
   }, [selectedBranch.id]);
 
   const filteredTransactions = useMemo(() => {
-    if (activeFilter === "All") return allTransactions;
-    const targetPurpose = filterToPurpose[activeFilter];
-    if (!targetPurpose) return allTransactions;
-    return allTransactions.filter((t) => t.purpose === targetPurpose);
-  }, [allTransactions, activeFilter]);
+    let result = allTransactions;
+
+    if (activeFilter !== "All") {
+      const targetPurpose = filterToPurpose[activeFilter];
+      if (targetPurpose) {
+        result = result.filter((t) => t.purpose === targetPurpose);
+      }
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.transactionNo.toLowerCase().includes(q) ||
+          t.purpose.toLowerCase().includes(q) ||
+          t.customerName?.toLowerCase().includes(q) ||
+          t.unit?.toLowerCase().includes(q) ||
+          t.unitCode?.toLowerCase().includes(q) ||
+          t.details?.toLowerCase().includes(q)
+      );
+    }
+
+    if (dateFilter) {
+      // API date format is usually YYYY-MM-DD
+      result = result.filter((t) => t.date === dateFilter);
+    }
+
+    return result;
+  }, [allTransactions, activeFilter, searchQuery, dateFilter]);
 
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
@@ -301,6 +343,53 @@ export default function EmployeePawnTransactionsPage() {
       currentPage * ITEMS_PER_PAGE,
     );
   }, [filteredTransactions, currentPage]);
+
+  useEffect(() => {
+    const transactionNo = searchParams.get("transactionNo");
+
+    if (!transactionNo) {
+      return;
+    }
+
+    const matchingIndex = filteredTransactions.findIndex((transaction) => transaction.transactionNo === transactionNo);
+    if (matchingIndex < 0) {
+      return;
+    }
+
+    const nextPage = Math.floor(matchingIndex / ITEMS_PER_PAGE) + 1;
+    if (nextPage !== currentPage) {
+      setCurrentPage(nextPage);
+    }
+  }, [currentPage, filteredTransactions, searchParams]);
+
+  useEffect(() => {
+    const transactionNo = searchParams.get("transactionNo");
+    const shouldHighlight = searchParams.get("highlightTransaction") === "true";
+
+    if (!transactionNo) {
+      highlightedTransactionRef.current = null;
+      setHighlightedTransactionNo(null);
+      return;
+    }
+
+    const matchingTransaction = allTransactions.find((transaction) => transaction.transactionNo === transactionNo);
+    if (!matchingTransaction) {
+      return;
+    }
+
+    setSelectedTransaction(matchingTransaction);
+
+    if (shouldHighlight && highlightedTransactionRef.current !== transactionNo) {
+      highlightedTransactionRef.current = transactionNo;
+      setHighlightedTransactionNo(transactionNo);
+
+      const timeout = window.setTimeout(() => {
+        setHighlightedTransactionNo(null);
+      }, 4000);
+
+      return () => window.clearTimeout(timeout);
+    }
+  }, [allTransactions, searchParams]);
 
   useEffect(() => {
     async function fetchBranchAdmin() {
@@ -359,7 +448,7 @@ export default function EmployeePawnTransactionsPage() {
   const handleReprint = useCallback((transactionNo: string) => {
     const tx = allTransactions.find(t => t.transactionNo === transactionNo);
     if (!tx) return;
-    
+
     const branchInfo = branches.find(b => b.id === selectedBranch.id);
     const fullName = tx.customerName || "WALK-IN CUSTOMER";
     const names = fullName.split(" ");
@@ -393,13 +482,20 @@ export default function EmployeePawnTransactionsPage() {
     setIsMoaReprintOpen(true);
   }, [allTransactions, selectedBranch, branches, user, branchAdminName]);
 
-  const handleTransactionSuccess = useCallback(() => {
+  const handleTransactionSuccess = useCallback((_transactionNo?: string) => {
     void fetchTransactionsRef.current();
     window.dispatchEvent(new CustomEvent("transaction_created"));
   }, []);
 
   return (
     <div className="space-y-3 pb-4">
+      <div>
+        <h1 className="text-2xl font-bold text-emerald-950 dark:text-white">Pawn Transactions</h1>
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+          Live transaction records across all branches with employee-style QR and print access.
+        </p>
+      </div>
+
       <TransactionActions
         activeFilter={activeFilter}
         onFilterChange={(f) => setActiveFilter(f)}
@@ -407,45 +503,126 @@ export default function EmployeePawnTransactionsPage() {
         onRedeem={() => handleActionWithPassword(() => setIsRedeemModalOpen(true))}
         onBuyBack={() => handleActionWithPassword(() => setIsBuyBackModalOpen(true))}
         onSalesTransfer={() => handleActionWithPassword(() => setIsSalesTransferModalOpen(true))}
-        onExportCSV={handleExportCSV}
-        onPrintReport={handlePrintReport}
         onNewPawn={() => handleActionWithPassword(openNewPawnForm)}
-        onStartDay={() => setBalanceModal({ open: true, type: "starting" })}
-        onEndDay={() => setBalanceModal({ open: true, type: "ending" })}
+        onStartDay={async () => {
+          try {
+            const bal = await api.get<{ startingBalance: number; endingBalance: number }>(
+              `/branch-finance/latest-balance`
+            );
+            setExpectedCash(String(bal?.endingBalance ?? 0));
+          } catch {
+            setExpectedCash(String(currentStats.endingBalance || 0));
+          }
+          setBalanceModal({ open: true, type: "starting" });
+        }}
+        onEndDay={() => {
+          setExpectedCash(String(currentStats.endingBalance || 0));
+          setBalanceModal({ open: true, type: "ending" });
+        }}
       />
 
       <TransactionStats data={currentStats} />
 
-            <TransactionTable 
-              data={paginatedTransactions} 
-              onReprint={handleReprint} 
-              onViewDetails={setSelectedTransaction}
-              viewRange={viewRange}
-              onRangeChange={setViewRange}
-            />
+      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-border-main bg-surface p-4 shadow-sm transition-colors duration-300">
+        <div className="min-w-[240px] flex-1">
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+            Search Transactions
+          </label>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by transaction no, purpose, customer, item, or details"
+            className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+          />
+        </div>
 
-            <PaginationFooter
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredTransactions.length}
-              itemsPerPage={ITEMS_PER_PAGE}
-              onPageChange={setCurrentPage}
-            />
+        <div className="w-48">
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+            Purpose Filter
+          </label>
+          <select
+            value={activeFilter}
+            onChange={(e) => {
+              setActiveFilter(e.target.value as FilterType);
+              setCurrentPage(1);
+            }}
+            className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+          >
+            <option value="All">All Purposes</option>
+            <option value="Renew">Renew</option>
+            <option value="Sales / Transfer">Sales / Transfer</option>
+            <option value="Redeem">Redeem</option>
+            <option value="Buy Back">Buy Back</option>
+            <option value="Pawn">Pawn</option>
+            <option value="Start">Start</option>
+            <option value="Buy Out">Buy Out</option>
+            <option value="Sold Item">Sold Item</option>
+          </select>
+        </div>
 
-            <TransactionDetailsModal
-              isOpen={Boolean(selectedTransaction)}
-              transaction={selectedTransaction}
-              onClose={() => setSelectedTransaction(null)}
-            />
+        <div className="w-48">
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+            Date Filter
+          </label>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => {
+              setDateFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 text-zinc-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ActionButton variant="outline" onClick={handleExportCSV}>
+            <span className="flex items-center gap-1.5">
+              {downloadIcon}
+              Export CSV
+            </span>
+          </ActionButton>
+          <ActionButton
+            variant="primary"
+            className="border-pawn-gold bg-emerald-700 text-pawn-gold"
+            onClick={handlePrintReport}
+          >
+            <span className="flex items-center gap-1.5">
+              {printerIcon}
+              Print Report
+            </span>
+          </ActionButton>
+        </div>
+      </div>
+
+      <TransactionTable
+        data={paginatedTransactions}
+        onReprint={handleReprint}
+        onViewDetails={setSelectedTransaction}
+        highlightedTransactionNo={highlightedTransactionNo}
+        viewRange={viewRange}
+        onRangeChange={setViewRange}
+      />
+
+      <PaginationFooter
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredTransactions.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+      />
+
+      <TransactionDetailsModal
+        isOpen={Boolean(selectedTransaction)}
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+      />
 
       <DailyBalanceConfirmation
         isOpen={balanceModal.open}
         type={balanceModal.type}
-        currentCash={
-          balanceModal.type === "starting"
-            ? String(currentStats.endingBalance || currentStats.startingBalance || 0)
-            : String(currentStats.endingBalance || 0)
-        }
+        currentCash={expectedCash}
         onClose={() => setBalanceModal((p) => ({ ...p, open: false }))}
         onConfirm={async (amt) => {
           try {

@@ -1,7 +1,9 @@
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatPeso } from "@/lib/currency";
 import { formatTimeWithAmPm } from "@/lib/time";
+import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 import type { TransactionRow, PurposeType } from "./types";
+import { useRef, type RefObject } from "react";
 
 const columns = [
   { key: "transactionNo", label: "Transaction #" },
@@ -30,11 +32,14 @@ const purposeVariant: Record<
   "blue" | "green" | "orange" | "purple" | "black"
 > = {
   Start: "black",
+  End: "black",
+  Pawn: "purple",
+  Redeem: "green",
+  Renew: "green",
+  Reappraise: "green",
   "Buy Back": "blue",
   "Buy Out": "orange",
-  Renew: "green",
   "Sold Item": "orange",
-  Pawn: "purple",
   "Fund Transfer": "blue",
   "Cash Transfer": "blue",
 };
@@ -70,6 +75,9 @@ interface TransactionTableProps {
   isLoading?: boolean;
   onViewDetails?: (transaction: TransactionRow) => void;
   onPrint?: (transaction: TransactionRow) => void;
+  highlightTransactionNo?: string | null;
+  highlightRowRef?: RefObject<HTMLTableRowElement | null>;
+  isToday?: boolean;
 }
 
 export function TransactionTable({
@@ -77,17 +85,17 @@ export function TransactionTable({
   isLoading = false,
   onViewDetails,
   onPrint,
+  highlightTransactionNo,
+  highlightRowRef,
+  isToday = true,
 }: TransactionTableProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300">
       <div className="flex items-center justify-between border-b border-border-subtle bg-surface px-4 py-3">
-        <div>
+        <div className="flex items-center gap-3">
           <h3 className="text-base font-bold text-text-primary">
-            Pawn Transactions
+            Daily Transactions
           </h3>
-          <p className="text-xs text-text-tertiary">
-            View live transaction records across branches.
-          </p>
         </div>
       </div>
 
@@ -112,13 +120,15 @@ export function TransactionTable({
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && data.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
                   className="py-8 text-center text-base text-text-tertiary"
                 >
-                  Loading transactions...
+                  <div className="flex items-center justify-center">
+                    <LoadingSpinnerLabel text="Loading transactions..." className="text-base text-text-tertiary" />
+                  </div>
                 </td>
               </tr>
             ) : data.length === 0 ? (
@@ -127,21 +137,27 @@ export function TransactionTable({
                   colSpan={columns.length}
                   className="py-8 text-center text-base text-text-tertiary"
                 >
-                  No transactions found for the current branch and filters.
+                  {isToday ? "No transactions found for today" : "No transactions found"}
                 </td>
               </tr>
             ) : (
               data.map((row) => {
                 const isStartRow = row.purpose === "Start";
+                const isHighlighted =
+                  highlightTransactionNo &&
+                  row.transactionNo === highlightTransactionNo;
 
                 return (
                   <tr
                     key={row.id}
+                    ref={isHighlighted ? (highlightRowRef as RefObject<HTMLTableRowElement>) : undefined}
                     onClick={() => onViewDetails?.(row)}
                     role="button"
                     tabIndex={0}
                     className={`cursor-pointer border-t border-border-subtle transition-colors hover:bg-emerald-surface/60 ${
-                      isStartRow
+                      isHighlighted
+                        ? "animate-highlight-blink"
+                        : isStartRow
                         ? "border-l-4 border-l-emerald-700 bg-emerald-surface"
                         : "bg-surface-secondary"
                     }`}

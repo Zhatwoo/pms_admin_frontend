@@ -1,10 +1,13 @@
 export type PurposeType =
   | "Start"
+  | "End"
+  | "Pawn"
+  | "Redeem"
+  | "Renew"
+  | "Reappraise"
   | "Buy Back"
   | "Buy Out"
-  | "Renew"
   | "Sold Item"
-  | "Pawn"
   | "Fund Transfer"
   | "Cash Transfer";
 
@@ -59,8 +62,8 @@ export interface TransactionStatsData {
 }
 
 export const PURPOSE_OPTIONS: PurposeType[] = [
-  "Start",
   "Pawn",
+  "Redeem",
   "Renew",
   "Buy Back",
   "Buy Out",

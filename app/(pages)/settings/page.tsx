@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { PasswordChangeRequestCard } from "@/components/shared/password-change-request-card";
+import { AvatarPickerModal } from "@/components/shared/avatar-picker-modal";
 
 type ExtensionRow = {
   date: string;
@@ -24,8 +26,11 @@ const DEFAULT_TERMS_TEXT = `1. This Memorandum of Agreement is renewable every T
 10. Seller confirms ownership and freedom from liens and encumbrances.`;
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [avatarToast, setAvatarToast] = useState<string | null>(null);
   
   const [isMoaEditMode, setIsMoaEditMode] = useState(false);
   const [isMoaLocked, setIsMoaLocked] = useState(false);
@@ -119,6 +124,13 @@ export default function SettingsPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSavedAt, setSettingsSavedAt] = useState<string | null>(null);
 
+  const adminInitials = (user?.fullName || "Admin")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   useEffect(() => {
     async function fetchMoaTemplate() {
       try {
@@ -150,8 +162,6 @@ export default function SettingsPage() {
 
   const lineInputClass =
     "h-5 w-full border-b border-zinc-500 bg-transparent px-1 text-[10px] outline-none disabled:cursor-not-allowed";
-  const labelInputClass =
-    "h-5 border-b border-zinc-500 bg-transparent px-1 text-[10px] outline-none disabled:cursor-not-allowed";
 
   const updateMoaField = (field: keyof typeof moaFields, value: string) => {
     setMoaFields((prev) => ({ ...prev, [field]: value }));
@@ -227,36 +237,43 @@ export default function SettingsPage() {
     }
   };
 
-  const renderTopLabel = (
-    field: keyof typeof topLabels,
-    widthClass: string,
-  ) => {
-    if (!canEditMoa) {
-      return <span className={widthClass}>{topLabels[field]}</span>;
-    }
+  const handleSaveAvatar = async (avatarDataUrl: string) => {
+    setIsSavingAvatar(true);
 
-    return (
-      <input
-        value={topLabels[field]}
-        onChange={(e) => updateTopLabel(field, e.target.value)}
-        className={`${labelInputClass} ${widthClass}`}
-      />
-    );
+    try {
+      await api.patch("/auth/profile", { avatarUrl: avatarDataUrl });
+      await refreshProfile();
+      setIsAvatarModalOpen(false);
+      setAvatarToast("Avatar updated successfully.");
+      setTimeout(() => setAvatarToast(null), 2500);
+    } catch (error) {
+      console.error("Failed to update avatar:", error);
+      setAvatarToast("Failed to update avatar.");
+      setTimeout(() => setAvatarToast(null), 3000);
+    } finally {
+      setIsSavingAvatar(false);
+    }
   };
 
   const renderEditableLabel = (
     field: keyof typeof topLabels,
     className: string,
   ) => {
-    if (!canEditMoa) {
-      return <span className={className}>{topLabels[field]}</span>;
-    }
+    const isInline = className.split(" ").includes("inline");
+    const sanitizedClassName = className
+      .split(" ")
+      .filter((part) => part !== "inline")
+      .join(" ");
 
     return (
       <input
         value={topLabels[field]}
         onChange={(e) => updateTopLabel(field, e.target.value)}
-        className={`${labelInputClass} ${className}`}
+        readOnly={!canEditMoa}
+        tabIndex={canEditMoa ? 0 : -1}
+        spellCheck={false}
+        className={`${sanitizedClassName} ${isInline ? "inline-block" : "block"} min-w-0 border-none bg-transparent p-0 text-inherit outline-none ${!canEditMoa ? "pointer-events-none" : ""}`}
+        style={isInline ? { width: `${Math.max(topLabels[field].length + 1, 6)}ch` } : undefined}
       />
     );
   };
@@ -569,7 +586,7 @@ export default function SettingsPage() {
                   <div className="space-y-3 leading-6">
                     <p>
                       {renderEditableLabel("customerIntro", "inline")}
-                      <span className="inline-block w-52 align-middle">
+                      <span className="inline-block w-80 align-middle">
                         <input
                           value={moaFields.customerName}
                           onChange={(e) => updateMoaField("customerName", e.target.value)}
@@ -578,7 +595,7 @@ export default function SettingsPage() {
                         />
                       </span>
                       {renderEditableLabel("legalAgeResident", "inline")}
-                      <span className="inline-block w-64 align-middle">
+                      <span className="inline-block w-[500px] align-middle">
                         <input
                           value={moaFields.customerAddress}
                           onChange={(e) => updateMoaField("customerAddress", e.target.value)}
@@ -748,40 +765,35 @@ export default function SettingsPage() {
                   </div>
 
                   <p className="border-y border-emerald-900/40 bg-emerald-50 py-1 text-center text-[10px] font-bold uppercase text-emerald-950">
-                    {canEditMoa ? (
-                      <input
-                        value={topLabels.adviseText}
-                        onChange={(e) => updateTopLabel("adviseText", e.target.value)}
-                        className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase text-emerald-950 outline-none"
-                      />
-                    ) : (
-                      topLabels.adviseText
-                    )}
+                    <input
+                      value={topLabels.adviseText}
+                      onChange={(e) => updateTopLabel("adviseText", e.target.value)}
+                      readOnly={!canEditMoa}
+                      tabIndex={canEditMoa ? 0 : -1}
+                      spellCheck={false}
+                      className={`block w-full border-none bg-transparent text-center text-[10px] font-bold uppercase text-emerald-950 outline-none ${!canEditMoa ? "pointer-events-none" : ""}`}
+                    />
                   </p>
 
                   <div className="space-y-2">
                     <p className="text-center text-[10px] font-bold uppercase underline">
-                      {canEditMoa ? (
-                        <input
-                          value={topLabels.termsHeading}
-                          onChange={(e) => updateTopLabel("termsHeading", e.target.value)}
-                          className="w-full border-none bg-transparent text-center text-[10px] font-bold uppercase outline-none"
-                        />
-                      ) : (
-                        topLabels.termsHeading
-                      )}
-                    </p>
-                    {canEditMoa ? (
-                      <textarea
-                        value={termsText}
-                        onChange={(e) => setTermsText(e.target.value)}
-                        className="min-h-[200px] w-full resize-none rounded-sm border border-zinc-300 bg-transparent p-3 text-[10px] leading-relaxed outline-none focus:border-emerald-500"
+                      <input
+                        value={topLabels.termsHeading}
+                        onChange={(e) => updateTopLabel("termsHeading", e.target.value)}
+                        readOnly={!canEditMoa}
+                        tabIndex={canEditMoa ? 0 : -1}
+                        spellCheck={false}
+                        className={`block w-full border-none bg-transparent text-center text-[10px] font-bold uppercase outline-none ${!canEditMoa ? "pointer-events-none" : ""}`}
                       />
-                    ) : (
-                      <div className="whitespace-pre-wrap p-3 text-[10px] leading-relaxed text-zinc-800 bg-emerald-50/10 rounded-lg">
-                        {termsText}
-                      </div>
-                    )}
+                    </p>
+                    <div
+                      contentEditable={canEditMoa}
+                      suppressContentEditableWarning
+                      onInput={(e) => setTermsText(e.currentTarget.textContent ?? "")}
+                      className="min-h-[200px] whitespace-pre-wrap rounded-sm border border-zinc-300 bg-transparent p-3 text-[10px] leading-relaxed text-zinc-800 outline-none"
+                    >
+                      {termsText}
+                    </div>
                   </div>
 
                   <div className="grid gap-8 pt-4 md:grid-cols-2">
@@ -867,14 +879,31 @@ export default function SettingsPage() {
 
         <aside className="space-y-4">
           <section className="rounded-xl border border-zinc-200 bg-white p-4 text-center shadow-sm">
-            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-pawn-gold text-2xl font-bold text-zinc-900">
-              AD
+            <div className="mx-auto mb-3 h-16 w-16 overflow-hidden rounded-full border-2 border-zinc-200 bg-pawn-gold">
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt="Profile avatar"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-zinc-900">
+                  {adminInitials}
+                </div>
+              )}
             </div>
             <h3 className="text-sm font-bold text-zinc-900">Admin Panel</h3>
             <p className="mt-1 text-[10px] text-zinc-500">Super Admin Settings</p>
-            <button className="mt-3 w-full rounded-lg border border-emerald-100 bg-emerald-50 py-2 text-[9px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:bg-emerald-100">
+            <button
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="mt-3 w-full rounded-lg border border-emerald-100 bg-emerald-50 py-2 text-[9px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:bg-emerald-100"
+            >
               Change Avatar
             </button>
+            {avatarToast && (
+              <p className="mt-2 text-[10px] font-medium text-emerald-700">{avatarToast}</p>
+            )}
+            <PasswordChangeRequestCard />
           </section>
 
           <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
@@ -887,6 +916,18 @@ export default function SettingsPage() {
           </section>
         </aside>
       </div>
+
+      <AvatarPickerModal
+        isOpen={isAvatarModalOpen}
+        isSaving={isSavingAvatar}
+        currentAvatarUrl={user?.avatarUrl}
+        onClose={() => {
+          if (!isSavingAvatar) {
+            setIsAvatarModalOpen(false);
+          }
+        }}
+        onSave={handleSaveAvatar}
+      />
     </div>
   );
 }

@@ -5,8 +5,9 @@ import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
+import { InventoryAuditModal } from "@/components/shared/inventory-audit-modal";
 import { useBranch } from "@/contexts/branch-context";
-import { PawnedItemDetailsModal } from "@/components/shared/pawned-item-details-modal";
+import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 
 type PawnedStatus = "Active" | "Redeemed" | "Expired";
 type ViewMode = "list" | "calendar";
@@ -216,11 +217,10 @@ function CategoryTabs({
     <div className="flex flex-wrap gap-1.5">
       <button
         onClick={() => onChange("all")}
-        className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-          selected === "all"
+        className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${selected === "all"
             ? "bg-emerald-700 text-white"
             : "bg-surface-secondary text-text-secondary border border-border-main hover:bg-surface-hover"
-        }`}
+          }`}
       >
         All <span className="opacity-70">({totalCount})</span>
       </button>
@@ -228,11 +228,10 @@ function CategoryTabs({
         <button
           key={c.category}
           onClick={() => onChange(c.category)}
-          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-            selected === c.category
+          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${selected === c.category
               ? "bg-emerald-700 text-white"
               : "bg-surface-secondary text-text-secondary border border-border-main hover:bg-surface-hover"
-          }`}
+            }`}
         >
           {c.category} <span className="opacity-70">({c.count})</span>
         </button>
@@ -243,10 +242,10 @@ function CategoryTabs({
 
 // ─── Redesigned Calendar ──────────────────────────────────────
 const MONTH_NAMES = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
-const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function PawnedCalendar({
   calendarData,
@@ -358,22 +357,20 @@ function PawnedCalendar({
             <button
               key={day}
               onClick={() => onSelectDate(isSelected ? null : dateStr)}
-              className={`relative h-16 border-b border-r border-border-subtle/40 p-1.5 text-left transition-all hover:bg-emerald-50/10 ${bgIntensity} ${
-                isSelected
+              className={`relative h-16 border-b border-r border-border-subtle/40 p-1.5 text-left transition-all hover:bg-emerald-50/10 ${bgIntensity} ${isSelected
                   ? "ring-2 ring-inset ring-emerald-500 bg-emerald-500/20"
                   : ""
-              } ${isToday ? "ring-1 ring-inset ring-amber-400" : ""}`}
+                } ${isToday ? "ring-1 ring-inset ring-amber-400" : ""}`}
             >
               <span
-                className={`text-xs font-bold leading-none ${
-                  isSelected
+                className={`text-xs font-bold leading-none ${isSelected
                     ? "text-emerald-400"
                     : isToday
-                    ? "text-amber-400"
-                    : count > 0
-                    ? "text-text-primary"
-                    : "text-text-muted"
-                }`}
+                      ? "text-amber-400"
+                      : count > 0
+                        ? "text-text-primary"
+                        : "text-text-muted"
+                  }`}
               >
                 {day}
               </span>
@@ -450,6 +447,19 @@ export default function PawnedItemsPage() {
   // Calendar day-panel category filter — derived from fetched items (no extra API call)
   const [calendarCategory, setCalendarCategory] = useState("all");
 
+  const selectedDateLabel = selectedDate
+    ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+    : "";
+
+  const viewingItem =
+    pawnedItems.find((item) => item.id === selectedItemId) ||
+    allDayItems.find((item) => item.id === selectedItemId) ||
+    null;
+
   // Compute calendar categories from ALL items on the selected day (unfiltered)
   const calendarCategoryList: CategoryCount[] = (() => {
     if (viewMode !== "calendar" || !selectedDate) return [];
@@ -487,7 +497,7 @@ export default function PawnedItemsPage() {
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranch.id, viewMode, category, status, searchQuery, selectedDate]);
 
   // Reset calendar category when date changes
@@ -553,82 +563,29 @@ export default function PawnedItemsPage() {
       }
     }
     fetchData();
-  }, [selectedBranch.id, isAllBranches, viewMode, category, calendarCategory, status, searchQuery, selectedDate, currentPage]);
+  }, [
+    isAllBranches,
+    selectedBranch.id,
+    viewMode,
+    category,
+    status,
+    searchQuery,
+    selectedDate,
+    currentPage,
+    itemsPerPage,
+    calendarCategory,
+  ]);
 
-  // Fetch category counts for list mode — scoped to branch only (no date)
-  useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const params = new URLSearchParams();
-        if (!isAllBranches) params.set("branch", selectedBranch.id);
-        const data = await api.get<CategoryCount[]>(
-          `/inventory/pawned-categories?${params}`
-        );
-        setCategoryList(data || []);
-        setCategoryTotal((data || []).reduce((s, c) => s + c.count, 0));
-        setCategory((prev) => {
-          if (prev === "all") return prev;
-          const stillExists = (data || []).some((c) => c.category === prev);
-          return stillExists ? prev : "all";
-        });
-      } catch (err) {
-        console.error("Category fetch error:", err);
-      }
+  const handleSaveRemarks = useCallback(async (itemId: string, remarks: string) => {
+    try {
+      await api.post(`/inventory/pawned/${itemId}/remarks`, { remark: remarks });
+      setPawnedItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, remarks } : i)));
+    } catch (err) {
+      console.error("Failed to save remarks:", err);
     }
-    fetchCategories();
-  // selectedDate intentionally excluded — list categories are not date-scoped
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranch.id, isAllBranches]);
-
-  // Fetch calendar data
-  useEffect(() => {
-    async function fetchCalendar() {
-      try {
-        const params = new URLSearchParams();
-        if (!isAllBranches) params.set("branch", selectedBranch.id);
-        params.set(
-          "month",
-          `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}`
-        );
-        const data = await api.get<Record<string, number>>(
-          `/inventory/pawned-calendar?${params}`
-        );
-        setCalendarData(data || {});
-      } catch (err) {
-        console.error("Calendar fetch error:", err);
-      }
-    }
-    fetchCalendar();
-  }, [selectedBranch.id, isAllBranches, calendarYear, calendarMonth]);
-
-  const handleSaveRemarks = useCallback(
-    async (itemId: string, remarks: string) => {
-      try {
-        await api.post(`/inventory/pawned/${itemId}/remarks`, { remark: remarks });
-        setPawnedItems((prev) =>
-          prev.map((i) => (i.id === itemId ? { ...i, remarks } : i))
-        );
-      } catch (err) {
-        console.error("Failed to save remarks:", err);
-      }
-    },
-    []
-  );
-
-  const handleQRScan = useCallback(() => {
-    alert(
-      "QR Scanner will open here. Scan all items in the vault to tally physical count vs system inventory."
-    );
   }, []);
 
-  // Format selected date for display
-  const selectedDateLabel = selectedDate
-    ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
+  const [isQrScanOpen, setIsQrScanOpen] = useState(false);
 
   return (
     <div className="space-y-3 pb-4">
@@ -695,10 +652,7 @@ export default function PawnedItemsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleQRScan}
-            className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-500/50"
-          >
+          <button onClick={() => setIsQrScanOpen(true)} className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-500/50">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
               <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
@@ -708,21 +662,19 @@ export default function PawnedItemsPage() {
           <div className="flex rounded-md border border-border-main overflow-hidden">
             <button
               onClick={() => setViewMode("list")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                viewMode === "list"
+              className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "list"
                   ? "bg-emerald-700 text-white"
                   : "bg-surface text-text-secondary hover:bg-surface-hover"
-              }`}
+                }`}
             >
               List
             </button>
             <button
               onClick={() => setViewMode("calendar")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                viewMode === "calendar"
+              className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "calendar"
                   ? "bg-emerald-700 text-white"
                   : "bg-surface text-text-secondary hover:bg-surface-hover"
-              }`}
+                }`}
             >
               Calendar
             </button>
@@ -775,10 +727,12 @@ export default function PawnedItemsPage() {
                 </tr>
               </thead>
               <tbody>
-                {isLoading ? (
+                {isLoading && pawnedItems.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-base text-zinc-400">
-                      Loading...
+                      <div className="flex items-center justify-center">
+                        <LoadingSpinnerLabel text="Loading..." className="text-base text-zinc-400" />
+                      </div>
                     </td>
                   </tr>
                 ) : pawnedItems.length === 0 ? (
@@ -890,10 +844,12 @@ export default function PawnedItemsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {isLoading ? (
+                    {isLoading && pawnedItems.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-6 text-center text-sm text-zinc-400">
-                          Loading...
+                          <div className="flex items-center justify-center">
+                            <LoadingSpinnerLabel text="Loading..." className="text-sm text-zinc-400" />
+                          </div>
                         </td>
                       </tr>
                     ) : pawnedItems.length === 0 ? (
@@ -953,12 +909,15 @@ export default function PawnedItemsPage() {
         />
       </div>
 
-      <PawnedItemDetailsModal
-        isOpen={Boolean(selectedItemId)}
-        itemId={selectedItemId}
-        onClose={() => setSelectedItemId(null)}
-        userRole="viewer"
-      />
+      {viewingItem && <ViewModal item={viewingItem} onClose={() => setSelectedItemId(null)} onSaveRemarks={handleSaveRemarks} userRole={userRole} />}
+
+      {isQrScanOpen && (
+        <InventoryAuditModal
+          isOpen={isQrScanOpen}
+          onClose={() => setIsQrScanOpen(false)}
+          onConfirm={() => setIsQrScanOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ClockIcon, BellIcon } from "@/lib/icons";
+import { ClockIcon, BellIcon, MenuIcon } from "@/lib/icons";
 import { useTheme } from "@/contexts/theme-context";
 import { BranchSelectorDropdown } from "@/components/shared/branch-selector-dropdown";
 import { api } from "@/lib/api";
+import { buildPawnTransactionHighlightHref, extractTransactionNoFromText } from "@/lib/pawn-transaction-navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { getSupabaseBrowserClient, getTokenFromCookie } from "@/lib/supabase-browser";
@@ -21,6 +22,9 @@ interface HeaderNotification {
   category: Exclude<NotificationTab, "All">;
   group: NotificationGroup;
   unread: boolean;
+  userId?: string | null;
+  customerId?: string | null;
+  logId?: string | null;
 }
 
 const DEFAULT_NOTIFICATIONS: HeaderNotification[] = [
@@ -111,6 +115,7 @@ interface HeaderProps {
   notificationCount?: number;
   branchName?: string;
   hideBranchSelector?: boolean;
+  onMenuToggle?: () => void;
 }
 
 function formatDateTime(): string {
@@ -209,9 +214,11 @@ export function Header({
   notificationCount = 0,
   branchName,
   hideBranchSelector = false,
+  onMenuToggle,
 }: HeaderProps) {
   const { user } = useAuth();
   const { selectedBranch, isAllBranches } = useBranch();
+  const isSuperAdmin = user?.role === "super_admin";
   const pathname = usePathname();
   const router = useRouter();
   const [time, setTime] = useState("");
@@ -245,9 +252,12 @@ export function Header({
           return {
             id: item.id,
             title: item.title,
-            subtitle: item.subtitle,
+            subtitle: item.subtitle ?? "",
             category: item.category as any,
             unread: isUnread,
+            userId: item.user_id ?? null,
+            customerId: item.customer_id ?? null,
+            logId: item.log_id ?? null,
             group: itemDate === today ? "Today" : "Earlier",
           };
         });
@@ -301,12 +311,15 @@ export function Header({
           console.log("[Notifications] Realtime event received:", payload);
           const newNotif = payload.new as any;
           if (payload.eventType === "INSERT") {
-             const isMatch = !newNotif.branch_id || 
-                             newNotif.branch_id === user?.branchId || 
-                             newNotif.branch_id === selectedBranch?.id ||
-                             isAllBranches ||
-                             user?.role === "admin" || 
-                             user?.role === "super_admin";
+             const isPersonalNotification = Boolean(newNotif.user_id);
+             const isMatch = isPersonalNotification
+               ? newNotif.user_id === user?.id
+               : !newNotif.branch_id ||
+                 newNotif.branch_id === user?.branchId ||
+                 newNotif.branch_id === selectedBranch?.id ||
+                 isAllBranches ||
+                 user?.role === "admin" ||
+                 user?.role === "super_admin";
              if (isMatch) {
                 toast.success(newNotif.title, {
                   description: newNotif.subtitle,
@@ -320,9 +333,12 @@ export function Header({
                   const mappedItem: HeaderNotification = {
                     id: newNotif.id,
                     title: newNotif.title,
-                    subtitle: newNotif.subtitle,
+                    subtitle: newNotif.subtitle ?? "",
                     category: newNotif.category as any,
                     unread: !newNotif.is_read,
+                    userId: newNotif.user_id ?? null,
+                    customerId: newNotif.customer_id ?? null,
+                    logId: newNotif.log_id ?? null,
                     group: itemDate === today ? "Today" : "Earlier",
                   };
                   return [mappedItem, ...prev];
@@ -375,6 +391,13 @@ export function Header({
   const isCustomerDetailPage = (pathname || "").includes("view_user");
   const unreadCount = notifications.filter((item) => item.unread).length;
   const badgeCount = Math.max(notificationCount, unreadCount);
+  const resolvedInitials =
+    user?.fullName
+      ?.split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || userInitials;
 
   const filteredNotifications = useMemo(() => {
     if (activeTab === "All") {
@@ -434,35 +457,101 @@ export function Header({
     router.push(targetPath);
   };
 
+  const customerProfileBasePath = pathname.startsWith("/admin")
+    ? "/admin/customers/view_user"
+    : pathname.startsWith("/employee")
+      ? "/employee/customers/view_user"
+      : "/customers/view_user";
+
+  const buildCustomerProfileHref = (customerId: string, logId?: string | null) => {
+    const params = new URLSearchParams({ id: customerId });
+    if (logId) {
+      params.set("highlightLogId", logId);
+    }
+
+    return `${customerProfileBasePath}?${params.toString()}`;
+  };
+
+  const resolveNotificationHref = (item: HeaderNotification) => {
+    if (item.customerId) {
+      return buildCustomerProfileHref(item.customerId, item.logId);
+    }
+
+    const transactionNo =
+      extractTransactionNoFromText(item.title) ?? extractTransactionNoFromText(item.subtitle);
+    if (transactionNo) {
+      return buildPawnTransactionHighlightHref(transactionNo);
+    }
+
+    return null;
+  };
+
   const renderNotificationRow = (item: HeaderNotification) => (
-    <button
-      key={item.id}
-      type="button"
-      onClick={() => markOneAsRead(item.id)}
-      className="w-full rounded-lg border border-border-main bg-surface-subtle px-4 py-3 text-left transition-colors hover:bg-surface-hover"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-text-primary">{item.title}</p>
-          <p className="mt-0.5 text-xs text-text-secondary">{item.subtitle}</p>
-        </div>
-        {item.unread && <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />}
-      </div>
-    </button>
+    (() => {
+      const notificationHref = resolveNotificationHref(item);
+
+      const content = (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-text-primary">{item.title}</p>
+              <p className="mt-0.5 text-xs text-text-secondary">{item.subtitle}</p>
+            </div>
+            {item.unread && <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />}
+          </div>
+        </>
+      );
+
+      if (!notificationHref) {
+        return (
+          <div key={item.id} className="w-full rounded-lg border border-border-main bg-surface-subtle px-4 py-3 text-left">
+            {content}
+          </div>
+        );
+      }
+
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => {
+            void markOneAsRead(item.id);
+            setIsNotificationOpen(false);
+            router.push(notificationHref);
+          }}
+          className="w-full cursor-pointer rounded-lg border border-border-main bg-surface-subtle px-4 py-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/70"
+          title={item.customerId ? "Open customer profile" : "Open related record"}
+        >
+          {content}
+        </button>
+      );
+    })()
   );
 
   return (
     <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-border-main bg-header-bg px-6 py-4 transition-colors duration-300">
-      <div className="flex min-w-0 items-center gap-4 justify-self-start">
-        <h1 className="text-3xl font-bold text-text-primary leading-none">{title}</h1>
-        {branchName && (
-          <div className="flex items-center gap-4">
-            <span className="h-6 w-px bg-border-main" />
-            <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
-              {branchName}
-            </span>
-          </div>
-        )}
+      <div className="flex min-w-0 flex-col gap-2 justify-self-start">
+        <div className="flex min-w-0 items-center gap-4">
+          {onMenuToggle && (
+            <button
+              type="button"
+              onClick={onMenuToggle}
+              aria-label="Open sidebar"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border-main text-text-tertiary transition hover:bg-surface-hover hover:text-text-primary lg:hidden"
+            >
+              <MenuIcon />
+            </button>
+          )}
+          <h1 className="text-3xl font-bold text-text-primary leading-none">{title}</h1>
+          {branchName && (
+            <div className="flex items-center gap-4">
+              <span className="h-6 w-px bg-border-main" />
+              <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                {branchName}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-self-center gap-3">
@@ -574,8 +663,18 @@ export function Header({
         <ThemeToggleButton />
 
         {/* User Avatar */}
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-pawn-sidebar text-base font-semibold text-white">
-          {userInitials}
+        <div className="h-11 w-11 overflow-hidden rounded-full bg-pawn-sidebar">
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt="User avatar"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-base font-semibold text-white">
+              {resolvedInitials}
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -1,4 +1,14 @@
 class ApiClient {
+  private notifySessionExpired(message: string, path: string) {
+    if (typeof window === "undefined") return;
+
+    window.dispatchEvent(
+      new CustomEvent("pms:auth-expired", {
+        detail: { message, path },
+      }),
+    );
+  }
+
   private logApiIssue(status: number, path: string, details: unknown) {
     const prefix = `[API Error ${status}] ${path}:`;
     if (status >= 500) {
@@ -53,6 +63,7 @@ class ApiClient {
       console.warn(
         `[API] Missing auth token for ${path}. Check if login was successful and token is stored in cookies.`,
       );
+      this.notifySessionExpired("Your session expired. Please sign in again.", path);
     }
 
     let res: Response;
@@ -81,6 +92,7 @@ class ApiClient {
         console.warn(
           `[API] 401 Unauthorized for ${path}. Token present: ${!!token}`,
         );
+        this.notifySessionExpired(errorMessage, path);
       }
 
       throw new Error(errorMessage);
@@ -255,13 +267,29 @@ export const api = new ApiClient();
 
 export function updateCustomer(
   id: string,
-  data: Record<string, unknown>,
+  data: {
+    full_name?: string;
+    contact_number?: string;
+    email?: string;
+    address?: string;
+    barangay?: string;
+    city?: string;
+    region?: string;
+    requestingEmployeeId?: string;
+    logId?: string;
+  },
 ) {
   return api.put(`/customers/${encodeURIComponent(id)}`, data);
 }
 
-export function requestCustomerEdit(id: string, notes: string) {
+export function requestCustomerEdit(id: string, notes: string, field?: string, mode?: string) {
   return api.post(`/customers/${encodeURIComponent(id)}/request-edit`, {
     notes,
+    ...(field ? { field } : {}),
+    ...(mode ? { mode } : {}),
   });
+}
+
+export function cancelCustomerEditRequest(id: string, logId: string) {
+  return api.delete(`/customers/${encodeURIComponent(id)}/request-edit/${encodeURIComponent(logId)}`);
 }

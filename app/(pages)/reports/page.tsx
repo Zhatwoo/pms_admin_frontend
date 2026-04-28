@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useBranch } from "@/contexts/branch-context";
+import { useAuth } from "@/contexts/auth-context";
 import { PeriodTabs } from "@/components/shared/period-tabs";
 import { ReportStats } from "./_components/report-stats";
 import { BranchSalesTable } from "./_components/branch-sales-table";
@@ -110,22 +111,30 @@ interface ReportData {
 export default function ReportsPage() {
   const [activePeriod, setActivePeriod] = useState("Daily");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const { selectedBranch, isAllBranches } = useBranch();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
 
   useEffect(() => {
     async function fetchReport() {
       setIsLoading(true);
+      setError(null);
       try {
         const params = new URLSearchParams();
         if (!isAllBranches) params.set("branch", selectedBranch.id);
         params.set("period", activePeriod.toLowerCase());
         const data = await api.get<ReportData>(`/reports/system?${params}`);
         setReportData(data);
-      } catch (error) {
-        console.error("Failed to load reports:", error);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to load reports.";
+        console.error("Failed to load reports:", err);
+        setError(msg);
       } finally {
         setIsLoading(false);
+        setHasLoadedData(true);
       }
     }
     fetchReport();
@@ -276,7 +285,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-7xl space-y-5">
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -295,7 +304,7 @@ export default function ReportsPage() {
         </button>
       </div>
 
-      {isLoading ? (
+      {isLoading && !hasLoadedData ? (
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center gap-3 text-text-tertiary">
             <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -305,9 +314,16 @@ export default function ReportsPage() {
             <span className="text-sm font-medium">Loading reports...</span>
           </div>
         </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <p className="text-sm font-semibold text-red-600">{error}</p>
+          <button onClick={() => setActivePeriod(activePeriod)} className="px-4 py-2 text-xs font-bold text-white bg-emerald-700 rounded-md hover:bg-emerald-800">
+            Retry
+          </button>
+        </div>
       ) : (
         <>
-          <ReportStats data={reportData?.stats} />
+          <ReportStats data={reportData?.stats} showBranchStats={isSuperAdmin} />
 
           {/* Side by side: branch table + chart */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -317,6 +333,7 @@ export default function ReportsPage() {
                 data={reportData?.salesTrend}
                 summary={reportData?.trendSummary}
                 todaySales={reportData?.stats?.totalSalesToday ?? 0}
+                activePeriod={activePeriod}
               />
             </div>
           </div>

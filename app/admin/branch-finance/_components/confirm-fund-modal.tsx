@@ -18,6 +18,7 @@ interface ConfirmFundModalProps {
   stageLabel?: string;
   amountLabel?: string;
   helperText?: string;
+  isSubmitting?: boolean;
 }
 
 export function ConfirmFundModal({
@@ -32,12 +33,19 @@ export function ConfirmFundModal({
   stageLabel = "Confirm Fund Receipt",
   amountLabel = "Actual Amount Received",
   helperText = "Upload a proof image of the transaction and enter the actual amount received. The system will use this amount as the transfer basis.",
+  isSubmitting = false,
 }: ConfirmFundModalProps) {
   const [notes, setNotes] = useState("");
   const [receivedAmount, setReceivedAmount] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofName, setProofName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasMaxAmount = Number.isFinite(amount) && amount > 0;
+
+  const formatAmountError = () =>
+    hasMaxAmount
+      ? `Amount cannot exceed ₱${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`
+      : "Enter a valid amount.";
 
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +63,11 @@ export function ConfirmFundModal({
     e.preventDefault();
     const parsed = Number(receivedAmount.replace(/,/g, ""));
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      setError("Enter a valid amount.");
+      setError(formatAmountError());
+      return;
+    }
+    if (hasMaxAmount && parsed > amount) {
+      setError(formatAmountError());
       return;
     }
     if (!proofFile) {
@@ -133,7 +145,24 @@ export function ConfirmFundModal({
             <input
               type="text"
               value={receivedAmount}
-              onChange={(e) => setReceivedAmount(e.target.value.replace(/[^0-9.,]/g, ""))}
+              onChange={(e) => {
+                const nextValue = e.target.value.replace(/[^0-9.,]/g, "");
+                if (!hasMaxAmount) {
+                  setReceivedAmount(nextValue);
+                  setError(null);
+                  return;
+                }
+
+                const parsed = Number(nextValue.replace(/,/g, ""));
+                if (Number.isFinite(parsed) && parsed > amount) {
+                  setReceivedAmount(String(amount));
+                  setError(formatAmountError());
+                  return;
+                }
+
+                setReceivedAmount(nextValue);
+                setError(null);
+              }}
               className="w-full rounded-lg border border-input-border bg-input-bg p-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               placeholder="Enter actual amount received"
               required
@@ -190,13 +219,14 @@ export function ConfirmFundModal({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              Confirm Receipt
+              {isSubmitting ? "Processing..." : "Confirm Receipt"}
             </button>
           </div>
         </form>

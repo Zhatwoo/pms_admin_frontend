@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useBranch } from "@/contexts/branch-context";
 import { ExpirationStats } from "./_components/expiration-stats";
@@ -51,10 +52,14 @@ interface ExpirationMonitoringResponse {
   };
 }
 
-export default function ExpirationMonitoringPage() {
+function ExpirationMonitoringPageContent() {
   const [activeTab, setActiveTab] = useState("30days");
   const { selectedBranch, isAllBranches } = useBranch();
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
+  const searchParams = useSearchParams();
+  const highlightTicketNo = searchParams?.get("ticketNo");
+  const highlightTransaction = searchParams?.get("highlightTransaction");
   const [isBlastSending, setIsBlastSending] = useState(false);
   const [sendingItemId, setSendingItemId] = useState<string | null>(null);
   const [renewingItemId, setRenewingItemId] = useState<string | null>(null);
@@ -95,10 +100,25 @@ export default function ExpirationMonitoringPage() {
         console.error("Failed to load expiration monitoring data:", error);
       } finally {
         setIsLoading(false);
+        setHasLoadedData(true);
       }
     }
     fetchExpirationData();
   }, [selectedBranch.id, isAllBranches]);
+
+  useEffect(() => {
+    if (highlightTicketNo && highlightTransaction === "true" && buckets) {
+      if (buckets.overdue.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("overdue");
+      } else if (buckets.threeDays.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("3days");
+      } else if (buckets.sevenDays.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("7days");
+      } else if (buckets.thirtyDays.some((item) => item.ticketNo === highlightTicketNo)) {
+        setActiveTab("30days");
+      }
+    }
+  }, [highlightTicketNo, highlightTransaction, buckets]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -205,7 +225,7 @@ export default function ExpirationMonitoringPage() {
         </button>
       </div>
 
-      <ExpirationStats data={stats} isLoading={isLoading} />
+      <ExpirationStats data={stats} isLoading={isLoading && !hasLoadedData} />
       <ExpirationTabs
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -213,12 +233,21 @@ export default function ExpirationMonitoringPage() {
       />
       <ExpirationTable
         data={getActiveItems()}
-        isLoading={isLoading}
+        isLoading={isLoading && !hasLoadedData}
         onSendEmail={handleSendSingleEmail}
         sendingItemId={sendingItemId}
         onRenew={handleRenew}
         renewingItemId={renewingItemId}
+        highlightTicketNo={highlightTicketNo}
       />
     </div>
+  );
+}
+
+export default function ExpirationMonitoringPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-zinc-500">Loading...</div>}>
+      <ExpirationMonitoringPageContent />
+    </Suspense>
   );
 }

@@ -15,7 +15,7 @@ export default function EmployeeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { user, logout, isLoading: isAuthLoading, isSessionExpiryActive, requireReLogin } = useAuth();
   const { selectedBranch } = useBranch();
   const { isComplete: isWorkflowComplete } = useOpeningChecklist();
   const router = useRouter();
@@ -25,7 +25,15 @@ export default function EmployeeLayout({
   useEffect(() => {
     // Only redirect if definitively not logged in
     const hasToken = document.cookie.includes("pms_token");
+    const hadPreviousSession = document.cookie.includes("pms_was_logged_in=1");
     if (!isLoading && !user && !hasToken) {
+      if (hadPreviousSession) {
+        requireReLogin();
+        return;
+      }
+      if (isSessionExpiryActive) {
+        return;
+      }
       router.replace("/login");
       return;
     }
@@ -33,7 +41,7 @@ export default function EmployeeLayout({
     if (!isLoading && user && user.role !== "employee") {
       router.replace(getDefaultRouteForRole(user.role));
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, isSessionExpiryActive, requireReLogin, router, user]);
 
   const navGroups = useMemo(() => getNavForRole("employee"), []);
 
@@ -48,14 +56,6 @@ export default function EmployeeLayout({
           .slice(0, 2)
       : user.email.charAt(0).toUpperCase();
   }, [user]);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-pawn-content text-emerald-900 font-medium">
-        Loading Employee Portal...
-      </div>
-    );
-  }
 
   if (!user) {
     return null;

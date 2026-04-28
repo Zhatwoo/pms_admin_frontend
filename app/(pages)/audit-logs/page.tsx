@@ -5,6 +5,7 @@ import { PaginationFooter } from "@/components/shared/pagination";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { api } from "@/lib/api";
+import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 import { getSupabaseBrowserClient, getTokenFromCookie } from "@/lib/supabase-browser";
 
 interface ActivityLog {
@@ -144,6 +145,9 @@ function formatFriendlyActionLabel(action: string, details: string | null) {
   if (path.includes("/api/inventory/pawned/") && path.includes("/expire")) {
     return "Pawn expiration";
   }
+
+  if (action === "CUSTOMER_EDIT_PROCESSED") return "Customer profile update";
+  if (action === "CUSTOMER_EDIT_REQUESTED") return "Customer edit request";
 
   return humanizeText(summarizePath(path));
 }
@@ -371,6 +375,25 @@ function formatActivityDescription(
       findBranchName(body?.toBranchId ?? body?.branchId ?? record?.destinationBranchId, branches) ??
       "the destination branch";
     return `Transferred funds from ${sourceBranch ?? "the source"} to ${destinationBranch}.`;
+  }
+
+  if (action === "CUSTOMER_EDIT_PROCESSED" && record) {
+    const customerName = typeof record.customerName === "string" ? record.customerName : "a customer";
+    const actorLabel = typeof record.actorLabel === "string" ? record.actorLabel : "Admin";
+    const changedFields = isRecord(record.changedFields) ? Object.keys(record.changedFields) : [];
+    const fieldList = changedFields.map(titleCase).join(", ");
+    return fieldList
+      ? `${actorLabel} updated ${customerName}'s profile: ${fieldList}.`
+      : `${actorLabel} updated ${customerName}'s profile.`;
+  }
+
+  if (action === "CUSTOMER_EDIT_REQUESTED" && record) {
+    const customerName = typeof record.customerName === "string" ? record.customerName : "a customer";
+    const actorLabel = typeof record.actorLabel === "string" ? record.actorLabel : "Employee";
+    const branchName = typeof record.branchName === "string" ? record.branchName : null;
+    return branchName
+      ? `${actorLabel} requested an edit for ${customerName} (${branchName}).`
+      : `${actorLabel} requested an edit for ${customerName}.`;
   }
 
   if (typeof parsed === "string" && parsed.trim()) {
@@ -669,7 +692,20 @@ export default function AuditLogsPage() {
         userNamesById.set(log.userId, log.userFullName);
       });
 
-    return logs.map(l => ({
+    // Filter out raw HTTP logs for endpoints that have a structured counterpart
+    const SUPPRESSED_PATH_PATTERNS = [
+      /\/api\/customers\/[^/]+\/request-edit/,
+    ];
+
+    const filteredRaw = logs.filter((l) => {
+      const parsed = tryParseJson(l.details);
+      const record = isRecord(parsed) ? parsed : null;
+      const url = typeof record?.url === "string" ? record.url : "";
+      if (!url) return true; // keep structured logs (no url field)
+      return !SUPPRESSED_PATH_PATTERNS.some((pattern) => pattern.test(url));
+    });
+
+    return filteredRaw.map(l => ({
       ...l,
       logType: guessLogType(l.action, l.details || ""),
       actionBadge: getBadgeAction(l.action),
@@ -750,7 +786,7 @@ export default function AuditLogsPage() {
               <svg className="w-5 h-5 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d={card.icon} /></svg>
             </div>
             <div className="mt-4 z-10">
-              <span className="text-4xl font-black text-text-primary">{isLoading ? "-" : card.count}</span>
+              <span className="text-4xl font-black text-text-primary">{card.count}</span>
             </div>
             <div className="mt-2 flex items-center gap-2 z-10">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
@@ -782,7 +818,7 @@ export default function AuditLogsPage() {
               >
                 {tab}
                 <span className={`px-2 py-0.5 rounded-full text-[10px] ${isActive ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400" : "bg-surface-secondary text-text-tertiary"}`}>
-                  {isLoading ? "-" : count}
+                  {count}
                 </span>
               </button>
             )
@@ -842,8 +878,14 @@ export default function AuditLogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {isLoading ? (
-                <tr><td colSpan={6} className="py-12 text-center text-base font-medium text-text-tertiary">Loading audit trail...</td></tr>
+              {isLoading && enrichedLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-base font-medium text-text-tertiary">
+                    <div className="flex items-center justify-center">
+                      <LoadingSpinnerLabel text="Loading audit trail..." className="text-base font-medium text-text-tertiary" />
+                    </div>
+                  </td>
+                </tr>
               ) : paginatedLogs.length === 0 ? (
                 <tr><td colSpan={6} className="py-12 text-center text-base font-medium text-text-tertiary">No logs found matching your criteria.</td></tr>
               ) : (
