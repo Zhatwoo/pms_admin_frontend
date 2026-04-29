@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { calculateGadgetInterest } from "@/lib/interest";
@@ -93,6 +93,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess }:
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isProcessingRef = useRef(false);
 
   // Interest Computation based on selected item
   const interestCalc = useMemo(() => {
@@ -143,12 +144,14 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess }:
   };
 
   const handleProceed = async () => {
+    if (isProcessingRef.current) return;
     if (!selectedItem) return;
     if (!adminForm.password) {
       setError("Authorization required.");
       return;
     }
 
+    isProcessingRef.current = true;
     setIsLoading(true);
     try {
       // 1. Verify Password
@@ -191,6 +194,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess }:
       toast.error(msg);
     } finally {
       setIsLoading(false);
+      isProcessingRef.current = false;
     }
   };
 

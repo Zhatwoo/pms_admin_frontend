@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, type ChangeEvent } from "react";
+import { useState, useMemo, useEffect, useRef, type ChangeEvent } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { calculateGadgetInterest } from "@/lib/interest";
@@ -61,6 +61,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
     password: "",
   });
 
+  const isProcessingRef = useRef(false);
   const [pawnedItems, setPawnedItems] = useState<PawnedSearchItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -116,6 +117,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
   }, [selectedItem]);
 
   const handleConfirmRedeem = async () => {
+    if (isProcessingRef.current) return;
     if (!selectedItem) return;
     setError(null);
 
@@ -124,6 +126,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
       return;
     }
 
+    isProcessingRef.current = true;
     setIsConfirming(true);
     try {
       // 1. Verify Password
@@ -158,6 +161,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
       toast.error(msg);
     } finally {
       setIsConfirming(false);
+      isProcessingRef.current = false;
     }
   };
 

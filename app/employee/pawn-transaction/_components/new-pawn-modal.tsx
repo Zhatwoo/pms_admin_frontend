@@ -138,6 +138,7 @@ export function NewPawnModal({
   const router = useRouter();
   const pathname = usePathname();
   const [form, setForm] = useState(() => createEmptyForm());
+  const isProcessingRef = useRef(false);
 
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
@@ -558,6 +559,8 @@ export function NewPawnModal({
   };
 
   const handleConfirmMoa = async () => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setIsSaving(true);
     setErrorMessage(null);
 
@@ -569,30 +572,35 @@ export function NewPawnModal({
 
     if (verificationMode === "no-id" && !form.profilePhoto) {
       setIsSaving(false);
+      isProcessingRef.current = false;
       setErrorMessage("Customer photo is required when No ID / None is selected.");
       return;
     }
 
     if (verificationMode === "single-document" && !form.idPhoto) {
       setIsSaving(false);
+      isProcessingRef.current = false;
       setErrorMessage("Document image is required for clearance verification.");
       return;
     }
 
     if (verificationMode === "front-back" && (!form.idPhoto || !form.idBackPhoto)) {
       setIsSaving(false);
+      isProcessingRef.current = false;
       setErrorMessage("Front and back ID photos are required for this ID type.");
       return;
     }
 
       if (form.itemPhotos.length === 0) {
       setIsSaving(false);
+      isProcessingRef.current = false;
       setErrorMessage("Item photo is required for pawned items.");
       return;
     }
 
     if (!resolvedCategory) {
       setIsSaving(false);
+      isProcessingRef.current = false;
       setErrorMessage(
         form.category === "Others"
           ? "Specify the category before finalizing the ticket."
@@ -680,6 +688,7 @@ export function NewPawnModal({
       toast.error(msg);
     } finally {
       setIsSaving(false);
+      isProcessingRef.current = false;
     }
   };
 

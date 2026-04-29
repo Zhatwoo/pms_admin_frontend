@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, type ChangeEvent } from "react";
+import { useState, useMemo, useEffect, useRef, type ChangeEvent } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { api } from "@/lib/api";
@@ -47,6 +47,7 @@ export function SalesTransferModal({ isOpen, onClose, branchName, onSuccess }: S
   const { user } = useAuth();
   const { selectedBranch } = useBranch();
   const [isConfirming, setIsConfirming] = useState(false);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,8 +98,10 @@ export function SalesTransferModal({ isOpen, onClose, branchName, onSuccess }: S
   );
 
   const handleConfirmAction = async () => {
+    if (isProcessingRef.current) return;
     if (!selectedItem || !isFormValid) return;
     try {
+      isProcessingRef.current = true;
       setIsConfirming(true);
       
       // Verify Password
@@ -126,6 +129,7 @@ export function SalesTransferModal({ isOpen, onClose, branchName, onSuccess }: S
       toast.error(error?.message || "Failed to process Sales/Transfer transaction.");
     } finally {
       setIsConfirming(false);
+      isProcessingRef.current = false;
     }
   };
 
