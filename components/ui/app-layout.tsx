@@ -36,22 +36,26 @@ export function AppLayout({
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        navGroups={navGroups}
-        collapsed={collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
-        userName={userName}
-        userRole={userRole}
-        onLogout={onLogout}
-        disabled={isRestricted}
-      />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header
-          userInitials={userInitials}
-          notificationCount={notificationCount}
-          branchName={branchName || (isAllBranches ? "All Branches" : selectedBranch.name)}
-          hideBranchSelector={hideBranchSelector}
+      <div className="no-print">
+        <Sidebar
+          navGroups={navGroups}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed(!collapsed)}
+          userName={userName}
+          userRole={userRole}
+          onLogout={onLogout}
+          disabled={isRestricted}
         />
+      </div>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="no-print">
+          <Header
+            userInitials={userInitials}
+            notificationCount={notificationCount}
+            branchName={branchName || (isAllBranches ? "All Branches" : selectedBranch.name)}
+            hideBranchSelector={hideBranchSelector}
+          />
+        </div>
         <main className="flex-1 overflow-y-auto bg-pawn-content p-8 transition-colors duration-300">
           {children}
         </main>
