@@ -11,7 +11,7 @@ import { RenewModal } from "./_components/renew-modal";
 import { NewPawnModal } from "./_components/new-pawn-modal";
 import { RedeemModal } from "./_components/redeem-modal";
 import { BuyBackModal } from "./_components/buy-back-modal";
-import { SalesTransferModal } from "./_components/sales-transfer-modal";
+import { SellsTransferModal } from "./_components/sells-transfer-modal";
 import { ReserveLayawayModal } from "./_components/reserve-layaway-modal";
 import { MoaModal } from "./_components/moa-modal";
 import { ActionButton } from "@/components/shared/action-button";
@@ -20,6 +20,7 @@ import { TransactionDetailsModal } from "@/components/shared/transaction-details
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/contexts/auth-context";
 import { ConfirmPasswordModal } from "@/components/shared/confirm-password-modal";
+import { QrScanner } from "@/components/shared/qr-scanner";
 import { Role } from "@/types";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { formatDateToYMD } from "@/lib/time";
@@ -708,8 +709,8 @@ export default function EmployeePawnTransactionsPage() {
       />
 
       <SellsTransferModal
-        isOpen={isSellsTransferModalOpen}
-        onClose={() => setIsSellsTransferModalOpen(false)}
+        isOpen={isSalesTransferModalOpen}
+        onClose={() => setIsSalesTransferModalOpen(false)}
         onSuccess={handleTransactionSuccess}
         branchName={selectedBranch.name}
       />

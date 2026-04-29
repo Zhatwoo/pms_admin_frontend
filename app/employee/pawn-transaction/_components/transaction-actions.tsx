@@ -133,6 +133,26 @@ const plusIcon = (
   </svg>
 );
 
+const qrIcon = (
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 3h7v7H3z" />
+    <path d="M14 3h7v7h-7z" />
+    <path d="M3 14h7v7H3z" />
+    <path d="M14 14h3v3h-3z" />
+    <path d="M21 14v3h-3" />
+    <path d="M21 21h-3v-3" />
+  </svg>
+);
+
 export type FilterType =
   | "All"
   | "Renew"

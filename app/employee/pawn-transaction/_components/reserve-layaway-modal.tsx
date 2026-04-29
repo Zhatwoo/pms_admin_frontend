@@ -195,20 +195,6 @@ export function ReserveLayawayModal({ isOpen, onClose, onSuccess, branchId, bran
         unit_code: selectedItem.itemId,
         details: detailsObject,
         related_sale_item_id: selectedItem.id,
-        layaway: {
-          customer: {
-            firstName: form.firstName,
-            middleName: form.middleName,
-            lastName: form.lastName,
-            contactNo: form.contactNo,
-            address: form.address,
-          },
-          terms: form.terms,
-          itemPrice: selectedPrice,
-          downpayment: downpaymentValue,
-          remainingBalance,
-          processedByName: user?.fullName || "Admin",
-        },
       });
 
       onSuccess?.();
