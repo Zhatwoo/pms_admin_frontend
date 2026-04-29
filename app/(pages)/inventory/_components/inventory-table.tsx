@@ -203,7 +203,7 @@ export function InventoryTable() {
       />
 
       {/* Pagination */}
-      <div className="overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300">
+      <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20 transition-colors duration-300">
         <PaginationFooter
           currentPage={currentPage}
           totalPages={7}

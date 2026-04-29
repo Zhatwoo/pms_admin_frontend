@@ -38,7 +38,7 @@ export function DataTable({
   loadingMessage = "Loading data...",
 }: DataTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300">
+    <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20 transition-colors duration-300">
       <div className="overflow-x-auto">
         <table className={`w-full text-base ${tableClassName ?? ""}`.trim()}>
           <thead>
