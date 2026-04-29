@@ -78,6 +78,15 @@ interface ApiTransaction {
     qr_code?: string | null;
     item_photos?: string[] | null;
   } | null;
+  sale_item?: {
+    item_name?: string | null;
+    category?: string | null;
+    status?: string | null;
+    branch?: string | null;
+    price?: number | string | null;
+    item_id?: string | null;
+    image_url?: string | null;
+  } | null;
 }
 
 interface TransactionsResponse {
@@ -242,6 +251,7 @@ function getStatusBadge(status: string) {
     case "Redeemed":  return <StatusBadge label="Redeemed"  variant="blue"   />;
     case "Overdue":   return <StatusBadge label="Overdue"   variant="orange" />;
     case "Forfeited": return <StatusBadge label="Forfeited" variant="black"  />;
+    case "Sold":      return <StatusBadge label="Sold"      variant="blue"   />;
     default:          return <StatusBadge label={status}    variant="black"  />;
   }
 }
@@ -296,44 +306,57 @@ function normalizeTransactionStatus(tx: ApiTransaction) {
     case "Buy Back":
       return "Redeemed";
     case "Sold Item":
-      return "Forfeited";
+      return "Sold";
     default:
       return "Active";
   }
 }
 
 function mapTransaction(tx: ApiTransaction): Transaction {
+  const itemName = tx.pawned_item?.item_name || tx.sale_item?.item_name || "Item";
+  const amount = Number(tx.pawn_amount ?? tx.cash_in ?? tx.pawned_item?.amount ?? tx.sale_item?.price ?? 0);
+  const branch = tx.branch || tx.branch_id || tx.pawned_item?.branch || tx.sale_item?.branch || "-";
+  
   return {
     date: formatShortDate(tx.transaction_date),
-    item: tx.pawned_item?.item_name || "Item",
-    amount: Number(tx.pawn_amount ?? tx.cash_in ?? tx.pawned_item?.amount ?? 0),
+    item: itemName,
+    amount: amount,
     status: normalizeTransactionStatus(tx),
-    branch: tx.branch || tx.branch_id || tx.pawned_item?.branch || "-",
+    branch: branch,
   };
 }
 
 function collectItemPhotos(tx: ApiTransaction) {
-  const itemPhotos = tx.pawned_item?.item_photos;
+  const itemPhotos = tx.pawned_item?.item_photos || [];
   const photos = (Array.isArray(itemPhotos) ? itemPhotos : []).filter(
     (value): value is string => typeof value === "string" && isImageUrl(value),
   );
+
+  if (tx.sale_item?.image_url && isImageUrl(tx.sale_item.image_url)) {
+    photos.push(tx.sale_item.image_url);
+  }
 
   return Array.from(new Set(photos));
 }
 
 function mapTransactionRecord(tx: ApiTransaction): CustomerTransactionRecord {
+  const itemName = tx.pawned_item?.item_name || tx.sale_item?.item_name || "Item";
+  const unitCode = tx.pawned_item?.item_id || tx.sale_item?.item_id || "-";
+  const amount = Number(tx.pawn_amount ?? tx.cash_in ?? tx.pawned_item?.amount ?? tx.sale_item?.price ?? 0);
+  const branch = tx.branch || tx.branch_id || tx.pawned_item?.branch || tx.sale_item?.branch || "-";
+
   return {
     transactionNo: tx.transaction_no || "-",
     date: formatShortDate(tx.transaction_date),
     rawDate: tx.transaction_date || "",
     time: formatTime(tx.transaction_time),
-    item: tx.pawned_item?.item_name || "Item",
-    category: tx.pawned_item?.category || "-",
-    amount: Number(tx.pawn_amount ?? tx.cash_in ?? tx.pawned_item?.amount ?? 0),
+    item: itemName,
+    category: tx.pawned_item?.category || tx.sale_item?.category || "-",
+    amount: amount,
     status: normalizeTransactionStatus(tx),
-    branch: tx.branch || tx.branch_id || tx.pawned_item?.branch || "-",
-    unitCode: tx.pawned_item?.item_id || "-",
-    itemId: tx.pawned_item?.item_id || "-",
+    branch: branch,
+    unitCode: unitCode,
+    itemId: unitCode,
     purpose: tx.purpose || "-",
     serialNumber: tx.pawned_item?.serial_number || "-",
     condition: tx.pawned_item?.condition || "-",

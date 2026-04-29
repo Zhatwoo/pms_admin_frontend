@@ -65,6 +65,13 @@ const statusVariant: Record<string, "green" | "blue" | "red" | "orange"> = {
   Expired: "red",
 };
 
+const eyeIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
   if (renewals.length === 0) return <span className="text-[10px] text-zinc-400">No renewals yet</span>;
   return (
@@ -170,8 +177,13 @@ export default function EmployeePawnedItemsPage() {
 
 
   return (
-    <div className="space-y-4 pb-4 text-text-primary">
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-3xl border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
+    <div className="space-y-3 pb-4 text-text-primary -mt-2">
+      <div>
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+          Comprehensive list of all active, redeemed, and expired pawn contracts across your branch.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
         <div className="flex flex-wrap items-end gap-3">
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />
@@ -207,11 +219,11 @@ export default function EmployeePawnedItemsPage() {
       )}
 
       {viewMode === "list" && (
-        <div className="overflow-hidden rounded-3xl border border-border-main bg-surface shadow-lg shadow-black/20">
+        <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white">
+                <tr className="bg-emerald-900 text-amber-400">
                   {["Item ID", "Item Name", "Category", "Amount", "Date/Time", "Status", "Renewals", "Remarks/Notes", ""].map((h) => (
                     <th key={h} className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-left ${h === "Amount" ? "text-right" : ""}`}>{h}</th>
                   ))}
@@ -260,8 +272,12 @@ export default function EmployeePawnedItemsPage() {
                         </td>
                         <td className="px-3 py-2 text-[10px] font-bold text-zinc-600 max-w-[200px] truncate" title={item.remarks}>{item.remarks || "No description provided"}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-right">
-                          <button onClick={(event) => { event.stopPropagation(); setSelectedItemId(item.id); }} className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20">
-                            View Details
+                          <button 
+                            onClick={(event) => { event.stopPropagation(); setSelectedItemId(item.id); }} 
+                            title="View Details"
+                            className="inline-flex items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+                          >
+                            {eyeIcon}
                           </button>
                         </td>
                       </tr>
@@ -285,7 +301,7 @@ export default function EmployeePawnedItemsPage() {
         <InventoryCalendar items={pawnedItems} />
       )}
 
-      <div className="overflow-hidden rounded-3xl border border-border-main bg-surface shadow-lg shadow-black/20 mt-4">
+      <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20 mt-4">
         <PaginationFooter
           currentPage={currentPage}
           totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}

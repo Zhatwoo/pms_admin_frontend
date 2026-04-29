@@ -604,9 +604,23 @@ export default function EmployeeBranchFinancePage() {
             `}} />
 
             <div id="print-ledger-section" className="hidden print:block mb-8">
-              <h1 className="text-xl font-bold text-black border-b border-black pb-2 mb-4">
-                Branch Financial Ledger
-              </h1>
+              <div className="bg-emerald-800 text-white p-6 rounded-t-xl mb-6 border-b-4 border-amber-400">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-3xl font-black uppercase tracking-tighter">
+                      JCLB Buy Back Shop
+                    </h1>
+                    <p className="text-sm font-bold text-emerald-100/80 uppercase tracking-[0.2em] mt-1">
+                      {dashboard?.branch?.name || "Branch"} - Financial Ledger Report
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-200/60">
+                      Official Document
+                    </p>
+                  </div>
+                </div>
+              </div>
               <div className="text-sm text-black space-y-1 mb-4">
                 {dashboard?.branch ? (
                   <>

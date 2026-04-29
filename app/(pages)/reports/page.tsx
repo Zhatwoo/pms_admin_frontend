@@ -214,33 +214,39 @@ export default function ReportsPage() {
             <meta charset="utf-8" />
             <title>System Performance Report</title>
             <style>
-              body { font-family: Arial, sans-serif; color: #111; margin: 36px 44px; }
-              .topline { text-align: center; font-size: 12px; margin-bottom: 36px; }
-              h1 { margin: 0 0 12px; font-size: 26px; font-weight: 700; }
+              body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111; margin: 0; padding: 0; }
+              .header { background: #064e3b; color: white; padding: 50px 20px; text-align: center; margin-bottom: 30px; border-bottom: 8px solid #f59e0b; }
+              .header h1 { margin: 0; font-size: 38px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; line-height: 1.1; }
+              .header p { margin: 12px 0 0; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 4px; opacity: 0.9; }
+              .content-wrapper { padding: 0 44px 44px; }
               .meta p { margin: 0 0 8px; font-size: 12px; }
               .divider { border-top: 2px solid #111; margin: 18px 0 28px; }
-              h2 { margin: 0 0 14px; font-size: 16px; font-weight: 700; }
-              .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 26px; }
-              .card { border: 1px solid #222; min-height: 78px; padding: 14px; box-sizing: border-box; }
-              .label { font-size: 11px; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
-              .value { font-size: 20px; font-weight: 700; }
+              h2 { margin: 0 0 14px; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #064e3b; border-bottom: 1px solid #064e3b; padding-bottom: 4px; }
+              .summary-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; padding: 10px 0; }
+              .summary-item { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 4px; }
+              .summary-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+              .summary-value { font-size: 18px; font-weight: 900; color: #0f172a; }
               .summary { margin-bottom: 20px; }
               .summary p { margin: 0 0 6px; font-size: 12px; }
               .section { margin-top: 22px; }
               table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-              th, td { border-bottom: 1px solid #cbd5e1; padding: 10px 8px; font-size: 12px; text-align: left; }
-              thead th { border-top: 2px solid #111; border-bottom: 2px solid #111; font-weight: 700; }
-              .num { text-align: right; }
+              th, td { border-bottom: 1px solid #e2e8f0; padding: 12px 8px; font-size: 12px; text-align: left; }
+              thead th { background: #f1f5f9; border-top: 2px solid #064e3b; border-bottom: 2px solid #064e3b; font-weight: 700; color: #064e3b; }
+              .num { text-align: right; font-family: monospace; font-weight: 700; }
               .empty { color: #64748b; font-style: italic; text-align: center; }
-              .footer { margin-top: 28px; font-size: 11px; color: #666; text-align: center; }
+              .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
               @media print {
-                body { margin: 16px; }
+                body { margin: 0; }
+                .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               }
             </style>
           </head>
           <body>
-            <div class="topline">Pawnshop Management System</div>
-            <h1>System Performance Report</h1>
+            <div class="header">
+              <h1>JCLB Buy Back Shop</h1>
+              <p>System Performance Report - ${escapeHtml(branchLabel)}</p>
+            </div>
+            <div class="content-wrapper">
             <div class="meta">
               <p><strong>Generated for:</strong> ${escapeHtml(branchLabel)}</p>
               <p><strong>Period:</strong> ${escapeHtml(activePeriod)}</p>
@@ -258,11 +264,23 @@ export default function ReportsPage() {
             <div class="divider"></div>
 
             <h2>Executive Summary</h2>
-            <div class="grid">
-              <div class="card"><div class="label">Total Sales Today</div><div class="value">${escapeHtml(formatPeso(stats.totalSalesToday))}</div></div>
-              <div class="card"><div class="label">Total Transactions</div><div class="value">${stats.totalTransactions}</div></div>
-              <div class="card"><div class="label">Avg. Per Branch</div><div class="value">${escapeHtml(formatPeso(stats.avgPerBranch))}</div></div>
-              <div class="card"><div class="label">Active Branches</div><div class="value">${stats.activeBranches} / ${stats.totalBranches}</div></div>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <span class="summary-label">Total Sales Today</span>
+                <span class="summary-value">${escapeHtml(formatPeso(stats.totalSalesToday))}</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Total Transactions</span>
+                <span class="summary-value">${stats.totalTransactions}</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Avg. Per Branch</span>
+                <span class="summary-value">${escapeHtml(formatPeso(stats.avgPerBranch))}</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Active Branches</span>
+                <span class="summary-value">${stats.activeBranches} / ${stats.totalBranches}</span>
+              </div>
             </div>
 
             <div class="section summary">
@@ -300,6 +318,7 @@ export default function ReportsPage() {
               </table>
             </div>
 
+            </div>
             <div class="footer">Pawnshop Management System</div>
           </body>
         </html>

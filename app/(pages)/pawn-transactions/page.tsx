@@ -414,8 +414,109 @@ export default function PawnTransactionsPage() {
   );
 
   return (
-    <div className="space-y-4 pb-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 pb-4 printable-area">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * { visibility: hidden; }
+          .printable-area, .printable-area * { visibility: visible; }
+          .printable-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+          .header-print { background: #064e3b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; padding: 40px 20px !important; text-align: center !important; margin-bottom: 30px !important; border-bottom: 8px solid #f59e0b !important; }
+          .header-print h1 { margin: 0 !important; font-size: 32px !important; font-weight: 900 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: white !important; }
+          .header-print p { margin: 10px 0 0 !important; font-size: 14px !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: 4px !important; opacity: 0.9 !important; color: white !important; }
+          .print-hide { display: none !important; }
+        }
+      `}} />
+
+      <div className="hidden print:block">
+        <div className="header-print">
+          <h1>JCLB Buy Back Shop</h1>
+          <p>Pawn Transactions Report - {isAllBranches ? "All Branches" : selectedBranch.name}</p>
+        </div>
+        
+        <div className="mb-8">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-800 mb-3 border-b-2 border-emerald-800 pb-1">
+            Executive Summary
+          </h2>
+          <table className="w-full border-collapse border border-emerald-800/20 text-sm">
+            <thead>
+              <tr className="bg-emerald-50">
+                <th className="border border-emerald-800/20 p-2 text-left text-emerald-900">Metric</th>
+                <th className="border border-emerald-800/20 p-2 text-right text-emerald-900">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Pawned Today</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{stats.pawnedToday}</td>
+              </tr>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Buy Back</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{stats.buyBack}</td>
+              </tr>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Renewed</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{stats.renewed}</td>
+              </tr>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Sold Item</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{stats.soldItem}</td>
+              </tr>
+              <tr className="bg-emerald-50/50">
+                <td className="border border-emerald-800/20 p-2 font-bold text-emerald-900">Live Total Balance</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold text-emerald-900">
+                  ₱{stats.endingBalance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-800 mb-3 border-b-2 border-emerald-800 pb-1">
+            Detailed Transactions
+          </h2>
+          <table className="w-full border-collapse border border-emerald-800/20 text-[10px]">
+            <thead>
+              <tr className="bg-emerald-50">
+                <th className="border border-emerald-800/10 p-1 text-left">Txn #</th>
+                <th className="border border-emerald-800/10 p-1 text-left">Branch</th>
+                <th className="border border-emerald-800/10 p-1 text-left">Purpose</th>
+                <th className="border border-emerald-800/10 p-1 text-left">Customer</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Cash In</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Cash Out</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Pawn</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Storage</th>
+                <th className="border border-emerald-800/10 p-1 text-left">Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.map((tx) => (
+                <tr key={tx.id}>
+                  <td className="border border-emerald-800/10 p-1">{tx.transactionNo}</td>
+                  <td className="border border-emerald-800/10 p-1">{tx.branch}</td>
+                  <td className="border border-emerald-800/10 p-1 font-bold">{tx.purpose}</td>
+                  <td className="border border-emerald-800/10 p-1">{tx.customerName || "Walk-in"}</td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.cashIn !== "0" ? `₱${Number(tx.cashIn).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.cashOut !== "0" ? `₱${Number(tx.cashOut).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.pawn !== "0" ? `₱${Number(tx.pawn).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.storage !== "0" ? `₱${Number(tx.storage).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1">{tx.unitCode || tx.unit || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between print-hide">
         <div>
           <h1 className="text-xl font-bold leading-tight text-emerald-900 sm:text-2xl dark:text-text-primary">
             Pawn Transactions
@@ -426,41 +527,49 @@ export default function PawnTransactionsPage() {
         </div>
       </div>
 
-      <TransactionStats data={stats} />
+      <div className="print-hide">
+        <TransactionStats data={stats} />
+      </div>
 
-      <TransactionActions
-        search={search}
-        purposeFilter={purposeFilter}
-        dateFilter={dateFilter}
-        selectedBranchLabel={selectedBranch.name}
-        onSearchChange={setSearch}
-        onPurposeFilterChange={setPurposeFilter}
-        onDateFilterChange={(value) => {
-          setDateFilter(value);
-          setCurrentPage(1);
-        }}
-        onExportCSV={handleExportCSV}
-        onPrintReport={handlePrintReport}
-      />
+      <div className="print-hide">
+        <TransactionActions
+          search={search}
+          purposeFilter={purposeFilter}
+          dateFilter={dateFilter}
+          selectedBranchLabel={selectedBranch.name}
+          onSearchChange={setSearch}
+          onPurposeFilterChange={setPurposeFilter}
+          onDateFilterChange={(value) => {
+            setDateFilter(value);
+            setCurrentPage(1);
+          }}
+          onExportCSV={handleExportCSV}
+          onPrintReport={handlePrintReport}
+        />
+      </div>
 
-      <TransactionTable
-        isLoading={isLoading}
-        data={paginatedTransactions}
-        onViewDetails={setViewingTransaction}
-        onPrint={handlePrintSlip}
-        highlightTransactionNo={shouldHighlight ? highlightTransactionNo : null}
-        highlightRowRef={highlightRowRef}
-        isToday={!dateFilter || dateFilter === new Date().toISOString().split("T")[0]}
-      />
+      <div className="print-hide">
+        <TransactionTable
+          isLoading={isLoading}
+          data={paginatedTransactions}
+          onViewDetails={setViewingTransaction}
+          onPrint={handlePrintSlip}
+          highlightTransactionNo={shouldHighlight ? highlightTransactionNo : null}
+          highlightRowRef={highlightRowRef}
+          isToday={!dateFilter || dateFilter === new Date().toISOString().split("T")[0]}
+        />
+      </div>
 
       {totalPages > 1 ? (
-        <PaginationFooter
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredTransactions.length}
-          itemsPerPage={ITEMS_PER_PAGE}
-          onPageChange={setCurrentPage}
-        />
+        <div className="print-hide">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredTransactions.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       ) : null}
 
       <TransactionViewModal

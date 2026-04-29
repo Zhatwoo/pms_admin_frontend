@@ -96,8 +96,13 @@ export default function EmployeeItemsForSalePage() {
   }, [branchIdent, category, status, searchQuery, saleViewMode, currentPage]);
 
   return (
-    <div className="space-y-4 pb-4 text-text-primary">
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-3xl border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
+    <div className="space-y-3 pb-4 text-text-primary -mt-2">
+      <div>
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+          Inventory of expired pawn items and direct purchases currently available for retail sale.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
         <div className="flex flex-wrap items-end gap-3">
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={saleStatusOptions} value={status} onChange={setStatus} />
@@ -124,11 +129,11 @@ export default function EmployeeItemsForSalePage() {
       {saleViewMode === "calendar" ? (
         <InventoryCalendar items={saleItems} />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white">
+                <tr className="bg-emerald-900 text-amber-400">
                   {["ID", "Item Name", "Category", "Date Expired", "Price", "Status", "Actions"].map((h) => (
                     <th key={h} className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${h === "Price" ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
@@ -181,7 +186,7 @@ export default function EmployeeItemsForSalePage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20">
         <PaginationFooter
           currentPage={currentPage}
           totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}
