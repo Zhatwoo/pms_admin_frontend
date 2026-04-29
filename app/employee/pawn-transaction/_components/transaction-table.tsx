@@ -4,7 +4,19 @@ import { formatPeso } from "@/lib/currency";
 import { formatTimeWithAmPm } from "@/lib/time";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 
-export type PurposeType = "Start" | "End" | "Buy Back" | "Renew" | "Reappraise" | "Redeem" | "Sold Item" | "Pawn" | "Fund Transfer" | "Cash Transfer" | "Buy Out";
+export type PurposeType =
+  | "Start"
+  | "End"
+  | "Buy Back"
+  | "Renew"
+  | "Reappraise"
+  | "Redeem"
+  | "Sold Item"
+  | "Reserve / Layaway"
+  | "Pawn"
+  | "Fund Transfer"
+  | "Cash Transfer"
+  | "Buy Out";
 
 export interface TransactionRow {
   transactionNo: string;
@@ -71,6 +83,7 @@ const purposeVariant: Record<
   "Buy Back": "blue",
   Renew: "green",
   "Sold Item": "orange",
+  "Reserve / Layaway": "orange",
   Pawn: "purple",
   "Fund Transfer": "blue",
   "Cash Transfer": "blue",
@@ -172,13 +185,12 @@ export function TransactionTable({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${
-                    col.align === "right"
+                  className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${col.align === "right"
                       ? "text-right"
                       : col.align === "center"
                         ? "text-center"
                         : "text-left"
-                  }`}
+                    }`}
                 >
                   {col.label}
                 </th>
@@ -193,9 +205,9 @@ export function TransactionTable({
                   className="py-12 text-center text-base font-medium text-text-tertiary"
                 >
                   <div className="flex items-center justify-center">
-                    <LoadingSpinnerLabel 
-                      text="Loading transactions..." 
-                      className="text-base font-medium text-text-tertiary" 
+                    <LoadingSpinnerLabel
+                      text="Loading transactions..."
+                      className="text-base font-medium text-text-tertiary"
                     />
                   </div>
                 </td>
@@ -224,13 +236,11 @@ export function TransactionTable({
                     }}
                     role="button"
                     tabIndex={0}
-                    className={`cursor-pointer border-t border-border-subtle transition-colors hover:bg-emerald-surface/60 ${
-                      isHighlightedRow ? "transaction-highlight-active border-l-4 border-l-amber-500 bg-amber-50/80" : ""
-                    } ${
-                      isStartRow
+                    className={`cursor-pointer border-t border-border-subtle transition-colors hover:bg-emerald-surface/60 ${isHighlightedRow ? "transaction-highlight-active border-l-4 border-l-amber-500 bg-amber-50/80" : ""
+                      } ${isStartRow
                         ? "border-l-4 border-l-emerald-700 bg-emerald-surface"
                         : "bg-surface-secondary"
-                    }`}
+                      }`}
                   >
                     <td className="whitespace-nowrap px-3 py-2 text-xs font-medium text-text-secondary">
                       {row.transactionNo}
