@@ -156,7 +156,7 @@ const qrIcon = (
 export type FilterType =
   | "All"
   | "Renew"
-  | "Sales / Transfer"
+  | "Sells / Transfer"
   | "Redeem"
   | "Buy Back"
   | "Reserve / Layaway"
