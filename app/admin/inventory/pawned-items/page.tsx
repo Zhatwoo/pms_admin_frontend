@@ -257,8 +257,13 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
   }, []);
 
   return (
-    <div className={viewOnly ? "space-y-5 pb-4 text-text-primary" : "space-y-4 pb-4 text-text-primary"}>
-      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-3xl border border-border-main bg-surface-secondary/85 p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-3xl border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
+    <div className="space-y-3 pb-4 text-text-primary -mt-2">
+      <div>
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+          Comprehensive list of all active, redeemed, and expired pawn contracts across your branch.
+        </p>
+      </div>
+      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border-main bg-surface-secondary/85 p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
         <div className="flex flex-wrap items-end gap-3">
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />

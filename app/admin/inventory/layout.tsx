@@ -10,10 +10,10 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
   const isPawned = pathname.includes("pawned-items");
 
   return (
-    <div className="p-4">
+    <div className="pt-0 p-4">
 
       {/* Page Content */}
-      <div className="mt-4">
+      <div>
         {children}
       </div>
     </div>

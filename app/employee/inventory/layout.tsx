@@ -25,10 +25,10 @@ export default function EmployeeInventoryLayout({ children }: { children: React.
   }
 
   return (
-    <div className="p-4">
+    <div className="pt-0 p-4">
 
       {/* Page Content */}
-      <div className="mt-4">
+      <div>
         {children}
       </div>
     </div>

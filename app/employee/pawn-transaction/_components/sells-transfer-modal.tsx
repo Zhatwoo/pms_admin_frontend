@@ -123,7 +123,7 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess }: S
       if (form.sellTransfer === "Sales") {
         // 1. Create/Ensure Customer in Customer Management
         console.log("Creating customer record for buyer...");
-        await api.post("/customers", {
+        const customer = await api.post<any>("/customers", {
           full_name: `${form.firstName} ${form.middleName ? form.middleName + ' ' : ''}${form.lastName}`,
           address: form.address,
           barangay: form.barangay,
@@ -136,7 +136,8 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess }: S
         // 2. Mark as Sold (Backend handles transaction creation for Sold Item)
         await api.post(`/inventory/for-sale/${selectedItem.id}/mark-sold`, {
           sold_price: Number(form.priceSold || 0),
-          branch_id: selectedBranch?.id
+          branch_id: selectedBranch?.id,
+          customer_id: customer?.id // Pass the linked customer ID
         });
 
         toast.success("Item marked as sold successfully!");
