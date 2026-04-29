@@ -11,7 +11,7 @@ import { RenewModal } from "./_components/renew-modal";
 import { NewPawnModal } from "./_components/new-pawn-modal";
 import { RedeemModal } from "./_components/redeem-modal";
 import { BuyBackModal } from "./_components/buy-back-modal";
-import { SalesTransferModal } from "./_components/sales-transfer-modal";
+import { SellsTransferModal } from "./_components/sells-transfer-modal";
 import { MoaModal } from "./_components/moa-modal";
 import { ActionButton } from "@/components/shared/action-button";
 import { DailyBalanceConfirmation } from "@/components/shared/daily-balance-confirmation";
@@ -21,26 +21,16 @@ import { useAuth } from "@/contexts/auth-context";
 import { ConfirmPasswordModal } from "@/components/shared/confirm-password-modal";
 import { Role } from "@/types";
 import { calculateGadgetInterest } from "@/lib/interest";
+import { formatDateToYMD } from "@/lib/time";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { QrScanner } from "@/components/shared/qr-scanner";
 
-type PurposeType =
-  | "Start"
-  | "End"
-  | "Buy Back"
-  | "Renew"
-  | "Reappraise"
-  | "Redeem"
-  | "Sold Item"
-  | "Pawn"
-  | "Fund Transfer"
-  | "Cash Transfer";
 
-type FilterType = "All" | "Renew" | "Sales / Transfer" | "Redeem" | "Buy Back";
 
 const filterToPurpose: Record<FilterType, PurposeType | null> = {
   "All": null,
   "Renew": "Renew",
-  "Sales / Transfer": "Sold Item",
+  "Sells / Transfer": "Sold Item",
   "Redeem": "Redeem",
   "Buy Back": "Buy Back",
   "Pawn": "Pawn",
@@ -211,7 +201,7 @@ export default function EmployeePawnTransactionsPage() {
   const [isNewPawnModalOpen, setIsNewPawnModalOpen] = useState(false);
   const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
   const [isBuyBackModalOpen, setIsBuyBackModalOpen] = useState(false);
-  const [isSalesTransferModalOpen, setIsSalesTransferModalOpen] = useState(false);
+  const [isSellsTransferModalOpen, setIsSellsTransferModalOpen] = useState(false);
   const [isMoaReprintOpen, setIsMoaReprintOpen] = useState(false);
   const [reprintData, setReprintData] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
@@ -240,6 +230,7 @@ export default function EmployeePawnTransactionsPage() {
     open: false,
     onConfirm: () => { },
   });
+  const [isMainScannerOpen, setIsMainScannerOpen] = useState(false);
   const [viewRange, setViewRange] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
   const [currentPage, setCurrentPage] = useState(1);
   const highlightedTransactionRef = useRef<string | null>(null);
@@ -506,7 +497,6 @@ export default function EmployeePawnTransactionsPage() {
   return (
     <div className="space-y-3 pb-4">
       <div>
-        <h1 className="text-2xl font-bold text-emerald-950 dark:text-white">Pawn Transactions</h1>
         <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
           Live transaction records across all branches with employee-style QR and print access.
         </p>
@@ -518,7 +508,7 @@ export default function EmployeePawnTransactionsPage() {
         onRenewClick={() => handleActionWithPassword(() => setIsRenewModalOpen(true))}
         onRedeem={() => handleActionWithPassword(() => setIsRedeemModalOpen(true))}
         onBuyBack={() => handleActionWithPassword(() => setIsBuyBackModalOpen(true))}
-        onSalesTransfer={() => handleActionWithPassword(() => setIsSalesTransferModalOpen(true))}
+        onSalesTransfer={() => handleActionWithPassword(() => setIsSellsTransferModalOpen(true))}
         onNewPawn={() => handleActionWithPassword(openNewPawnForm)}
         onStartDay={async () => {
           try {
@@ -535,6 +525,7 @@ export default function EmployeePawnTransactionsPage() {
           setExpectedCash(String(currentStats.endingBalance || 0));
           setBalanceModal({ open: true, type: "ending" });
         }}
+        onQrScan={() => setIsMainScannerOpen(true)}
       />
 
       <TransactionStats data={currentStats} />
@@ -567,7 +558,7 @@ export default function EmployeePawnTransactionsPage() {
           >
             <option value="All">All Purposes</option>
             <option value="Renew">Renew</option>
-            <option value="Sales / Transfer">Sales / Transfer</option>
+            <option value="Sells / Transfer">Sells / Transfer</option>
             <option value="Redeem">Redeem</option>
             <option value="Buy Back">Buy Back</option>
             <option value="Pawn">Pawn</option>
@@ -705,9 +696,9 @@ export default function EmployeePawnTransactionsPage() {
         branchName={selectedBranch.name}
       />
 
-      <SalesTransferModal
-        isOpen={isSalesTransferModalOpen}
-        onClose={() => setIsSalesTransferModalOpen(false)}
+      <SellsTransferModal
+        isOpen={isSellsTransferModalOpen}
+        onClose={() => setIsSellsTransferModalOpen(false)}
         onSuccess={handleTransactionSuccess}
         branchName={selectedBranch.name}
       />
@@ -722,6 +713,34 @@ export default function EmployeePawnTransactionsPage() {
           autoPrint={true}
         />
       )}
+
+      <QrScanner 
+        isOpen={isMainScannerOpen} 
+        onClose={() => setIsMainScannerOpen(false)} 
+        onScan={(text) => {
+          // 1. Try to extract from "Code: ID | ..." format
+          const codeMatch = text.match(/Code:\s*([^|]+)/i);
+          if (codeMatch) {
+            const id = codeMatch[1].trim();
+            setSearchQuery(id);
+            setCurrentPage(1);
+            return;
+          }
+
+          // 2. Try to extract from URL format: .../view-ticket/UNITCODE
+          const urlMatch = text.match(/\/view-ticket\/([^/?#\s]+)/i);
+          if (urlMatch) {
+            const id = urlMatch[1].trim();
+            setSearchQuery(id);
+            setCurrentPage(1);
+            return;
+          }
+
+          // 3. Fallback to whole text
+          setSearchQuery(text.trim());
+          setCurrentPage(1);
+        }} 
+      />
     </div>
   );
 }

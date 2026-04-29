@@ -3,15 +3,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { formatPeso } from "@/lib/currency";
 import { formatTimeWithAmPm } from "@/lib/time";
 
-export type PurposeType =
-  | "Start"
-  | "Buy Back"
-  | "Renew"
-  | "Sold Item"
-  | "Pawn"
-  | "Fund Transfer"
-  | "Cash Transfer"
-  | "Buy Out";
+export type PurposeType = "Start" | "End" | "Buy Back" | "Renew" | "Reappraise" | "Redeem" | "Sold Item" | "Pawn" | "Fund Transfer" | "Cash Transfer" | "Buy Out";
 
 export interface TransactionRow {
   transactionNo: string;
@@ -81,6 +73,9 @@ const purposeVariant: Record<
   "Fund Transfer": "blue",
   "Cash Transfer": "blue",
   "Buy Out": "purple",
+  "Reappraise": "blue",
+  "Redeem": "green",
+  "End": "black",
 };
 
 function isHighlightedPawn(value: string): boolean {
