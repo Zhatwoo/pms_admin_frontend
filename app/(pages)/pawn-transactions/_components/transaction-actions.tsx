@@ -70,6 +70,8 @@ interface TransactionActionsProps {
 export function TransactionActions({
   search,
   purposeFilter,
+  onSearchChange,
+  onPurposeFilterChange,
   dateFilter,
   onDateFilterChange,
   onAddTransaction,

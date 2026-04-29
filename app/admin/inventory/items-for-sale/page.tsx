@@ -23,7 +23,7 @@ interface SaleItem {
   branch: string;
   availableDate: string;
   price: number;
-  status: "Available" | "Sold";
+  status: "Available" | "Reserved" | "Sold";
   originalPawnId?: string;
 }
 
@@ -38,11 +38,13 @@ const categoryOptions = [
 const saleStatusOptions = [
   { value: "all", label: "All" },
   { value: "Available", label: "Available" },
+  { value: "Reserved", label: "Reserved" },
   { value: "Sold", label: "Sold" },
 ];
 
-const statusVariant: Record<string, "green" | "orange"> = {
+const statusVariant: Record<string, "green" | "orange" | "blue"> = {
   Available: "green",
+  Reserved: "blue",
   Sold: "orange",
 };
 
