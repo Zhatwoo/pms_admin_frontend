@@ -59,6 +59,32 @@ const statusVariant: Record<string, "green" | "blue" | "red" | "orange"> = {
   Expired: "red",
 };
 
+const eyeIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const editIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </svg>
+);
+
+const deleteIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+  </svg>
+);
+
+const expireIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+  </svg>
+);
+
 function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
   if (renewals.length === 0) return <span className="text-text-muted text-[10px]">No renewals yet</span>;
   return (
@@ -231,8 +257,13 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
   }, []);
 
   return (
-    <div className={viewOnly ? "space-y-5 pb-4 text-text-primary" : "space-y-4 pb-4 text-text-primary"}>
-      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-3xl border border-border-main bg-surface-secondary/85 p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-3xl border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
+    <div className="space-y-3 pb-4 text-text-primary -mt-2">
+      <div>
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+          Comprehensive list of all active, redeemed, and expired pawn contracts across your branch.
+        </p>
+      </div>
+      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border-main bg-surface-secondary/85 p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
         <div className="flex flex-wrap items-end gap-3">
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />
@@ -308,36 +339,46 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
                         </td>
                         <td className={viewOnly ? "px-5 py-4 text-sm text-text-tertiary max-w-[180px] truncate" : "px-3 py-2 text-xs text-text-tertiary max-w-[120px] truncate"} title={item.remarks}>{item.remarks || "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button onClick={(event) => { event.stopPropagation(); setSelectedItemId(item.id); }} className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100" : "rounded px-2 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100"}>
-                              View
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button 
+                              onClick={(event) => { event.stopPropagation(); setSelectedItemId(item.id); }} 
+                              title="View Details"
+                              className="inline-flex items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-700 transition-colors hover:bg-emerald-100"
+                            >
+                              {eyeIcon}
                             </button>
                             {canEdit && (
                               <>
-                                <button onClick={(event) => { event.stopPropagation(); setEditingItem(item); }} className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-blue-700 border border-blue-200 bg-blue-50 hover:bg-blue-100" : "rounded px-2 py-1 text-[10px] font-bold text-blue-700 border border-blue-200 bg-blue-50 hover:bg-blue-100"}>
-                                  Edit
+                                <button 
+                                  onClick={(event) => { event.stopPropagation(); setEditingItem(item); }} 
+                                  title="Edit Item"
+                                  className="inline-flex items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 text-blue-700 transition-colors hover:bg-blue-100"
+                                >
+                                  {editIcon}
                                 </button>
                                 {item.status === "Active" && (
                                   <button
                                     type="button"
+                                    title="Mark as Expired"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setConfirmIntent({ type: "expire", itemId: item.id });
                                     }}
-                                    className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100" : "rounded px-2 py-1 text-[10px] font-bold text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100"}
+                                    className="inline-flex items-center justify-center rounded-lg border border-orange-500/30 bg-orange-500/10 p-2 text-orange-600 transition-colors hover:bg-orange-100"
                                   >
-                                    Expire
+                                    {expireIcon}
                                   </button>
                                 )}
                                 <button
                                   type="button"
+                                  title="Delete Item"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setConfirmIntent({ type: "delete", itemId: item.id });
                                   }}
-                                  className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100" : "rounded px-2 py-1 text-[10px] font-bold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100"}
+                                  className="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-50 p-2 text-red-700 transition-colors hover:bg-red-100"
                                 >
-                                  Delete
+                                  {deleteIcon}
                                 </button>
                               </>
                             )}

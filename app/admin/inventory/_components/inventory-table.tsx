@@ -58,9 +58,15 @@ export function InventoryTable() {
     Pawned: "yellow",
   };
 
+  const deleteIcon = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border border-border-main bg-surface">
+      <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -92,8 +98,13 @@ export function InventoryTable() {
                     <td className="whitespace-nowrap px-3 py-2"><StatusBadge label={item.status} variant={statusVariant[item.status] || "yellow"} /></td>
                     <td className="px-3 py-2 whitespace-nowrap text-right">
                       {canEdit && (
-                        <button type="button" onClick={() => setDeleteConfirmId(item.id)} className="rounded px-2 py-1 text-[10px] font-bold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100">
-                          Delete
+                        <button 
+                          type="button" 
+                          onClick={() => setDeleteConfirmId(item.id)} 
+                          title="Delete Item"
+                          className="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-50 p-2 text-red-700 transition-colors hover:bg-red-100"
+                        >
+                          {deleteIcon}
                         </button>
                       )}
                     </td>
