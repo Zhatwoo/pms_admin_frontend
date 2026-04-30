@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { TransactionActions, type FilterType } from "./_components/transaction-actions";
+import { TransactionActions, type FilterType, type ViewMode } from "./_components/transaction-actions";
 import { api } from "@/lib/api";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { TransactionStats } from "./_components/transaction-stats";
@@ -77,6 +77,157 @@ const printerIcon = (
   </svg>
 );
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function isSmartphoneTransaction(transaction: TransactionRow) {
+  return (transaction.category ?? "").trim().toLowerCase() === "smartphone";
+}
+
+function formatSelectedDateLabel(dateString: string) {
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function buildCalendarCells(year: number, month: number) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const cells: (number | null)[] = [
+    ...Array(firstDayOfWeek).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ];
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
+function TransactionsCalendar({
+  calendarData,
+  selectedDate,
+  onSelectDate,
+  calendarYear,
+  calendarMonth,
+  onChangeMonth,
+}: {
+  calendarData: Record<string, number>;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  calendarYear: number;
+  calendarMonth: number;
+  onChangeMonth: (year: number, month: number) => void;
+}) {
+  const today = new Date();
+  const cells = buildCalendarCells(calendarYear, calendarMonth);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border-main bg-surface shadow-sm transition-colors duration-300">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-emerald-950 to-emerald-900 px-4 py-4 sm:px-5">
+        <button
+          type="button"
+          onClick={() => (calendarMonth === 0 ? onChangeMonth(calendarYear - 1, 11) : onChangeMonth(calendarYear, calendarMonth - 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:bg-white/10"
+          aria-label="Previous month"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+
+        <div className="min-w-[140px] text-center">
+          <p className="text-lg font-bold leading-tight text-white">{MONTH_NAMES[calendarMonth]}</p>
+          <p className="text-xs font-semibold text-emerald-300">{calendarYear}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => (calendarMonth === 11 ? onChangeMonth(calendarYear + 1, 0) : onChangeMonth(calendarYear, calendarMonth + 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:bg-white/10"
+          aria-label="Next month"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 border-b border-border-subtle bg-surface-secondary">
+        {DAY_NAMES.map((dayName) => (
+          <div key={dayName} className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-text-muted">
+            {dayName}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7">
+        {cells.map((day, index) => {
+          if (day === null) {
+            return <div key={`empty-${index}`} className="h-16 border-b border-r border-border-subtle/40 bg-surface-secondary/20" />;
+          }
+
+          const dateString = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const count = calendarData[dateString] ?? 0;
+          const isToday = today.getFullYear() === calendarYear && today.getMonth() === calendarMonth && today.getDate() === day;
+          const isSelected = selectedDate === dateString;
+
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => onSelectDate(dateString)}
+              className={`relative h-16 border-b border-r border-border-subtle/40 p-1.5 text-left transition-all hover:bg-emerald-50/10 ${isSelected ? "ring-2 ring-inset ring-emerald-500 bg-emerald-500/10" : ""} ${isToday ? "ring-1 ring-inset ring-amber-400" : ""}`}
+            >
+              <span className={`text-xs font-bold leading-none ${isSelected ? "text-emerald-400" : isToday ? "text-amber-400" : count > 0 ? "text-text-primary" : "text-text-muted"}`}>
+                {day}
+              </span>
+
+              {count > 0 && (
+                <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-1">
+                  <div className="h-1 flex-1 rounded-full bg-emerald-500/60" />
+                  <span className="text-[9px] font-black leading-none text-emerald-400">{count}</span>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border-subtle bg-surface-secondary/60 px-4 py-2.5">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-emerald-500/50" />
+            <span className="text-[10px] font-bold uppercase text-text-muted">Has smartphone records</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm ring-1 ring-amber-400" />
+            <span className="text-[10px] font-bold uppercase text-text-muted">Today</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 
 interface ApiTransaction {
@@ -104,6 +255,12 @@ interface TransactionsResponse {
   transactions: ApiTransaction[];
 }
 
+interface BranchFinanceSummary {
+  branchId: string;
+  startingBalance: number;
+  currentBalance: number;
+}
+
 const DEFAULT_STATS = {
   pawnedToday: 0,
   buyBack: 0,
@@ -114,6 +271,13 @@ const DEFAULT_STATS = {
   startingBalance: 0,
   endingBalance: 0,
 };
+
+function normalizeStats(stats?: Partial<typeof DEFAULT_STATS>) {
+  return {
+    ...DEFAULT_STATS,
+    ...(stats || {}),
+  };
+}
 
 // Shared logic imported from @/lib/interest.ts
 
@@ -212,7 +376,10 @@ export default function EmployeePawnTransactionsPage() {
   const [reprintData, setReprintData] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [selectedDate, setSelectedDate] = useState(formatDateToYMD());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionRow | null>(null);
   const [currentStats, setCurrentStats] = useState({
     pawnedToday: 0,
@@ -237,7 +404,6 @@ export default function EmployeePawnTransactionsPage() {
     onConfirm: () => { },
   });
   const [isMainScannerOpen, setIsMainScannerOpen] = useState(false);
-  const [viewRange, setViewRange] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
   const [currentPage, setCurrentPage] = useState(1);
   const highlightedTransactionRef = useRef<string | null>(null);
 
@@ -247,14 +413,9 @@ export default function EmployeePawnTransactionsPage() {
     setIsLoading(true);
     try {
       const data = await api.get<TransactionsResponse>(
-        `/transactions?branch=${encodeURIComponent(selectedBranch.id)}&range=${viewRange}`
+        `/transactions?branch=${encodeURIComponent(selectedBranch.id)}&range=all`
       );
       if (data) {
-        setCurrentStats(data.stats || {
-          pawnedToday: 0, buyBack: 0, renewed: 0, soldItem: 0,
-          redeemed: 0, transfer: 0,
-          startingBalance: 0, endingBalance: 0,
-        });
         setAllTransactions((data.transactions || []).map(toTransactionRow));
       }
     } catch (error) {
@@ -262,16 +423,95 @@ export default function EmployeePawnTransactionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedBranch, viewRange, canSwitchBranch]);
+  }, [selectedBranch, canSwitchBranch]);
+
+  const fetchSelectedDateStats = useCallback(async () => {
+    if (selectedBranch.id === "__all__" && !canSwitchBranch) return;
+
+    try {
+      const branchParam = selectedBranch.id === "__all__"
+        ? ""
+        : `branch=${encodeURIComponent(selectedBranch.id)}`;
+
+      const [data, financeSummary] = await Promise.all([
+        api.get<TransactionsResponse>(
+          `/transactions?${branchParam}${branchParam ? "&" : ""}date=${selectedDate}`,
+        ),
+        api
+          .get<BranchFinanceSummary[]>(
+            `/branch-finance/summary${branchParam ? `?${branchParam}` : ""}`,
+          )
+          .catch(() => [] as BranchFinanceSummary[]),
+      ]);
+
+      let startingBalance = Number(data.stats?.startingBalance ?? 0);
+      let endingBalance = Number(data.stats?.endingBalance ?? 0);
+
+      if (selectedBranch.id === "__all__" && financeSummary.length > 0) {
+        startingBalance = financeSummary.reduce(
+          (sum, row) => sum + Number(row.startingBalance ?? 0),
+          0,
+        );
+        endingBalance = financeSummary.reduce(
+          (sum, row) => sum + Number(row.currentBalance ?? 0),
+          0,
+        );
+      } else if (financeSummary.length === 1) {
+        startingBalance = Number(financeSummary[0].startingBalance ?? startingBalance);
+        endingBalance = Number(financeSummary[0].currentBalance ?? endingBalance);
+      }
+
+      setCurrentStats({
+        ...normalizeStats(data.stats),
+        startingBalance,
+        endingBalance,
+      });
+    } catch (error) {
+      console.error("Failed to load selected date transaction stats:", error);
+      setCurrentStats(normalizeStats());
+    }
+  }, [selectedBranch, selectedDate, canSwitchBranch]);
 
   useEffect(() => {
     void fetchTransactions();
   }, [fetchTransactions]);
 
+  useEffect(() => {
+    void fetchSelectedDateStats();
+  }, [fetchSelectedDateStats]);
+
   const fetchTransactionsRef = useRef(fetchTransactions);
   useEffect(() => {
     fetchTransactionsRef.current = fetchTransactions;
   }, [fetchTransactions]);
+
+  const smartphoneTransactions = useMemo(
+    () => allTransactions.filter(isSmartphoneTransaction),
+    [allTransactions],
+  );
+
+  const calendarData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    for (const transaction of smartphoneTransactions) {
+      const [yearString, monthString] = transaction.date.split("-");
+      const year = Number(yearString);
+      const month = Number(monthString) - 1;
+
+      if (year !== calendarYear || month !== calendarMonth) {
+        continue;
+      }
+
+      counts[transaction.date] = (counts[transaction.date] ?? 0) + 1;
+    }
+
+    return counts;
+  }, [calendarMonth, calendarYear, smartphoneTransactions]);
+
+  const selectedDateTransactions = useMemo(
+    () => smartphoneTransactions.filter((transaction) => transaction.date === selectedDate),
+    [selectedDate, smartphoneTransactions],
+  );
 
   // Realtime subscription for transactions table
   useEffect(() => {
@@ -310,7 +550,7 @@ export default function EmployeePawnTransactionsPage() {
   }, [selectedBranch.id]);
 
   const filteredTransactions = useMemo(() => {
-    let result = allTransactions;
+    let result = selectedDateTransactions;
 
     if (activeFilter !== "All") {
       const targetPurpose = filterToPurpose[activeFilter];
@@ -332,13 +572,8 @@ export default function EmployeePawnTransactionsPage() {
       );
     }
 
-    if (dateFilter) {
-      // API date format is usually YYYY-MM-DD
-      result = result.filter((t) => t.date === dateFilter);
-    }
-
     return result;
-  }, [allTransactions, activeFilter, searchQuery, dateFilter]);
+  }, [activeFilter, searchQuery, selectedDateTransactions]);
 
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
@@ -426,14 +661,18 @@ export default function EmployeePawnTransactionsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `transactions_${selectedBranch.name.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `transactions_${selectedBranch.name.replace(/\s+/g, "_")}_${selectedDate}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [filteredTransactions, selectedBranch]);
+  }, [filteredTransactions, selectedBranch, selectedDate]);
 
   const handlePrintReport = useCallback(() => {
     window.print();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, searchQuery, selectedDate, viewMode, calendarMonth, calendarYear]);
 
   const openNewPawnForm = useCallback(() => {
     setIsNewPawnModalOpen(true);
@@ -501,13 +740,115 @@ export default function EmployeePawnTransactionsPage() {
   }, []);
 
   return (
-    <div className="space-y-3 pb-4">
-      <div>
+    <div className="space-y-3 pb-4 printable-area">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * { visibility: hidden; }
+          .printable-area, .printable-area * { visibility: visible; }
+          .printable-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+          .header-print { background: #064e3b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; padding: 40px 20px !important; text-align: center !important; margin-bottom: 30px !important; border-bottom: 8px solid #f59e0b !important; }
+          .header-print h1 { margin: 0 !important; font-size: 32px !important; font-weight: 900 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: white !important; }
+          .header-print p { margin: 10px 0 0 !important; font-size: 14px !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: 4px !important; opacity: 0.9 !important; color: white !important; }
+          .print-hide { display: none !important; }
+        }
+      `}} />
+
+      {/* ── Print-only layout ─────────────────────────────── */}
+      <div className="hidden print:block">
+        <div className="header-print">
+          <h1>JCLB Buy Back Shop</h1>
+          <p>Pawn Transactions Report - {selectedBranch.name}</p>
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-800 mb-3 border-b-2 border-emerald-800 pb-1">
+            Executive Summary
+          </h2>
+          <table className="w-full border-collapse border border-emerald-800/20 text-sm">
+            <thead>
+              <tr className="bg-emerald-50">
+                <th className="border border-emerald-800/20 p-2 text-left text-emerald-900">Metric</th>
+                <th className="border border-emerald-800/20 p-2 text-right text-emerald-900">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Pawned Today</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{currentStats.pawnedToday}</td>
+              </tr>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Buy Back</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{currentStats.buyBack}</td>
+              </tr>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Renewed</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{currentStats.renewed}</td>
+              </tr>
+              <tr>
+                <td className="border border-emerald-800/20 p-2">Sold Item</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold">{currentStats.soldItem}</td>
+              </tr>
+              <tr className="bg-emerald-50/50">
+                <td className="border border-emerald-800/20 p-2 font-bold text-emerald-900">Live Total Balance</td>
+                <td className="border border-emerald-800/20 p-2 text-right font-bold text-emerald-900">
+                  ₱{currentStats.endingBalance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-800 mb-3 border-b-2 border-emerald-800 pb-1">
+            Detailed Transactions
+          </h2>
+          <table className="w-full border-collapse border border-emerald-800/20 text-[10px]">
+            <thead>
+              <tr className="bg-emerald-50">
+                <th className="border border-emerald-800/10 p-1 text-left">Txn #</th>
+                <th className="border border-emerald-800/10 p-1 text-left">Purpose</th>
+                <th className="border border-emerald-800/10 p-1 text-left">Customer</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Cash In</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Cash Out</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Pawn</th>
+                <th className="border border-emerald-800/10 p-1 text-right">Storage</th>
+                <th className="border border-emerald-800/10 p-1 text-left">Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.map((tx) => (
+                <tr key={tx.transactionNo}>
+                  <td className="border border-emerald-800/10 p-1">{tx.transactionNo}</td>
+                  <td className="border border-emerald-800/10 p-1 font-bold">{tx.purpose}</td>
+                  <td className="border border-emerald-800/10 p-1">{tx.customerName || "Walk-in"}</td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.cashIn !== "0" ? `₱${Number(tx.cashIn).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.cashOut !== "0" ? `₱${Number(tx.cashOut).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.pawn !== "0" ? `₱${Number(tx.pawn).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1 text-right">
+                    {tx.storage !== "0" ? `₱${Number(tx.storage).toLocaleString()}` : "-"}
+                  </td>
+                  <td className="border border-emerald-800/10 p-1">{tx.unitCode || tx.unit || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* ── End print layout ──────────────────────────────── */}
+
+      <div className="print-hide">
         <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
           Live transaction records across all branches with employee-style QR and print access.
         </p>
       </div>
 
+      <div className="print-hide">
       <TransactionActions
         activeFilter={activeFilter}
         onFilterChange={(f) => setActiveFilter(f)}
@@ -540,7 +881,8 @@ export default function EmployeePawnTransactionsPage() {
 
       <TransactionStats data={currentStats} />
 
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-border-main bg-surface p-4 shadow-sm transition-colors duration-300">
+      <div className="rounded-xl border border-border-main bg-surface p-4 shadow-sm transition-colors duration-300">
+        <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[240px] flex-1">
           <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
             Search Transactions
@@ -578,41 +920,57 @@ export default function EmployeePawnTransactionsPage() {
             <option value="Sold Item">Sold Item</option>
           </select>
         </div>
-
-        <div className="w-48">
-          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
-            Date Filter
-          </label>
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => {
-              setDateFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 text-zinc-400"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <ActionButton variant="outline" onClick={handleExportCSV}>
-            <span className="flex items-center gap-1.5">
-              {downloadIcon}
-              Export CSV
-            </span>
-          </ActionButton>
-          <ActionButton
-            variant="primary"
-            className="border-emerald-700 bg-emerald-700 text-amber-400"
-            onClick={handlePrintReport}
-          >
-            <span className="flex items-center gap-1.5">
-              {printerIcon}
-              Print Report
-            </span>
-          </ActionButton>
+          <div className="flex items-center gap-2">
+            <ActionButton variant="outline" onClick={handleExportCSV}>
+              <span className="flex items-center gap-1.5">
+                {downloadIcon}
+                Export CSV
+              </span>
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              className="border-emerald-700 bg-emerald-700 text-amber-400"
+              onClick={handlePrintReport}
+            >
+              <span className="flex items-center gap-1.5">
+                {printerIcon}
+                Print Report
+              </span>
+            </ActionButton>
+            <div className="inline-flex items-center rounded-xl border border-border-main bg-surface-secondary p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white shadow-sm" : "text-text-secondary hover:text-text-primary"}`}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("calendar")}
+                className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white shadow-sm" : "text-text-secondary hover:text-text-primary"}`}
+              >
+                Calendar
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+
+      {viewMode === "calendar" && (
+        <TransactionsCalendar
+          calendarData={calendarData}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          calendarYear={calendarYear}
+          calendarMonth={calendarMonth}
+          onChangeMonth={(year, month) => {
+            setCalendarYear(year);
+            setCalendarMonth(month);
+            setSelectedDate(`${year}-${String(month + 1).padStart(2, "0")}-01`);
+          }}
+        />
+      )}
 
       <TransactionTable
         isLoading={isLoading}
@@ -620,8 +978,7 @@ export default function EmployeePawnTransactionsPage() {
         onReprint={handleReprint}
         onViewDetails={setSelectedTransaction}
         highlightedTransactionNo={highlightedTransactionNo}
-        viewRange={viewRange}
-        onRangeChange={setViewRange}
+        title={`Smartphone transactions for ${formatSelectedDateLabel(selectedDate)}`}
       />
 
       <div className="mt-4">
@@ -633,6 +990,7 @@ export default function EmployeePawnTransactionsPage() {
           onPageChange={setCurrentPage}
         />
       </div>
+      </div>{/* end print-hide */}
 
       <TransactionDetailsModal
         isOpen={Boolean(selectedTransaction)}

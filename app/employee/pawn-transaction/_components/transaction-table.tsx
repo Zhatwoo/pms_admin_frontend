@@ -112,8 +112,7 @@ interface TransactionTableProps {
   onReprint?: (transactionNo: string) => void;
   onViewDetails?: (transaction: TransactionRow) => void;
   highlightedTransactionNo?: string | null;
-  viewRange: "daily" | "weekly" | "monthly" | "all";
-  onRangeChange: (range: "daily" | "weekly" | "monthly" | "all") => void;
+  title?: string;
 }
 
 export function TransactionTable({
@@ -122,8 +121,7 @@ export function TransactionTable({
   onReprint,
   onViewDetails,
   highlightedTransactionNo,
-  viewRange,
-  onRangeChange,
+  title = "Daily Transactions",
 }: TransactionTableProps) {
   const highlightedRowRef = useRef<HTMLTableRowElement | null>(null);
 
@@ -137,7 +135,8 @@ export function TransactionTable({
     <div className="overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300">
       <style jsx global>{`
         @keyframes transaction-highlight {
-          0%, 100% {
+          0%,
+          100% {
             background-color: rgba(255, 247, 237, 0.9);
             border-left-color: rgb(251, 191, 36);
             box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.45);
@@ -155,26 +154,7 @@ export function TransactionTable({
       `}</style>
       <div className="flex items-center justify-between border-b border-border-subtle bg-surface px-4 py-3">
         <div className="flex items-center gap-3">
-          <h3 className="text-sm font-bold text-text-primary">
-            {viewRange === "daily"
-              ? "Daily Transactions"
-              : viewRange === "weekly"
-                ? "Weekly Transactions"
-                : viewRange === "monthly"
-                  ? "Monthly Transactions"
-                  : "All Transactions"}
-          </h3>
-          <span className="h-4 w-[1px] bg-border-subtle" />
-          <select
-            value={viewRange}
-            onChange={(event) => onRangeChange(event.target.value as never)}
-            className="rounded-md border border-border-main bg-surface-secondary px-2 py-1 text-xs font-semibold text-text-primary outline-none transition-colors focus:border-emerald-500"
-          >
-            <option value="daily">Today</option>
-            <option value="weekly">This Week</option>
-            <option value="monthly">This Month</option>
-            <option value="all">All Records</option>
-          </select>
+          <h3 className="text-sm font-bold text-text-primary">{title}</h3>
         </div>
       </div>
 
@@ -230,8 +210,8 @@ export function TransactionTable({
                   <tr
                     key={row.transactionNo}
                     ref={isHighlightedRow ? highlightedRowRef : null}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('button')) return;
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest("button")) return;
                       onViewDetails?.(row);
                     }}
                     role="button"
