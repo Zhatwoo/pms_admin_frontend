@@ -1,6 +1,8 @@
 import React from "react";
 import { ActionButton } from "@/components/shared/action-button";
 
+export type ViewMode = "list" | "calendar";
+
 const downloadIcon = (
   <svg
     width="14"

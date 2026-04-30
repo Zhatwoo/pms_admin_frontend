@@ -1,3 +1,885 @@
-import EmployeePawnTransactionsPage from "@/app/employee/pawn-transaction/page";
+"use client";
 
-export default EmployeePawnTransactionsPage;
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { TransactionActions, type FilterType, type ViewMode } from "@/app/employee/pawn-transaction/_components/transaction-actions";
+import { api } from "@/lib/api";
+import { PaginationFooter } from "@/components/shared/pagination";
+import { TransactionStats } from "@/app/employee/pawn-transaction/_components/transaction-stats";
+import { TransactionTable, type TransactionRow, type PurposeType } from "@/app/employee/pawn-transaction/_components/transaction-table";
+import { RenewModal } from "@/app/employee/pawn-transaction/_components/renew-modal";
+import { NewPawnModal } from "@/app/employee/pawn-transaction/_components/new-pawn-modal";
+import { RedeemModal } from "@/app/employee/pawn-transaction/_components/redeem-modal";
+import { BuyBackModal } from "@/app/employee/pawn-transaction/_components/buy-back-modal";
+import { SellsTransferModal } from "@/app/employee/pawn-transaction/_components/sells-transfer-modal";
+import { ReserveLayawayModal } from "@/app/employee/pawn-transaction/_components/reserve-layaway-modal";
+import { MoaModal } from "@/app/employee/pawn-transaction/_components/moa-modal";
+import { ActionButton } from "@/components/shared/action-button";
+import { DailyBalanceConfirmation } from "@/components/shared/daily-balance-confirmation";
+import { TransactionDetailsModal } from "@/components/shared/transaction-details-modal";
+import { useBranch } from "@/contexts/branch-context";
+import { useAuth } from "@/contexts/auth-context";
+import { ConfirmPasswordModal } from "@/components/shared/confirm-password-modal";
+import { QrScanner } from "@/components/shared/qr-scanner";
+import { Role } from "@/types";
+import { calculateGadgetInterest } from "@/lib/interest";
+import { formatDateToYMD } from "@/lib/time";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
+
+// Use shared `PurposeType` and `FilterType` imported from components
+const filterToPurpose: Record<FilterType, PurposeType | null> = {
+  "All": null,
+  "Renew": "Renew",
+  "Sells / Transfer": "Sold Item",
+  "Redeem": "Redeem",
+  "Buy Back": "Buy Back",
+  "Reserve / Layaway": "Reserve / Layaway",
+  "Pawn": "Pawn",
+  "Start": "Start",
+  "Buy Out": "Buy Out",
+  "Sold Item": "Sold Item",
+};
+
+const downloadIcon = (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+const printerIcon = (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 9V2h12v7" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </svg>
+);
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function isSmartphoneTransaction(transaction: TransactionRow) {
+  return (transaction.category ?? "").trim().toLowerCase() === "smartphone";
+}
+
+function formatSelectedDateLabel(dateString: string) {
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function buildCalendarCells(year: number, month: number) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const cells: (number | null)[] = [
+    ...Array(firstDayOfWeek).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ];
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
+function TransactionsCalendar({
+  calendarData,
+  selectedDate,
+  onSelectDate,
+  calendarYear,
+  calendarMonth,
+  onChangeMonth,
+}: {
+  calendarData: Record<string, number>;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  calendarYear: number;
+  calendarMonth: number;
+  onChangeMonth: (year: number, month: number) => void;
+}) {
+  const today = new Date();
+  const cells = buildCalendarCells(calendarYear, calendarMonth);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border-main bg-surface shadow-sm transition-colors duration-300">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-emerald-950 to-emerald-900 px-4 py-4 sm:px-5">
+        <button
+          type="button"
+          onClick={() => (calendarMonth === 0 ? onChangeMonth(calendarYear - 1, 11) : onChangeMonth(calendarYear, calendarMonth - 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:bg-white/10"
+          aria-label="Previous month"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+
+        <div className="min-w-[140px] text-center">
+          <p className="text-lg font-bold leading-tight text-white">{MONTH_NAMES[calendarMonth]}</p>
+          <p className="text-xs font-semibold text-emerald-300">{calendarYear}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => (calendarMonth === 11 ? onChangeMonth(calendarYear + 1, 0) : onChangeMonth(calendarYear, calendarMonth + 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:bg-white/10"
+          aria-label="Next month"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 border-b border-border-subtle bg-surface-secondary">
+        {DAY_NAMES.map((dayName) => (
+          <div key={dayName} className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-text-muted">
+            {dayName}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7">
+        {cells.map((day, index) => {
+          if (day === null) {
+            return <div key={`empty-${index}`} className="h-16 border-b border-r border-border-subtle/40 bg-surface-secondary/20" />;
+          }
+
+          const dateString = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const count = calendarData[dateString] ?? 0;
+          const isToday = today.getFullYear() === calendarYear && today.getMonth() === calendarMonth && today.getDate() === day;
+          const isSelected = selectedDate === dateString;
+
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => onSelectDate(dateString)}
+              className={`relative h-16 border-b border-r border-border-subtle/40 p-1.5 text-left transition-all hover:bg-emerald-50/10 ${isSelected ? "ring-2 ring-inset ring-emerald-500 bg-emerald-500/10" : ""} ${isToday ? "ring-1 ring-inset ring-amber-400" : ""}`}
+            >
+              <span className={`text-xs font-bold leading-none ${isSelected ? "text-emerald-400" : isToday ? "text-amber-400" : count > 0 ? "text-text-primary" : "text-text-muted"}`}>
+                {day}
+              </span>
+
+              {count > 0 && (
+                <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-1">
+                  <div className="h-1 flex-1 rounded-full bg-emerald-500/60" />
+                  <span className="text-[9px] font-black leading-none text-emerald-400">{count}</span>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border-subtle bg-surface-secondary/60 px-4 py-2.5">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-emerald-500/50" />
+            <span className="text-[10px] font-bold uppercase text-text-muted">Has smartphone records</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm ring-1 ring-amber-400" />
+            <span className="text-[10px] font-bold uppercase text-text-muted">Today</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ApiTransaction {
+  transaction_no: string;
+  branch: string | null;
+  purpose: string;
+  details?: string | null;
+  transaction_date: string;
+  transaction_time: string;
+  cash_in: number | string | null;
+  cash_out: number | string | null;
+  return_amount?: number | string | null;
+  unit: string | null;
+  unit_code: string | null;
+  pawn_amount?: number | string | null;
+  storage_fee?: number | string | null;
+  qr_code?: string | null;
+  related_pawned_item_id?: string | null;
+  related_sale_item_id?: string | null;
+  pawned_item?: PawnedItemJoin | PawnedItemJoin[] | null;
+}
+
+interface PawnedItemJoin {
+  id: string;
+  description?: string | null;
+  serial_number?: string | null;
+  items_included?: string | null;
+  condition?: string | null;
+  category?: string | null;
+  memory_storage?: string | null;
+  remarks?: string | null;
+}
+
+interface TransactionsResponse {
+  transactions?: ApiTransaction[];
+  stats?: {
+    pawnedToday?: number;
+    buyBack?: number;
+    renewed?: number;
+    soldItem?: number;
+    redeemed?: number;
+    transfer?: number;
+    startingBalance?: number;
+    endingBalance?: number;
+  };
+}
+
+interface BranchFinanceSummary {
+  branch: string;
+  startingBalance: number;
+  currentBalance: number;
+}
+
+function normalizeStats(stats?: any) {
+  return {
+    pawnedToday: Number(stats?.pawnedToday ?? 0),
+    buyBack: Number(stats?.buyBack ?? 0),
+    renewed: Number(stats?.renewed ?? 0),
+    soldItem: Number(stats?.soldItem ?? 0),
+    redeemed: Number(stats?.redeemed ?? 0),
+    transfer: Number(stats?.transfer ?? 0),
+    startingBalance: Number(stats?.startingBalance ?? 0),
+    endingBalance: Number(stats?.endingBalance ?? 0),
+  };
+}
+
+function toTransactionRow(transaction: ApiTransaction): TransactionRow {
+  const item =
+    Array.isArray(transaction.pawned_item)
+      ? transaction.pawned_item[0]
+      : transaction.pawned_item;
+
+  return {
+    transactionNo: transaction.transaction_no,
+    purpose: (transaction.purpose ?? "") as PurposeType,
+    buyBack: String(transaction.cash_out ?? 0),
+    percentage: "0",
+    buyOut: String(transaction.cash_out ?? 0),
+    sold: String(transaction.cash_out ?? 0),
+    date: transaction.transaction_date,
+    time: transaction.transaction_time,
+    cashIn: String(transaction.cash_in ?? 0),
+    cashOut: String(transaction.cash_out ?? 0),
+    returnVal: String(transaction.return_amount ?? 0),
+    unit: item?.description ?? "",
+    unitCode: transaction.unit_code ?? "",
+    pawn: String(transaction.pawn_amount ?? 0),
+    storage: String(transaction.storage_fee ?? 0),
+    qrCode: transaction.qr_code ?? undefined,
+    serialNumber: item?.serial_number ?? undefined,
+    itemsIncluded: item?.items_included ?? undefined,
+    condition: item?.condition ?? undefined,
+    category: item?.category ?? undefined,
+    memoryStorage: item?.memory_storage ?? undefined,
+    remarks: item?.remarks ?? undefined,
+    relatedPawnedItemId: transaction.related_pawned_item_id ?? undefined,
+    relatedSaleItemId: transaction.related_sale_item_id ?? undefined,
+    details: transaction.details ?? undefined,
+  };
+}
+
+export default function SuperAdminPawnTransactionsPage() {
+  const { selectedBranch } = useBranch();
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [isNewPawnModalOpen, setIsNewPawnModalOpen] = useState(false);
+  const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
+  const [isBuyBackModalOpen, setIsBuyBackModalOpen] = useState(false);
+  const [isSalesTransferModalOpen, setIsSalesTransferModalOpen] = useState(false);
+  const [isReserveLayawayModalOpen, setIsReserveLayawayModalOpen] = useState(false);
+  const [isMoaReprintOpen, setIsMoaReprintOpen] = useState(false);
+  const [reprintData, setReprintData] = useState<any>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [selectedDate, setSelectedDate] = useState(formatDateToYMD());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionRow | null>(null);
+  const [currentStats, setCurrentStats] = useState({
+    pawnedToday: 0,
+    buyBack: 0,
+    renewed: 0,
+    soldItem: 0,
+    redeemed: 0,
+    transfer: 0,
+    startingBalance: 0,
+    endingBalance: 0,
+  });
+  const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [highlightedTransactionNo, setHighlightedTransactionNo] = useState<string | null>(null);
+  const [balanceModal, setBalanceModal] = useState<{ open: boolean; type: "starting" | "ending" }>({
+    open: false,
+    type: "starting",
+  });
+  const [expectedCash, setExpectedCash] = useState("0");
+  const [passwordModal, setPasswordModal] = useState<{ open: boolean; onConfirm: () => void }>({
+    open: false,
+    onConfirm: () => { },
+  });
+  const [isMainScannerOpen, setIsMainScannerOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const highlightedTransactionRef = useRef<string | null>(null);
+
+  const fetchTransactions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.get<TransactionsResponse>(
+        `/transactions?branch=${encodeURIComponent(selectedBranch.id)}&range=all`
+      );
+      if (data) {
+        setAllTransactions((data.transactions || []).map(toTransactionRow));
+      }
+    } catch (error) {
+      console.error("Failed to load transactions:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedBranch.id]);
+
+  const fetchSelectedDateStats = useCallback(async () => {
+    try {
+      const [data, financeSummary] = await Promise.all([
+        api.get<TransactionsResponse>(
+          `/transactions?branch=${encodeURIComponent(selectedBranch.id)}&date=${selectedDate}`,
+        ),
+        api
+          .get<BranchFinanceSummary[]>(
+            `/branch-finance/summary?branch=${encodeURIComponent(selectedBranch.id)}`,
+          )
+          .catch(() => [] as BranchFinanceSummary[]),
+      ]);
+
+      let startingBalance = Number(data.stats?.startingBalance ?? 0);
+      let endingBalance = Number(data.stats?.endingBalance ?? 0);
+
+      if (financeSummary.length === 1) {
+        startingBalance = Number(financeSummary[0].startingBalance ?? startingBalance);
+        endingBalance = Number(financeSummary[0].currentBalance ?? endingBalance);
+      }
+
+      setCurrentStats({
+        ...normalizeStats(data.stats),
+        startingBalance,
+        endingBalance,
+      });
+    } catch (error) {
+      console.error("Failed to load selected date transaction stats:", error);
+      setCurrentStats(normalizeStats());
+    }
+  }, [selectedBranch.id, selectedDate]);
+
+  useEffect(() => {
+    void fetchTransactions();
+  }, [fetchTransactions]);
+
+  useEffect(() => {
+    void fetchSelectedDateStats();
+  }, [fetchSelectedDateStats]);
+
+  const fetchTransactionsRef = useRef(fetchTransactions);
+  useEffect(() => {
+    fetchTransactionsRef.current = fetchTransactions;
+  }, [fetchTransactions]);
+
+  const smartphoneTransactions = useMemo(
+    () => allTransactions.filter(isSmartphoneTransaction),
+    [allTransactions],
+  );
+
+  const calendarData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    for (const transaction of smartphoneTransactions) {
+      const [yearString, monthString] = transaction.date.split("-");
+      const year = Number(yearString);
+      const month = Number(monthString) - 1;
+
+      if (year !== calendarYear || month !== calendarMonth) {
+        continue;
+      }
+
+      counts[transaction.date] = (counts[transaction.date] ?? 0) + 1;
+    }
+
+    return counts;
+  }, [calendarMonth, calendarYear, smartphoneTransactions]);
+
+  const selectedDateTransactions = useMemo(
+    () => smartphoneTransactions.filter((transaction) => transaction.date === selectedDate),
+    [selectedDate, smartphoneTransactions],
+  );
+
+  // Realtime subscription for transactions table
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channelName = `transactions-live-admin-${selectedBranch.id}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "transactions"
+        },
+        (payload) => {
+          console.log("[Transactions] Realtime event received:", payload);
+          void fetchTransactionsRef.current();
+        }
+      )
+      .subscribe((status) => {
+        console.log(`[Transactions] Realtime subscription status:`, status);
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [selectedBranch.id]);
+
+  const filteredTransactions = useMemo(() => {
+    let result = selectedDateTransactions;
+
+    if (activeFilter !== "All") {
+      const targetPurpose = filterToPurpose[activeFilter];
+      if (targetPurpose) {
+        result = result.filter((t) => t.purpose === targetPurpose);
+      }
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.transactionNo.toLowerCase().includes(q) ||
+          t.purpose.toLowerCase().includes(q) ||
+          t.unit?.toLowerCase().includes(q) ||
+          t.unitCode?.toLowerCase().includes(q) ||
+          t.details?.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [activeFilter, searchQuery, selectedDateTransactions]);
+
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactions.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE,
+    );
+  }, [filteredTransactions, currentPage]);
+
+  useEffect(() => {
+    const transactionNo = searchParams.get("transactionNo");
+
+    if (!transactionNo) {
+      return;
+    }
+
+    const matchingIndex = filteredTransactions.findIndex((transaction) => transaction.transactionNo === transactionNo);
+    if (matchingIndex < 0) {
+      return;
+    }
+
+    const nextPage = Math.floor(matchingIndex / ITEMS_PER_PAGE) + 1;
+    if (nextPage !== currentPage) {
+      setCurrentPage(nextPage);
+    }
+  }, [currentPage, filteredTransactions, searchParams]);
+
+  useEffect(() => {
+    const transactionNo = searchParams.get("transactionNo");
+    const shouldHighlight = searchParams.get("highlightTransaction") === "true";
+
+    if (!transactionNo) {
+      highlightedTransactionRef.current = null;
+      setHighlightedTransactionNo(null);
+      return;
+    }
+
+    const matchingTransaction = allTransactions.find((transaction) => transaction.transactionNo === transactionNo);
+    if (!matchingTransaction) {
+      return;
+    }
+
+    setSelectedTransaction(matchingTransaction);
+
+    if (shouldHighlight && highlightedTransactionRef.current !== transactionNo) {
+      highlightedTransactionRef.current = transactionNo;
+      setHighlightedTransactionNo(transactionNo);
+
+      const timeout = window.setTimeout(() => {
+        setHighlightedTransactionNo(null);
+      }, 4000);
+
+      return () => window.clearTimeout(timeout);
+    }
+  }, [allTransactions, searchParams]);
+
+  const handleExportCSV = useCallback(() => {
+    if (filteredTransactions.length === 0) return;
+    const headers = ["Transaction #", "Purpose", "Date", "Time", "Buy Back", "Buy Out", "Sold", "Cash In", "Cash Out", "Return", "Unit", "Unit Code", "Pawn", "Storage"];
+    const rows = filteredTransactions.map((r) =>
+      [r.transactionNo, r.purpose, r.date, r.time, r.buyBack, r.buyOut, r.sold, r.cashIn, r.cashOut, r.returnVal, r.unit, r.unitCode, r.pawn, r.storage].join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `transactions_${selectedBranch.name.replace(/\s+/g, "_")}_${selectedDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [filteredTransactions, selectedBranch, selectedDate]);
+
+  const handlePrintReport = useCallback(() => {
+    window.print();
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, searchQuery, selectedDate, viewMode, calendarMonth, calendarYear]);
+
+  const handleActionWithPassword = (action: () => void) => {
+    setPasswordModal({
+      open: true,
+      onConfirm: action,
+    });
+  };
+
+  const handleReprint = useCallback((transactionNo: string) => {
+    const tx = allTransactions.find(t => t.transactionNo === transactionNo);
+    if (!tx) return;
+
+    setReprintData({
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      address: "",
+      contactNo: "",
+      unitCode: tx.unitCode,
+      unitName: tx.unit,
+      category: tx.category || "",
+      serialNumber: tx.serialNumber || "",
+      itemsIncluded: tx.itemsIncluded || "",
+      condition: tx.condition || "",
+      remarks: tx.remarks || "",
+      memory: tx.memoryStorage || "",
+      amount: String(tx.pawn ?? "0"),
+      storageFee: String(tx.storage ?? "0"),
+      parkingFee: "0",
+      purchasedDate: tx.date,
+      idPresented: "",
+      branchName: selectedBranch.name,
+      branchAddress: selectedBranch.location || "",
+      branchPhone: selectedBranch.phone || "",
+      processedBy: user?.fullName || "",
+    });
+    setIsMoaReprintOpen(true);
+  }, [allTransactions, selectedBranch, user?.fullName]);
+
+  const handleTransactionSuccess = useCallback((_transactionNo?: string) => {
+    void fetchTransactionsRef.current();
+    window.dispatchEvent(new CustomEvent("transaction_created"));
+  }, []);
+
+  return (
+    <div className="space-y-3 pb-4">
+      <div>
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+          Smartphone transactions across the selected branch with calendar and list views.
+        </p>
+      </div>
+
+      <TransactionStats data={currentStats} />
+
+      <div className="rounded-xl border border-border-main bg-surface p-4 shadow-sm transition-colors duration-300">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-[240px] flex-1">
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+              Search Transactions
+            </label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by transaction no, purpose, item, or details"
+              className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+            />
+          </div>
+
+          <div className="w-48">
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">
+              Purpose Filter
+            </label>
+            <select
+              value={activeFilter}
+              onChange={(e) => {
+                setActiveFilter(e.target.value as FilterType);
+                setCurrentPage(1);
+              }}
+              className="h-10 w-full rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+            >
+              <option value="All">All Purposes</option>
+              <option value="Renew">Renew</option>
+              <option value="Sells / Transfer">Sells / Transfer</option>
+              <option value="Redeem">Redeem</option>
+              <option value="Buy Back">Buy Back</option>
+              <option value="Reserve / Layaway">Reserve / Layaway</option>
+              <option value="Pawn">Pawn</option>
+              <option value="Start">Start</option>
+              <option value="Buy Out">Buy Out</option>
+              <option value="Sold Item">Sold Item</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ActionButton variant="outline" onClick={handleExportCSV}>
+              <span className="flex items-center gap-1.5">
+                {downloadIcon}
+                Export CSV
+              </span>
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              className="border-emerald-700 bg-emerald-700 text-amber-400"
+              onClick={handlePrintReport}
+            >
+              <span className="flex items-center gap-1.5">
+                {printerIcon}
+                Print Report
+              </span>
+            </ActionButton>
+            <div className="inline-flex items-center rounded-xl border border-border-main bg-surface-secondary p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white shadow-sm" : "text-text-secondary hover:text-text-primary"}`}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("calendar")}
+                className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white shadow-sm" : "text-text-secondary hover:text-text-primary"}`}
+              >
+                Calendar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {viewMode === "calendar" && (
+        <TransactionsCalendar
+          calendarData={calendarData}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          calendarYear={calendarYear}
+          calendarMonth={calendarMonth}
+          onChangeMonth={(year, month) => {
+            setCalendarYear(year);
+            setCalendarMonth(month);
+            setSelectedDate(`${year}-${String(month + 1).padStart(2, "0")}-01`);
+          }}
+        />
+      )}
+
+      <TransactionTable
+        isLoading={isLoading}
+        data={paginatedTransactions}
+        onReprint={handleReprint}
+        onViewDetails={setSelectedTransaction}
+        highlightedTransactionNo={highlightedTransactionNo}
+        title={`Smartphone transactions for ${formatSelectedDateLabel(selectedDate)}`}
+      />
+
+      <div className="mt-4">
+        <PaginationFooter
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredTransactions.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={setCurrentPage}
+        />
+      </div>
+
+      <TransactionDetailsModal
+        isOpen={Boolean(selectedTransaction)}
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+      />
+
+      <DailyBalanceConfirmation
+        isOpen={balanceModal.open}
+        type={balanceModal.type}
+        currentCash={expectedCash}
+        onClose={() => setBalanceModal((p) => ({ ...p, open: false }))}
+        onConfirm={async (amt) => {
+          try {
+            await api.post("/branch-finance/daily-balance", {
+              type: balanceModal.type,
+              amount: parseFloat(amt) || 0,
+            });
+            setBalanceModal((p) => ({ ...p, open: false }));
+            void fetchTransactionsRef.current();
+          } catch (err) {
+            console.error("Failed to confirm daily balance:", err);
+          }
+        }}
+      />
+
+      <ConfirmPasswordModal
+        isOpen={passwordModal.open}
+        onClose={() => setPasswordModal({ open: false, onConfirm: () => {} })}
+        onConfirm={async (password) => {
+          try {
+            await api.post("/auth/verify-password", { password });
+            passwordModal.onConfirm();
+            return true;
+          } catch (err) {
+            console.error("Failed to verify password:", err);
+            return false;
+          }
+        }}
+      />
+
+      <QrScanner
+        isOpen={isMainScannerOpen}
+        onClose={() => setIsMainScannerOpen(false)}
+        onScan={(text) => {
+          const codeMatch = text.match(/Code:\s*([^|]+)/i);
+          if (codeMatch) {
+            setSearchQuery(codeMatch[1].trim());
+            setCurrentPage(1);
+            return;
+          }
+
+          const urlMatch = text.match(/\/view-ticket\/([^/?#\s]+)/i);
+          if (urlMatch) {
+            setSearchQuery(urlMatch[1].trim());
+            setCurrentPage(1);
+            return;
+          }
+
+          setSearchQuery(text.trim());
+          setCurrentPage(1);
+        }}
+      />
+
+      <RenewModal
+        isOpen={isRenewModalOpen}
+        onClose={() => setIsRenewModalOpen(false)}
+        onSuccess={handleTransactionSuccess}
+        branchName={selectedBranch.name}
+        branchId={selectedBranch.id}
+      />
+
+      <NewPawnModal
+        isOpen={isNewPawnModalOpen}
+        onClose={() => setIsNewPawnModalOpen(false)}
+        onSuccess={handleTransactionSuccess}
+        branchId={selectedBranch.id}
+        branchName={selectedBranch.name}
+        branchAddress={selectedBranch.location}
+        branchPhone={selectedBranch.phone}
+        loggedInUserName={user?.fullName}
+      />
+
+      <RedeemModal
+        isOpen={isRedeemModalOpen}
+        onClose={() => setIsRedeemModalOpen(false)}
+        onSuccess={handleTransactionSuccess}
+        branchId={selectedBranch.id}
+        branchName={selectedBranch.name}
+      />
+
+      <BuyBackModal
+        isOpen={isBuyBackModalOpen}
+        onClose={() => setIsBuyBackModalOpen(false)}
+        onSuccess={handleTransactionSuccess}
+        branchId={selectedBranch.id}
+        branchName={selectedBranch.name}
+      />
+
+      <SellsTransferModal
+        isOpen={isSalesTransferModalOpen}
+        onClose={() => setIsSalesTransferModalOpen(false)}
+        onSuccess={handleTransactionSuccess}
+        branchName={selectedBranch.name}
+      />
+
+      <ReserveLayawayModal
+        isOpen={isReserveLayawayModalOpen}
+        onClose={() => setIsReserveLayawayModalOpen(false)}
+        onSuccess={handleTransactionSuccess}
+        branchId={selectedBranch.id}
+        branchName={selectedBranch.name}
+      />
+
+      {reprintData && (
+        <MoaModal
+          isOpen={isMoaReprintOpen}
+          onClose={() => setIsMoaReprintOpen(false)}
+          onConfirm={() => setIsMoaReprintOpen(false)}
+          data={reprintData}
+          isLoading={false}
+          autoPrint={true}
+        />
+      )}
+    </div>
+  );
+}

@@ -4,6 +4,8 @@ import {
   type TransactionPurposeFilter,
 } from "./types";
 
+export type ViewMode = "list" | "calendar";
+
 const downloadIcon = (
   <svg
     width="14"
@@ -60,6 +62,8 @@ interface TransactionActionsProps {
   selectedBranchLabel: string;
   onSearchChange: (value: string) => void;
   onPurposeFilterChange: (value: TransactionPurposeFilter) => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
   dateFilter?: string;
   onDateFilterChange?: (value: string) => void;
   onAddTransaction?: () => void;
@@ -72,7 +76,9 @@ export function TransactionActions({
   purposeFilter,
   onSearchChange,
   onPurposeFilterChange,
-  dateFilter,
+  viewMode = "list",
+  onViewModeChange,
+  dateFilter = "",
   onDateFilterChange,
   onAddTransaction,
   onExportCSV,
@@ -80,54 +86,71 @@ export function TransactionActions({
 }: TransactionActionsProps) {
   return (
     <div className="rounded-xl border border-border-main bg-surface p-4 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_220px_180px]">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
-              Search Transactions
-            </label>
-            <input
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Search by transaction no, customer, item, or branch"
-              className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
-              Purpose Filter
-            </label>
-            <select
-              value={purposeFilter}
-              onChange={(event) =>
-                onPurposeFilterChange(event.target.value as TransactionPurposeFilter)
-              }
-              className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
-            >
-              <option value="All">All Purposes</option>
-              {PURPOSE_OPTIONS.map((purpose) => (
-                <option key={purpose} value={purpose}>
-                  {purpose}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
-              Date Filter
-            </label>
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(event) => onDateFilterChange?.(event.target.value)}
-              className="w-full h-[42px] px-3 text-sm text-text-primary rounded-lg border border-border-main bg-surface-secondary outline-none transition-colors focus:border-emerald-500"
-            />
-          </div>
+      <div className="flex flex-wrap items-end gap-3">
+        {/* Search — shortened */}
+        <div className="w-48 space-y-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
+            Search
+          </label>
+          <input
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Txn no, customer, item…"
+            className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+          />
         </div>
 
-        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+        {/* Transaction Type */}
+        <div className="w-44 space-y-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
+            Transaction Type
+          </label>
+          <select
+            value={purposeFilter}
+            onChange={(event) =>
+              onPurposeFilterChange(event.target.value as TransactionPurposeFilter)
+            }
+            className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+          >
+            <option value="All">All Purposes</option>
+            {PURPOSE_OPTIONS.map((purpose) => (
+              <option key={purpose} value={purpose}>
+                {purpose}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date — list mode only */}
+        {viewMode === "list" && (
+          <div className="w-40 space-y-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
+              Date
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => onDateFilterChange?.(e.target.value)}
+                className="w-full h-[42px] rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 pr-7"
+              />
+              {dateFilter && (
+                <button
+                  type="button"
+                  onClick={() => onDateFilterChange?.("")}
+                  className="absolute right-2 text-text-muted hover:text-text-primary"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="ml-auto flex items-center gap-2">
           <ActionButton
             variant="outline"
             onClick={onExportCSV}
@@ -148,6 +171,22 @@ export function TransactionActions({
               Print Report
             </span>
           </ActionButton>
+          <div className="flex rounded-md border border-border-main overflow-hidden">
+            <button
+              type="button"
+              onClick={() => onViewModeChange?.("list")}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange?.("calendar")}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}
+            >
+              Calendar
+            </button>
+          </div>
           {onAddTransaction ? (
             <ActionButton variant="primary" onClick={onAddTransaction}>
               <span className="flex items-center gap-1.5">
