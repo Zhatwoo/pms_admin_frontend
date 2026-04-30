@@ -7,7 +7,7 @@ import { useBranch } from "@/contexts/branch-context";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { MoaModal } from "@/app/employee/pawn-transaction/_components/moa-modal";
-import { TransactionActions } from "./_components/transaction-actions";
+import { TransactionActions, type ViewMode } from "./_components/transaction-actions";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable } from "./_components/transaction-table";
 import { TransactionViewModal } from "./_components/transaction-view-modal";
@@ -155,6 +155,118 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
 
 const ITEMS_PER_PAGE = 10;
 
+// ─── Calendar helpers ─────────────────────────────────────────
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function buildCalendarCells(year: number, month: number) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const cells: (number | null)[] = [
+    ...Array(firstDayOfWeek).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function TransactionsCalendar({
+  calendarData,
+  selectedDate,
+  onSelectDate,
+  calendarYear,
+  calendarMonth,
+  onChangeMonth,
+}: {
+  calendarData: Record<string, number>;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  calendarYear: number;
+  calendarMonth: number;
+  onChangeMonth: (year: number, month: number) => void;
+}) {
+  const today = new Date();
+  const cells = buildCalendarCells(calendarYear, calendarMonth);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border-main bg-surface shadow-sm transition-colors duration-300">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-emerald-950 to-emerald-900 px-4 py-4 sm:px-5">
+        <button
+          type="button"
+          onClick={() => calendarMonth === 0 ? onChangeMonth(calendarYear - 1, 11) : onChangeMonth(calendarYear, calendarMonth - 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:bg-white/10"
+          aria-label="Previous month"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+        <div className="min-w-[140px] text-center">
+          <p className="text-lg font-bold leading-tight text-white">{MONTH_NAMES[calendarMonth]}</p>
+          <p className="text-xs font-semibold text-emerald-300">{calendarYear}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => calendarMonth === 11 ? onChangeMonth(calendarYear + 1, 0) : onChangeMonth(calendarYear, calendarMonth + 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:bg-white/10"
+          aria-label="Next month"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 border-b border-border-subtle bg-surface-secondary">
+        {DAY_NAMES.map((d) => (
+          <div key={d} className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-text-muted">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7">
+        {cells.map((day, index) => {
+          if (day === null) {
+            return <div key={`empty-${index}`} className="h-16 border-b border-r border-border-subtle/40 bg-surface-secondary/20" />;
+          }
+          const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const count = calendarData[dateStr] ?? 0;
+          const isToday = today.getFullYear() === calendarYear && today.getMonth() === calendarMonth && today.getDate() === day;
+          const isSelected = selectedDate === dateStr;
+
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => onSelectDate(dateStr)}
+              className={`relative h-16 border-b border-r border-border-subtle/40 p-1.5 text-left transition-all hover:bg-emerald-50/10 ${isSelected ? "ring-2 ring-inset ring-emerald-500 bg-emerald-500/10" : ""} ${isToday ? "ring-1 ring-inset ring-amber-400" : ""}`}
+            >
+              <span className={`text-xs font-bold leading-none ${isSelected ? "text-emerald-400" : isToday ? "text-amber-400" : count > 0 ? "text-text-primary" : "text-text-muted"}`}>
+                {day}
+              </span>
+              {count > 0 && (
+                <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-1">
+                  <div className="h-1 flex-1 rounded-full bg-emerald-500/60" />
+                  <span className="text-[9px] font-black leading-none text-emerald-400">{count}</span>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-4 border-t border-border-subtle bg-surface-secondary/60 px-4 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-sm bg-emerald-500/50" />
+          <span className="text-[10px] font-bold uppercase text-text-muted">Has transactions</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-sm ring-1 ring-amber-400" />
+          <span className="text-[10px] font-bold uppercase text-text-muted">Today</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PawnTransactionsPage() {
   const { selectedBranch, branches, isAllBranches } = useBranch();
   const searchParams = useSearchParams();
@@ -165,7 +277,11 @@ export default function PawnTransactionsPage() {
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [search, setSearch] = useState("");
   const [purposeFilter, setPurposeFilter] = useState<TransactionPurposeFilter>("All");
-  const [dateFilter, setDateFilter] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [listDateFilter, setListDateFilter] = useState(() => new Date().toISOString().split("T")[0]);
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [currentPage, setCurrentPage] = useState(1);
   const [viewingTransaction, setViewingTransaction] =
     useState<TransactionRow | null>(null);
@@ -202,7 +318,7 @@ export default function PawnTransactionsPage() {
       setIsLoading(true);
 
       try {
-        const dateQuery = dateFilter ? `&date=${dateFilter}` : `&range=daily`;
+        const dateQuery = `&date=${selectedDate}`;
         const branchParam = isAllBranches
           ? ""
           : `branch=${encodeURIComponent(selectedBranch.id)}`;
@@ -267,12 +383,12 @@ export default function PawnTransactionsPage() {
     return () => {
       active = false;
     };
-  }, [selectedBranch.id, dateFilter, isAllBranches]);
+  }, [selectedBranch.id, selectedDate, isAllBranches]);
 
-  // When navigating from a notification, clear date filter so the transaction is visible
+  // When navigating from a notification, reset to today so the transaction is visible
   useEffect(() => {
     if (shouldHighlight && highlightTransactionNo) {
-      setDateFilter("");
+      setSelectedDate(new Date().toISOString().split("T")[0]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldHighlight, highlightTransactionNo]);
@@ -290,7 +406,7 @@ export default function PawnTransactionsPage() {
 
   const filteredTransactions = transactions.filter((transaction) => {
     const matchesPurpose = purposeFilter === "All" || transaction.purpose === purposeFilter;
-    const matchesDate = !dateFilter || transaction.date === dateFilter;
+    const matchesDate = viewMode !== "list" || !listDateFilter || transaction.date === listDateFilter;
     const query = search.trim().toLowerCase();
     const matchesSearch =
       query.length === 0 ||
@@ -309,6 +425,15 @@ export default function PawnTransactionsPage() {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
   );
+
+  // Build calendar data: count transactions per date for the visible month
+  const calendarData: Record<string, number> = {};
+  for (const tx of transactions) {
+    const [yearStr, monthStr] = tx.date.split("-");
+    if (Number(yearStr) === calendarYear && Number(monthStr) - 1 === calendarMonth) {
+      calendarData[tx.date] = (calendarData[tx.date] ?? 0) + 1;
+    }
+  }
 
   function handleExportCSV() {
     if (filteredTransactions.length === 0) {
@@ -535,18 +660,43 @@ export default function PawnTransactionsPage() {
         <TransactionActions
           search={search}
           purposeFilter={purposeFilter}
-          dateFilter={dateFilter}
           selectedBranchLabel={selectedBranch.name}
           onSearchChange={setSearch}
           onPurposeFilterChange={setPurposeFilter}
-          onDateFilterChange={(value) => {
-            setDateFilter(value);
+          viewMode={viewMode}
+          onViewModeChange={(mode) => {
+            setViewMode(mode);
+            setCurrentPage(1);
+          }}
+          dateFilter={listDateFilter}
+          onDateFilterChange={(val) => {
+            setListDateFilter(val);
             setCurrentPage(1);
           }}
           onExportCSV={handleExportCSV}
           onPrintReport={handlePrintReport}
         />
       </div>
+
+      {viewMode === "calendar" && (
+        <div className="print-hide">
+          <TransactionsCalendar
+            calendarData={calendarData}
+            selectedDate={selectedDate}
+            onSelectDate={(date) => {
+              setSelectedDate(date);
+              setCurrentPage(1);
+            }}
+            calendarYear={calendarYear}
+            calendarMonth={calendarMonth}
+            onChangeMonth={(year, month) => {
+              setCalendarYear(year);
+              setCalendarMonth(month);
+              setSelectedDate(`${year}-${String(month + 1).padStart(2, "0")}-01`);
+            }}
+          />
+        </div>
+      )}
 
       <div className="print-hide">
         <TransactionTable
@@ -556,7 +706,7 @@ export default function PawnTransactionsPage() {
           onPrint={handlePrintSlip}
           highlightTransactionNo={shouldHighlight ? highlightTransactionNo : null}
           highlightRowRef={highlightRowRef}
-          isToday={!dateFilter || dateFilter === new Date().toISOString().split("T")[0]}
+          isToday={selectedDate === new Date().toISOString().split("T")[0]}
         />
       </div>
 
