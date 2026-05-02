@@ -160,7 +160,7 @@ export default function BranchesPage() {
     const num = Number(b.totalValue.replace(/[₱,]/g, "")) || 0;
     return acc + num;
   }, 0);
-  const formattedTotal = `₱${totalValue.toLocaleString()}`;
+  const formattedTotal = {formatPeso(totalValue.toLocaleString())};
 
   // Viewing context label
   const viewingLabel = isAllBranches

@@ -144,6 +144,7 @@ function formatDateTime(): string {
 function getPageTitle(pathname: string): string {
   const customTitles: Record<string, string> = {
     "view_user": "View Customer",
+    "users": "Employees",
   };
 
   const segments = pathname.split("/").filter(Boolean);
@@ -512,7 +513,7 @@ export function Header({
               <p className="truncate text-sm font-semibold text-text-primary">{item.title}</p>
               <p className="mt-0.5 text-xs text-text-secondary">{item.subtitle}</p>
             </div>
-            {item.unread && <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />}
+            {item.unread && (<span className="mt-1 h-2.5 w-2.5 rounded-full" style={{backgroundColor: 'var(--emerald-text)'}}></span>)}
           </div>
         </>
       );
@@ -534,7 +535,7 @@ export function Header({
             setIsNotificationOpen(false);
             router.push(notificationHref);
           }}
-          className="w-full cursor-pointer rounded-lg border border-border-main bg-surface-subtle px-4 py-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/70"
+          className="w-full cursor-pointer rounded-lg border border-border-main bg-surface-subtle px-4 py-3 text-left transition-colors hover:border-[var(--emerald-border)] hover:bg-[var(--emerald-surface)]/70"
           title={item.customerId ? "Open customer profile" : "Open related record"}
         >
           {content}
@@ -561,7 +562,7 @@ export function Header({
         {branchName && (
           <div className="hidden lg:flex items-center gap-4">
             <span className="h-6 w-px bg-border-main" />
-            <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="text-base font-semibold" style={{color: 'var(--emerald-text)'}}>
               {branchName}
             </span>
           </div>
@@ -664,7 +665,7 @@ export function Header({
                 <button
                   type="button"
                   onClick={handleViewAllNotifications}
-                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  className="rounded-md bg-[var(--emerald-surface)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--emerald-surface)]"
                 >
                   View all
                 </button>

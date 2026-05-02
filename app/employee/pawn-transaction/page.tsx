@@ -25,6 +25,7 @@ import { QrScanner } from "@/components/shared/qr-scanner";
 import { Role } from "@/types";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { formatDateToYMD } from "@/lib/time";
+import { formatPeso } from "@/lib/currency";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 // Use shared `PurposeType` and `FilterType` imported from components
@@ -791,7 +792,7 @@ export default function EmployeePawnTransactionsPage() {
               <tr className="bg-emerald-50/50">
                 <td className="border border-emerald-800/20 p-2 font-bold text-emerald-900">Live Total Balance</td>
                 <td className="border border-emerald-800/20 p-2 text-right font-bold text-emerald-900">
-                  ₱{currentStats.endingBalance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  {formatPeso(currentStats.endingBalance.toLocaleString("en-PH", { minimumFractionDigits: 2 }))}
                 </td>
               </tr>
             </tbody>
@@ -822,16 +823,16 @@ export default function EmployeePawnTransactionsPage() {
                   <td className="border border-emerald-800/10 p-1 font-bold">{tx.purpose}</td>
                   <td className="border border-emerald-800/10 p-1">{tx.customerName || "Walk-in"}</td>
                   <td className="border border-emerald-800/10 p-1 text-right">
-                    {tx.cashIn !== "0" ? `₱${Number(tx.cashIn).toLocaleString()}` : "-"}
+                    {tx.cashIn !== "0" ? formatPeso(Number(tx.cashIn).toLocaleString()) : "-"}
                   </td>
                   <td className="border border-emerald-800/10 p-1 text-right">
-                    {tx.cashOut !== "0" ? `₱${Number(tx.cashOut).toLocaleString()}` : "-"}
+                    {tx.cashOut !== "0" ? formatPeso(Number(tx.cashOut).toLocaleString()) : "-"}
                   </td>
                   <td className="border border-emerald-800/10 p-1 text-right">
-                    {tx.pawn !== "0" ? `₱${Number(tx.pawn).toLocaleString()}` : "-"}
+                    {tx.pawn !== "0" ? formatPeso(Number(tx.pawn).toLocaleString()) : "-"}
                   </td>
                   <td className="border border-emerald-800/10 p-1 text-right">
-                    {tx.storage !== "0" ? `₱${Number(tx.storage).toLocaleString()}` : "-"}
+                    {tx.storage !== "0" ? formatPeso(Number(tx.storage).toLocaleString()) : "-"}
                   </td>
                   <td className="border border-emerald-800/10 p-1">{tx.unitCode || tx.unit || "-"}</td>
                 </tr>

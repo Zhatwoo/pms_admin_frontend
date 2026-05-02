@@ -90,7 +90,7 @@ jest.mock("@/components/shared/status-badge", () => ({
 
 // Mock currency lib
 jest.mock("@/lib/currency", () => ({
-  formatPeso: jest.fn((v: string) => `₱${v}`),
+  formatPeso: jest.fn((v: string) => {formatPeso(v)}),
 }));
 
 // Mock time lib
