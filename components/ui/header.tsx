@@ -544,9 +544,9 @@ export function Header({
   );
 
   return (
-    <header className="flex items-center gap-2 border-b border-border-main bg-header-bg px-4 py-3 md:px-6 md:py-4 transition-colors duration-300">
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border-main bg-header-bg px-4 py-3 md:px-6 md:py-4 transition-colors duration-300">
       {/* Left section: hamburger + title + branch label */}
-      <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
+      <div className="flex min-w-0 items-center gap-2 md:gap-4">
         {onMenuToggle && (
           <button
             type="button"
@@ -557,7 +557,7 @@ export function Header({
             <MenuIcon />
           </button>
         )}
-        <h1 className="truncate text-xl font-bold text-text-primary leading-none md:text-2xl lg:text-3xl">{title}</h1>
+        <h1 className="truncate text-xl font-bold text-text-primary leading-tight md:text-2xl lg:text-3xl">{title}</h1>
         {branchName && (
           <div className="hidden lg:flex items-center gap-4">
             <span className="h-6 w-px bg-border-main" />
@@ -569,14 +569,14 @@ export function Header({
       </div>
 
       {/* Center section: clock — hidden on mobile, time-only on tablet, full on desktop */}
-      <div className="hidden md:flex items-center gap-2 rounded-full border border-border-main px-3 py-2 text-sm text-text-tertiary lg:px-4 lg:text-base">
+      <div className="hidden md:flex items-center justify-center gap-2 rounded-full border border-border-main px-3 py-2 text-sm text-text-tertiary lg:px-4 lg:text-base">
         <ClockIcon />
         <span className="hidden lg:inline min-w-[180px] text-center">{time}</span>
         <span className="lg:hidden">{timeOnly}</span>
       </div>
 
       {/* Right section: branch selector, notifications, theme toggle, avatar */}
-      <div className="flex shrink-0 items-center gap-1 md:gap-2 lg:gap-3">
+      <div className="flex shrink-0 items-center justify-end gap-1 md:gap-2 lg:gap-3">
         {/* Branch Selector – superadmin only */}
         {!hideBranchSelector && !isCustomerDetailPage && <BranchSelectorDropdown />}
 
