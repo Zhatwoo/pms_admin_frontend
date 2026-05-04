@@ -83,7 +83,7 @@ function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
             Renew {i + 1}
           </span>
           <span className="text-[10px] text-zinc-500">{r.date}</span>
-          <span className="text-[10px] font-bold text-zinc-700">₱{r.amount.toLocaleString()}</span>
+          <span className="text-[10px] font-bold text-zinc-700">{formatPeso(r.amount.toLocaleString())}</span>
         </div>
       ))}
     </div>
@@ -291,7 +291,7 @@ export default function EmployeePawnedItemsPage() {
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.itemId}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-medium text-text-primary">{item.itemName}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">{item.category}</td>
-                        <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-text-primary text-right">₱{(item.amount || 0).toLocaleString()}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-text-primary text-right">{formatPeso((item.amount || 0).toLocaleString())}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-[10px] text-text-secondary">
                           <div className="font-bold">{item.pawnDate}</div>
                           <div className="opacity-50">10:30 AM</div>

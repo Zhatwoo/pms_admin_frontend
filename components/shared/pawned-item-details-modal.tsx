@@ -477,7 +477,7 @@ export function PawnedItemDetailsModal({ itemId, isOpen, onClose, onSaveRemarks,
                 </div>
                 <div className="text-right">
                    <p className="text-[10px] font-black uppercase tracking-widest text-text-tertiary">Pawn Value</p>
-                   <p className="text-3xl font-black text-emerald-700">₱{item.amount.toLocaleString()}</p>
+                   <p className="text-3xl font-black text-emerald-700">{formatPeso(item.amount.toLocaleString())}</p>
                 </div>
               </div>
 
@@ -557,7 +557,7 @@ export function PawnedItemDetailsModal({ itemId, isOpen, onClose, onSaveRemarks,
                                 <p className="text-[10px] font-bold text-text-tertiary">PROCESSED ON {r.date}</p>
                              </div>
                           </div>
-                          <p className="text-sm font-black text-emerald-700">₱{r.amount.toLocaleString()}</p>
+                          <p className="text-sm font-black text-emerald-700">{formatPeso(r.amount.toLocaleString())}</p>
                         </div>
                       ))
                     ) : (

@@ -268,7 +268,7 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-[10px] font-bold text-text-tertiary uppercase">Category</p><p className="text-sm text-text-primary">{viewingItem.category}</p></div>
-                <div><p className="text-[10px] font-bold text-text-tertiary uppercase">Price</p><p className="text-sm font-bold text-emerald-700">₱{viewingItem.price.toLocaleString()}</p></div>
+                <div><p className="text-[10px] font-bold text-text-tertiary uppercase">Price</p><p className="text-sm font-bold text-emerald-700">{formatPeso(viewingItem.price.toLocaleString())}</p></div>
                 <div><p className="text-[10px] font-bold text-text-tertiary uppercase">Available Date</p><p className="text-sm text-text-primary">{viewingItem.availableDate}</p></div>
                 <div><p className="text-[10px] font-bold text-text-tertiary uppercase">Branch</p><p className="text-sm text-text-primary">{viewingItem.branch}</p></div>
                 <div><p className="text-[10px] font-bold text-text-tertiary uppercase">Origin Pawn ID</p><p className="text-sm text-text-primary">{viewingItem.originalPawnId || "Manual Entry"}</p></div>
