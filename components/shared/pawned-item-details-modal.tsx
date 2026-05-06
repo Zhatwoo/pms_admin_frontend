@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { formatPeso } from "@/lib/currency";
 import { StatusBadge } from "./status-badge";
+import { QRReplacementRequestModal } from "./qr-replacement-request-modal";
 
 interface Renewal {
   date: string;
@@ -93,6 +94,9 @@ export function PawnedItemDetailsModal({ itemId, isOpen, onClose, onSaveRemarks,
   const [isSaving, setIsSaving] = useState(false);
   const [itemPhotoIndex, setItemPhotoIndex] = useState(0);
   const [preview, setPreview] = useState<{ src: string; title: string } | null>(null);
+  const [qrRequestStatus, setQrRequestStatus] = useState<"none" | "pending" | "approved" | "rejected">("none");
+  const [isRequestingQr, setIsRequestingQr] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
 
   const canEdit = userRole === "super_admin" || userRole === "admin" || userRole === "employee";
@@ -115,10 +119,42 @@ export function PawnedItemDetailsModal({ itemId, isOpen, onClose, onSaveRemarks,
       const data = await api.get<DetailedPawnedItem>(`/inventory/pawned/${itemId}`);
       setItem(data);
       setRemarks(data.remarks || "");
+      await fetchQrRequestStatus(data.id);
     } catch (err: any) {
       setError(err.message || "Failed to fetch item details.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchQrRequestStatus = async (pawnedItemId: string) => {
+    try {
+      // Activity logs for QR requests
+      const logs = await api.get<any[]>(`/activity-logs?pawnedItemId=${pawnedItemId}&action=QR_REPLACEMENT_REQUEST,QR_REPLACEMENT_APPROVED,QR_REPLACEMENT_REJECTED`);
+      if (logs.length > 0) {
+        // Sort by date desc
+        const latest = logs.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const details = JSON.parse(latest.details || "{}");
+        setQrRequestStatus(details.requestStatus || "none");
+      } else {
+        setQrRequestStatus("none");
+      }
+    } catch (err) {
+      console.error("Failed to fetch QR status", err);
+    }
+  };
+
+  const handleRequestQrReplacement = async (reason: "Damaged" | "Lost" | "Torn") => {
+    if (!item) return;
+    setIsRequestingQr(true);
+    try {
+      await api.post(`/inventory/pawned/${item.id}/qr-replacement-request`, { reason });
+      toast.success("QR replacement request submitted.");
+      await fetchQrRequestStatus(item.id);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit request.");
+    } finally {
+      setIsRequestingQr(false);
     }
   };
 
@@ -434,19 +470,38 @@ export function PawnedItemDetailsModal({ itemId, isOpen, onClose, onSaveRemarks,
 
             <div className="flex flex-col items-center text-center">
               <SectionTitle><span className="text-emerald-400">Security Identity</span></SectionTitle>
-              <div className="flex w-full items-center justify-center">
+              <div className="flex w-full flex-col items-center justify-center gap-4">
                 {canViewQr && qrVisual ? (
-                  <Image
-                    src={qrVisual}
-                    alt="Security QR"
-                    width={180}
-                    height={180}
-                    unoptimized
-                    className="object-contain bg-white p-3 rounded-2xl shadow-xl"
-                  />
+                  <>
+                    <Image
+                      src={qrVisual}
+                      alt="Security QR"
+                      width={180}
+                      height={180}
+                      unoptimized
+                      className="object-contain bg-white p-3 rounded-2xl shadow-xl"
+                    />
+                    {qrRequestStatus === "pending" && (
+                      <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-2">Pending Replacement Approval</p>
+                    )}
+                  </>
                 ) : !canViewQr ? (
-                  <div className="flex h-[180px] w-[180px] items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300/60 bg-emerald-100/20 px-4 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/80">QR Visible to Super Admin only</p>
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex h-[180px] w-[180px] items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300/60 bg-emerald-100/20 px-4 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/80">QR Visible to Super Admin only</p>
+                    </div>
+                    {qrRequestStatus === "pending" ? (
+                      <span className="text-[10px] font-black text-amber-500 uppercase bg-amber-500/10 px-3 py-1 rounded-full">Request Pending</span>
+                    ) : qrRequestStatus === "approved" ? (
+                      <span className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-3 py-1 rounded-full">Request Approved</span>
+                    ) : (
+                      <button 
+                        onClick={() => setIsQrModalOpen(true)}
+                        className="px-6 py-2 bg-zinc-900 text-white text-[10px] font-black rounded-xl hover:bg-black transition-all shadow-lg active:scale-95"
+                      >
+                        REQUEST QR REPLACEMENT
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="flex h-[180px] w-[180px] items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-100/30">
@@ -592,8 +647,18 @@ export function PawnedItemDetailsModal({ itemId, isOpen, onClose, onSaveRemarks,
                     </button>
                     {canViewQr && (
                       <button 
-                        onClick={() => window.print()}
-                        className="px-8 py-4 rounded-2xl bg-zinc-900 text-white text-xs font-black hover:bg-black active:scale-95 transition-all shadow-xl"
+                        onClick={() => {
+                          if (qrRequestStatus === "approved" || !item?.created_at || (new Date().getTime() - new Date(item.created_at).getTime() < 86400000)) {
+                            window.print();
+                          } else {
+                            toast.error("Replacement must be approved by Super Admin first.");
+                          }
+                        }}
+                        className={`px-8 py-4 rounded-2xl text-xs font-black transition-all shadow-xl active:scale-95 ${
+                          (qrRequestStatus === "approved" || !item?.created_at || (new Date().getTime() - new Date(item.created_at).getTime() < 86400000))
+                            ? "bg-zinc-900 text-white hover:bg-black"
+                            : "bg-zinc-200 text-zinc-400 cursor-not-allowed"
+                        }`}
                       >
                         PRINT LABEL
                       </button>
@@ -613,6 +678,16 @@ export function PawnedItemDetailsModal({ itemId, isOpen, onClose, onSaveRemarks,
         </button>
       </div>
     </div>
+
+    {item && (
+      <QRReplacementRequestModal 
+        isOpen={isQrModalOpen}
+        pawnedItemId={item.id}
+        itemCode={item.item_id}
+        onClose={() => setIsQrModalOpen(false)}
+        onSuccess={() => fetchQrRequestStatus(item.id)}
+      />
+    )}
 
     {preview && (
       <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 px-4 py-8 backdrop-blur-md" onClick={() => setPreview(null)}>
