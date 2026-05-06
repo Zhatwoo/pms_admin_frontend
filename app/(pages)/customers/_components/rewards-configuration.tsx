@@ -69,9 +69,9 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-/* ──────────────── Main Page ──────────────── */
+/* ──────────────── Main Component ──────────────── */
 
-export default function RewardsManagementPage() {
+export function RewardsConfiguration() {
   const { user } = useAuth();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -174,13 +174,13 @@ export default function RewardsManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {/* Tab Header */}
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Rewards Management</h1>
+          <h2 className="text-xl font-bold text-text-primary">Reward Rules</h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Create and manage customer reward rules. Rewards are automatically earned when customers meet the criteria.
+            Set the requirements for customers to earn rewards automatically.
           </p>
         </div>
         {isSuperAdmin && (
@@ -192,7 +192,7 @@ export default function RewardsManagementPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            New Reward
+            Add Rule
           </button>
         )}
       </div>
@@ -201,14 +201,14 @@ export default function RewardsManagementPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-700" />
-          <span className="ml-3 text-sm text-text-secondary">Loading rewards...</span>
+          <span className="ml-3 text-sm text-text-secondary">Loading rules...</span>
         </div>
       ) : rewards.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-main bg-surface-secondary py-16 text-center">
           <p className="text-4xl">🎁</p>
-          <p className="mt-3 text-sm font-semibold text-text-primary">No rewards configured yet</p>
+          <p className="mt-3 text-sm font-semibold text-text-primary">No reward rules configured</p>
           <p className="mt-1 text-xs text-text-secondary">
-            Create your first reward rule to start the loyalty program.
+            Create a rule to start granting rewards to your loyal customers.
           </p>
         </div>
       ) : (
@@ -216,7 +216,7 @@ export default function RewardsManagementPage() {
           {rewards.map((reward) => (
             <div
               key={reward.id}
-              className={`group relative rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+              className={`group relative rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md ${
                 reward.is_active
                   ? "border-emerald-200 bg-gradient-to-br from-surface to-emerald-50/30"
                   : "border-border-main bg-surface opacity-70"
@@ -279,7 +279,6 @@ export default function RewardsManagementPage() {
                   <p className="text-lg font-bold text-emerald-700">
                     {formatRewardValue(reward.reward_type, Number(reward.reward_value))}
                   </p>
-                  <p className="text-[10px] text-text-tertiary">Created {formatDate(reward.created_at)}</p>
                 </div>
                 {isSuperAdmin && (
                   <div className="flex gap-2">
@@ -296,7 +295,7 @@ export default function RewardsManagementPage() {
                       disabled={deletingId === reward.id}
                       className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
                     >
-                      {deletingId === reward.id ? "..." : "Delete"}
+                      {deletingId === reward.id ? "..." : "Del"}
                     </button>
                   </div>
                 )}
@@ -306,10 +305,10 @@ export default function RewardsManagementPage() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Modal */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm"
           onClick={() => setIsModalOpen(false)}
         >
           <div
@@ -317,35 +316,21 @@ export default function RewardsManagementPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-emerald-900 px-6 py-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400">
-                Rewards Management
-              </p>
-              <h2 className="mt-2 text-xl font-bold text-white">
-                {editingId ? "Edit Reward" : "Create New Reward"}
+              <h2 className="text-xl font-bold text-white">
+                {editingId ? "Edit Rule" : "Create New Rule"}
               </h2>
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 p-6">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-text-secondary">Reward Name *</label>
+                <label className="mb-1 block text-xs font-semibold text-text-secondary">Rule Name *</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  placeholder="e.g. Loyal Customer Cashback"
+                  placeholder="e.g. Bronze Loyalty Tier"
                   required
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-text-secondary">Description</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows={2}
-                  className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  placeholder="Describe the reward..."
                 />
               </div>
 
@@ -355,18 +340,16 @@ export default function RewardsManagementPage() {
                   <select
                     value={form.reward_type}
                     onChange={(e) => setForm({ ...form, reward_type: e.target.value })}
-                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none"
                   >
                     {REWARD_TYPES.map((rt) => (
-                      <option key={rt.value} value={rt.value}>
-                        {rt.label}
-                      </option>
+                      <option key={rt.value} value={rt.value}>{rt.label}</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-text-secondary">
-                    {form.reward_type === "discount" ? "Discount (%)" : "Value (₱)"}
+                    {form.reward_type === "discount" ? "Value (%)" : "Value (₱)"}
                   </label>
                   <input
                     type="number"
@@ -374,8 +357,7 @@ export default function RewardsManagementPage() {
                     step="any"
                     value={form.reward_value}
                     onChange={(e) => setForm({ ...form, reward_value: e.target.value })}
-                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
-                    placeholder="e.g. 500"
+                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none"
                     required
                   />
                 </div>
@@ -383,44 +365,38 @@ export default function RewardsManagementPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-text-secondary">
-                    Required Transactions
-                  </label>
+                  <label className="mb-1 block text-xs font-semibold text-text-secondary">Min Transactions</label>
                   <input
                     type="number"
                     min="1"
                     value={form.required_transaction_count}
                     onChange={(e) => setForm({ ...form, required_transaction_count: e.target.value })}
-                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-text-secondary">
-                    Min Total Amount (₱)
-                  </label>
+                  <label className="mb-1 block text-xs font-semibold text-text-secondary">Min Amount (₱)</label>
                   <input
                     type="number"
                     min="0"
                     step="any"
                     value={form.required_total_amount}
                     onChange={(e) => setForm({ ...form, required_total_amount: e.target.value })}
-                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+                    className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold text-text-secondary">Transaction Type Filter</label>
+                <label className="mb-1 block text-xs font-semibold text-text-secondary">Transaction Type</label>
                 <select
                   value={form.transaction_type}
                   onChange={(e) => setForm({ ...form, transaction_type: e.target.value })}
-                  className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+                  className="w-full rounded-lg border border-border-main bg-surface-secondary px-3 py-2 text-sm text-text-primary outline-none"
                 >
                   {TRANSACTION_TYPES.map((tt) => (
-                    <option key={tt.value} value={tt.value}>
-                      {tt.label}
-                    </option>
+                    <option key={tt.value} value={tt.value}>{tt.label}</option>
                   ))}
                 </select>
               </div>
@@ -428,30 +404,28 @@ export default function RewardsManagementPage() {
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  id="is_active"
+                  id="comp_is_active"
                   checked={form.is_active}
                   onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
                   className="h-4 w-4 rounded border-border-main accent-emerald-600"
                 />
-                <label htmlFor="is_active" className="text-sm text-text-secondary">
-                  Active (customers can earn this reward)
-                </label>
+                <label htmlFor="comp_is_active" className="text-sm text-text-secondary">Rule is active</label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg border border-border-main bg-surface px-4 py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-surface-hover"
+                  className="rounded-lg border border-border-main bg-surface px-4 py-2 text-sm font-semibold text-text-secondary hover:bg-surface-hover"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                  className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {isSaving ? "Saving..." : editingId ? "Update Reward" : "Create Reward"}
+                  {isSaving ? "Saving..." : "Save Rule"}
                 </button>
               </div>
             </form>
