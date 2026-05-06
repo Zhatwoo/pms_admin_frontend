@@ -129,12 +129,17 @@ export function CustomerTable() {
         const branchParam = isAllBranches
           ? ""
           : `?branchId=${encodeURIComponent(selectedBranch.id)}`;
-        const data = await api.get<CustomerApiRecord[]>(`/customers${branchParam}`);
+        const response = await api.get<{ data: CustomerApiRecord[]; meta?: unknown } | CustomerApiRecord[]>(`/customers${branchParam}`);
 
         if (cancelled) return;
 
-        const rows = (data ?? []).map((customer) =>
-          mapCustomerRecord(customer as CustomerApiRecord, branchNames),
+        const list = Array.isArray(response)
+          ? response
+          : Array.isArray((response as { data?: unknown })?.data)
+            ? (response as { data: CustomerApiRecord[] }).data
+            : [];
+        const rows = list.map((customer) =>
+          mapCustomerRecord(customer, branchNames),
         );
         setCustomers(rows);
       } catch (error) {
