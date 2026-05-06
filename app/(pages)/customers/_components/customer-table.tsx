@@ -20,6 +20,10 @@ interface CustomerApiRecord {
   created_at: string;
 }
 
+interface CustomerListResponse {
+  data?: CustomerApiRecord[];
+}
+
 interface CustomerRow {
   id: string;
   name: string;
@@ -129,17 +133,15 @@ export function CustomerTable() {
         const branchParam = isAllBranches
           ? ""
           : `?branchId=${encodeURIComponent(selectedBranch.id)}`;
-        const response = await api.get<{ data: CustomerApiRecord[]; meta?: unknown } | CustomerApiRecord[]>(`/customers${branchParam}`);
+        const response = await api.get<CustomerApiRecord[] | CustomerListResponse>(
+          `/customers${branchParam}`,
+        );
+        const data = Array.isArray(response) ? response : response.data ?? [];
 
         if (cancelled) return;
 
-        const list = Array.isArray(response)
-          ? response
-          : Array.isArray((response as { data?: unknown })?.data)
-            ? (response as { data: CustomerApiRecord[] }).data
-            : [];
-        const rows = list.map((customer) =>
-          mapCustomerRecord(customer, branchNames),
+        const rows = data.map((customer) =>
+          mapCustomerRecord(customer as CustomerApiRecord, branchNames),
         );
         setCustomers(rows);
       } catch (error) {
