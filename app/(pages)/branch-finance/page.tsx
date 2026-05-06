@@ -31,6 +31,7 @@ import type {
   LedgerEntry,
   FinanceSummaryBreakdown,
 } from "@/components/shared/finance-ledger-table";
+import { formatPeso } from "@/lib/currency";
 
 interface DashboardSummary {
   view: "super_admin";
@@ -941,10 +942,10 @@ export default function BranchFinancePage() {
                     <tr className="border-b-2 border-black bg-gray-50 uppercase">
                       <td colSpan={4} className="p-2 font-bold text-right">Total:</td>
                       <td className="p-2 text-right font-bold font-mono">
-                        ₱{printLedgerRows.reduce((acc, r) => acc + (r.cashIn || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatPeso(printLedgerRows.reduce((acc, r) => acc + (r.cashIn || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}  
                       </td>
                       <td className="p-2 text-right font-bold font-mono text-red-600">
-                        ₱{printLedgerRows.reduce((acc, r) => acc + (r.cashOut || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatPeso(printLedgerRows.reduce((acc, r) => acc + (r.cashOut || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}
                       </td>
                       <td></td>
                     </tr>

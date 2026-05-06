@@ -144,6 +144,7 @@ function formatDateTime(): string {
 function getPageTitle(pathname: string): string {
   const customTitles: Record<string, string> = {
     "view_user": "View Customer",
+    "users": "Employees",
   };
 
   const segments = pathname.split("/").filter(Boolean);
@@ -512,7 +513,7 @@ export function Header({
               <p className="truncate text-sm font-semibold text-text-primary">{item.title}</p>
               <p className="mt-0.5 text-xs text-text-secondary">{item.subtitle}</p>
             </div>
-            {item.unread && <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />}
+            {item.unread && (<span className="mt-1 h-2.5 w-2.5 rounded-full" style={{backgroundColor: 'var(--emerald-text)'}}></span>)}
           </div>
         </>
       );
@@ -534,7 +535,7 @@ export function Header({
             setIsNotificationOpen(false);
             router.push(notificationHref);
           }}
-          className="w-full cursor-pointer rounded-lg border border-border-main bg-surface-subtle px-4 py-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/70"
+          className="w-full cursor-pointer rounded-lg border border-border-main bg-surface-subtle px-4 py-3 text-left transition-colors hover:border-[var(--emerald-border)] hover:bg-[var(--emerald-surface)]/70"
           title={item.customerId ? "Open customer profile" : "Open related record"}
         >
           {content}
@@ -544,9 +545,9 @@ export function Header({
   );
 
   return (
-    <header className="flex items-center gap-2 border-b border-border-main bg-header-bg px-4 py-3 md:px-6 md:py-4 transition-colors duration-300">
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border-main bg-header-bg px-4 py-3 md:px-6 md:py-4 transition-colors duration-300">
       {/* Left section: hamburger + title + branch label */}
-      <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
+      <div className="flex min-w-0 items-center gap-2 md:gap-4">
         {onMenuToggle && (
           <button
             type="button"
@@ -557,11 +558,11 @@ export function Header({
             <MenuIcon />
           </button>
         )}
-        <h1 className="truncate text-xl font-bold text-text-primary leading-none md:text-2xl lg:text-3xl">{title}</h1>
+        <h1 className="truncate text-xl font-bold text-text-primary leading-tight md:text-2xl lg:text-3xl">{title}</h1>
         {branchName && (
           <div className="hidden lg:flex items-center gap-4">
             <span className="h-6 w-px bg-border-main" />
-            <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="text-base font-semibold" style={{color: 'var(--emerald-text)'}}>
               {branchName}
             </span>
           </div>
@@ -569,14 +570,14 @@ export function Header({
       </div>
 
       {/* Center section: clock — hidden on mobile, time-only on tablet, full on desktop */}
-      <div className="hidden md:flex items-center gap-2 rounded-full border border-border-main px-3 py-2 text-sm text-text-tertiary lg:px-4 lg:text-base">
+      <div className="hidden md:flex items-center justify-center gap-2 rounded-full border border-border-main px-3 py-2 text-sm text-text-tertiary lg:px-4 lg:text-base">
         <ClockIcon />
         <span className="hidden lg:inline min-w-[180px] text-center">{time}</span>
         <span className="lg:hidden">{timeOnly}</span>
       </div>
 
       {/* Right section: branch selector, notifications, theme toggle, avatar */}
-      <div className="flex shrink-0 items-center gap-1 md:gap-2 lg:gap-3">
+      <div className="flex shrink-0 items-center justify-end gap-1 md:gap-2 lg:gap-3">
         {/* Branch Selector – superadmin only */}
         {!hideBranchSelector && !isCustomerDetailPage && <BranchSelectorDropdown />}
 
@@ -664,7 +665,7 @@ export function Header({
                 <button
                   type="button"
                   onClick={handleViewAllNotifications}
-                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  className="rounded-md bg-[var(--emerald-surface)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--emerald-surface)]"
                 >
                   View all
                 </button>

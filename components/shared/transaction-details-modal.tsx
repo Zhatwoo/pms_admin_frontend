@@ -1,6 +1,8 @@
 "use client";
 
 import { StatusBadge } from "./status-badge";
+import { useRef } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { formatPeso } from "@/lib/currency";
 import { formatTimeWithAmPm } from "@/lib/time";
 
@@ -54,13 +56,22 @@ export function TransactionDetailsModal({
   transaction,
   onClose,
 }: TransactionDetailsModalProps) {
+  // Ref for focus trap
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
+  const modalAriaProps = {
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "transaction-details-modal-title",
+  } as const;
+
   if (!isOpen || !transaction) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-xl">
-      <div className="max-h-[92vh] w-[95vw] max-w-5xl scale-in-center overflow-y-auto rounded-[28px] border border-emerald-950/10 bg-gradient-to-b from-surface to-surface-secondary shadow-[0_24px_80px_rgba(15,23,42,0.35)] transition-colors dark:border-white/10 dark:from-zinc-950 dark:to-zinc-900 md:w-[90vw]">
-        <div className="relative overflow-hidden border-b border-emerald-950/10 px-6 py-6 dark:border-white/10">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800" />
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-xl" {...modalAriaProps} ref={modalRef}>
+      <div className="max-h-[92vh] w-[95vw] max-w-5xl scale-in-center overflow-y-auto rounded-[28px] border bg-gradient-to-b from-surface to-surface-secondary shadow-[0_24px_80px_rgba(15,23,42,0.35)] transition-colors dark:border-white/10 dark:from-zinc-950 dark:to-zinc-900 md:w-[90vw]" style={{ borderColor: 'var(--emerald-border)' }}>
+        <div className="relative overflow-hidden border-b px-6 py-6 dark:border-white/10" style={{ borderColor: 'var(--emerald-border)' }}>
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, var(--emerald-surface), var(--emerald-surface), var(--emerald-surface))' }} />
           <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-amber-400/15 blur-3xl" />
           <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
 
@@ -72,7 +83,7 @@ export function TransactionDetailsModal({
               <h2 className="mt-2 text-3xl font-black tracking-tight text-white">
                 {transaction.transactionNo}
               </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-50/80">
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--emerald-text)', opacity: 0.8 }}>
                 Review transaction details, financial values, and related records in a single view.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -111,8 +122,8 @@ export function TransactionDetailsModal({
         </div>
 
         <div className="grid gap-4 px-6 pb-6 lg:grid-cols-1">
-          <div className="rounded-3xl border border-emerald-950/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-zinc-900/70">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-900/45 dark:text-zinc-400">
+          <div className="rounded-3xl border p-5 shadow-sm dark:border-white/10 dark:bg-zinc-900/70" style={{ borderColor: 'var(--emerald-border)', backgroundColor: 'var(--emerald-surface)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: 'var(--emerald-text)', opacity: 0.45 }}>
               Performance QR Code
             </p>
             {transaction.qrCode ? (
@@ -120,7 +131,8 @@ export function TransactionDetailsModal({
                 <img
                   src={transaction.qrCode}
                   alt="Transaction QR"
-                  className="h-48 w-48 rounded-2xl border border-emerald-950/10 bg-white p-3 object-contain shadow-lg dark:border-white/10 dark:bg-zinc-950"
+                  className="h-48 w-48 rounded-2xl bg-white p-3 object-contain shadow-lg dark:border-white/10 dark:bg-zinc-950"
+                  style={{ borderColor: 'var(--emerald-border)' }}
                 />
               </div>
             ) : (

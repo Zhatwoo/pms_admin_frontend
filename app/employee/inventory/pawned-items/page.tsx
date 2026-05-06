@@ -8,9 +8,11 @@ import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
 import { InventoryCalendar } from "@/components/shared/inventory-calendar";
 import { useBranch } from "@/contexts/branch-context";
+import { useAuth } from "@/contexts/auth-context";
 import { useOpeningChecklist } from "@/contexts/opening-checklist-context";
 import { PawnedItemDetailsModal } from "@/components/shared/pawned-item-details-modal";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
+import { formatPeso } from "@/lib/currency";
 
 type PawnedStatus = "Active" | "Redeemed" | "Expired";
 type ViewMode = "list" | "calendar";
@@ -83,7 +85,7 @@ function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
             Renew {i + 1}
           </span>
           <span className="text-[10px] text-zinc-500">{r.date}</span>
-          <span className="text-[10px] font-bold text-zinc-700">₱{r.amount.toLocaleString()}</span>
+          <span className="text-[10px] font-bold text-zinc-700">{formatPeso(r.amount.toLocaleString())}</span>
         </div>
       ))}
     </div>
@@ -94,9 +96,11 @@ function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
 export default function EmployeePawnedItemsPage() {
   const searchParams = useSearchParams();
   const { selectedBranch } = useBranch();
+  const { user } = useAuth();
   const { currentStep, isComplete, completeInventoryAudit } = useOpeningChecklist();
   const branchIdent = selectedBranch.id;
   const highlightedItemId = searchParams.get("itemId")?.trim() || "";
+  const isSuperAdmin = user?.role === "super_admin";
   const hasHighlightedItem = Boolean(highlightedItemId);
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -217,31 +221,72 @@ export default function EmployeePawnedItemsPage() {
       )}
       <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
         <div className="flex flex-wrap items-end gap-3">
-          <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
-          <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Search</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search items..."
-              className="h-9 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500 w-44"
-            />
+            <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
+            <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Search</label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search items..."
+                className="h-9 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500 w-44"
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-zinc-200 overflow-hidden bg-surface">
-            <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>
-              List
-            </button>
-            <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>
-              Calendar
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-md border border-zinc-200 bg-surface">
+              <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>
+                List
+              </button>
+              <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-white text-zinc-600 hover:bg-zinc-50"}`}>
+                Calendar
+              </button>
+            </div>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  const qrHtml = pawnedItems.map(item => {
+                    const qrUrl = item.qrCode?.startsWith('data:') 
+                      ? item.qrCode 
+                      : `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(item.qrCode || '')}`;
+                    return `<img src="${qrUrl}" style="width:2cm;height:2cm;margin:3mm;display:inline-block;" />`;
+                  }).join('');
+                  const printWindow = window.open('', '_blank');
+                  if (!printWindow) return;
+                  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; }
+  @page { size: A4; margin: 5mm; }
+  body { display: flex; flex-wrap: wrap; font-size: 0; padding: 5mm; }
+  img { display: inline-block; }
+</style>
+</head>
+<body>
+${qrHtml}
+</body>
+</html>`;
+                  printWindow.document.write(html);
+                  printWindow.document.close();
+                  printWindow.onload = () => {
+                    setTimeout(() => printWindow.print(), 500);
+                  };
+                  if (printWindow.document.readyState === 'complete') {
+                    setTimeout(() => printWindow.print(), 500);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded border border-emerald-700 shadow-md whitespace-nowrap"
+              >
+                PRINT QR
+              </button>
+            )}
           </div>
         </div>
-      </div>
 
 
       {hasHighlightedItem && (
@@ -291,7 +336,7 @@ export default function EmployeePawnedItemsPage() {
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.itemId}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-medium text-text-primary">{item.itemName}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">{item.category}</td>
-                        <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-text-primary text-right">₱{(item.amount || 0).toLocaleString()}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-text-primary text-right">{formatPeso((item.amount || 0).toLocaleString())}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-[10px] text-text-secondary">
                           <div className="font-bold">{item.pawnDate}</div>
                           <div className="opacity-50">10:30 AM</div>

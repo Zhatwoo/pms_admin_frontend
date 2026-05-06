@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { formatPeso } from "@/lib/currency";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -95,7 +96,7 @@ function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
             Renew {i + 1}
           </span>
           <span className="text-[10px] text-text-tertiary">{r.date}</span>
-          <span className="text-[10px] font-bold text-text-secondary">₱{r.amount.toLocaleString()}</span>
+          <span className="text-[10px] font-bold text-text-secondary">{formatPeso(r.amount.toLocaleString())}</span>
         </div>
       ))}
     </div>
@@ -296,6 +297,45 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
               Calendar
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              const qrHtml = pawnedItems.map(item => {
+                const qrUrl = item.qrCode?.startsWith('data:') 
+                  ? item.qrCode 
+                  : `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(item.qrCode || '')}`;
+                return `<img src="${qrUrl}" style="width:2cm;height:2cm;margin:3mm;display:inline-block;" />`;
+              }).join('');
+              const printWindow = window.open('', '_blank');
+              if (!printWindow) return;
+              const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; }
+  @page { size: A4; margin: 5mm; }
+  body { display: flex; flex-wrap: wrap; font-size: 0; padding: 5mm; }
+  img { display: inline-block; }
+</style>
+</head>
+<body>
+${qrHtml}
+</body>
+</html>`;
+              printWindow.document.write(html);
+              printWindow.document.close();
+              printWindow.onload = () => {
+                setTimeout(() => printWindow.print(), 500);
+              };
+              if (printWindow.document.readyState === 'complete') {
+                setTimeout(() => printWindow.print(), 500);
+              }
+            }}
+            className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded border border-emerald-700 shadow-md whitespace-nowrap transition-colors"
+          >
+            PRINT QR
+          </button>
         </div>
       </div>
 

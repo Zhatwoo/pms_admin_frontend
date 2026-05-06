@@ -80,11 +80,11 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           code: branch.branch_code,
         }))
         : [{
-          id: (data as any).id,
-          name: (data as any).name,
-          location: (data as any).location,
-          phone: (data as any).contact_number || (data as any).contactNumber,
-          code: (data as any).branch_code,
+          id: (data as BranchApiItem).id,
+          name: (data as BranchApiItem).name,
+          location: (data as BranchApiItem).location,
+          phone: (data as BranchApiItem).contact_number || (data as BranchApiItem).contactNumber,
+          code: (data as BranchApiItem).branch_code,
         }];
 
       setBaseBranches(normalized);

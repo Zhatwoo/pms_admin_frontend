@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { formatPeso } from '@/lib/currency';
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { api } from "@/lib/api";
@@ -165,7 +166,7 @@ export default function BranchOverviewPage() {
     const num = Number(b.totalValue.replace(/[₱,]/g, "")) || 0;
     return acc + num;
   }, 0);
-  const formattedTotal = `₱${totalValue.toLocaleString()}`;
+  const formattedTotal = formatPeso(totalValue);
 
 
   function handleBranchClick(branch: BranchRow) {
