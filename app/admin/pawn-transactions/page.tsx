@@ -24,7 +24,6 @@ import { QrScanner } from "@/components/shared/qr-scanner";
 import { Role } from "@/types";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { formatDateToYMD } from "@/lib/time";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 
 // Use shared `PurposeType` and `FilterType` imported from components
@@ -459,47 +458,12 @@ export default function SuperAdminPawnTransactionsPage() {
     [selectedDate, smartphoneTransactions],
   );
 
-  // Realtime subscription for transactions table
   useEffect(() => {
-    let channel: any = null;
-    let isActive = true;
-
-    async function setupRealtime() {
-      const supabase = await getSupabaseBrowserClient();
-      if (!supabase || !isActive) return;
-
-      const channelName = `transactions-live-admin-${selectedBranch.id}`;
-      channel = supabase
-        .channel(channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "transactions"
-          },
-          (payload) => {
-            console.log("[Transactions] Realtime event received:", payload);
-            void fetchTransactionsRef.current();
-          }
-        )
-        .subscribe((status) => {
-          console.log(`[Transactions] Realtime subscription status:`, status);
-        });
-    }
-
-    void setupRealtime();
-
-    return () => {
-      isActive = false;
-      if (channel) {
-        async function teardown() {
-          const supabase = await getSupabaseBrowserClient();
-          if (supabase) void supabase.removeChannel(channel);
-        }
-        void teardown();
-      }
-    };
+    const interval = window.setInterval(
+      () => void fetchTransactionsRef.current(),
+      60_000,
+    );
+    return () => window.clearInterval(interval);
   }, [selectedBranch.id]);
 
   const filteredTransactions = useMemo(() => {

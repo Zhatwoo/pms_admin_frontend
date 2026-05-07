@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { api } from "@/lib/api";
-import { getTokenFromCookie, getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { formatPeso } from "@/lib/currency";
 import { toast } from "sonner";
 import { BranchStats } from "./_components/branch-stats";
@@ -103,42 +102,8 @@ export default function BranchesPage() {
   }, [loadBranches]);
 
   useEffect(() => {
-    let channel: any = null;
-    let isActive = true;
-
-    async function setupRealtime() {
-      const supabase = await getSupabaseBrowserClient();
-      if (!supabase || !isActive) return;
-
-      const token = getTokenFromCookie();
-      if (token) {
-        void supabase.realtime.setAuth(token);
-      }
-
-      channel = supabase
-        .channel("branches-live")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "branches" },
-          () => {
-            void loadBranches();
-          },
-        )
-        .subscribe();
-    }
-
-    void setupRealtime();
-
-    return () => {
-      isActive = false;
-      if (channel) {
-        async function teardown() {
-          const supabase = await getSupabaseBrowserClient();
-          if (supabase) void supabase.removeChannel(channel);
-        }
-        void teardown();
-      }
-    };
+    const interval = window.setInterval(() => void loadBranches(), 60_000);
+    return () => window.clearInterval(interval);
   }, [loadBranches]);
 
   // Filter branches by global branch selector
@@ -175,7 +140,7 @@ export default function BranchesPage() {
     const num = Number(b.totalValue.replace(/[₱,]/g, "")) || 0;
     return acc + num;
   }, 0);
-  const formattedTotal = formatPeso(totalValue);
+  const formattedTotal = formatPeso(totalValue.toLocaleString());
 
   // Viewing context label
   const viewingLabel = isAllBranches

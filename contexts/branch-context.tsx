@@ -11,7 +11,6 @@ import {
 import type { ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { api } from "@/lib/api";
-import { getSupabaseBrowserClient, getTokenFromCookie } from "@/lib/supabase-browser";
 import { toast as sonnerToast } from "sonner";
 
 /* ── Branch option shape ─────────────────────────────────── */
@@ -57,6 +56,7 @@ interface BranchApiItem {
   name: string;
   location: string;
   contact_number?: string;
+  contactNumber?: string;
 }
 
 /* ── Provider ────────────────────────────────────────────── */
@@ -102,44 +102,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
-    let channel: any = null;
-    let isActive = true;
-
-    async function setupRealtime() {
-      const supabase = await getSupabaseBrowserClient();
-      if (!supabase || !isActive) return;
-
-      const token = getTokenFromCookie();
-      if (token) {
-        void supabase.realtime.setAuth(token);
-      }
-
-      channel = supabase
-        .channel("branch-selector-live")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "branches" },
-          () => {
-            void loadBranches();
-          },
-        )
-        .subscribe();
-    }
-
-    void setupRealtime();
-
-    return () => {
-      isActive = false;
-      if (channel) {
-        async function teardown() {
-          const supabase = await getSupabaseBrowserClient();
-          if (supabase) {
-            void supabase.removeChannel(channel);
-          }
-        }
-        void teardown();
-      }
-    };
+    const interval = window.setInterval(() => void loadBranches(), 60_000);
+    return () => window.clearInterval(interval);
   }, [loadBranches, user]);
 
   // Build branch list: superadmin gets "All" + every branch; others just their own

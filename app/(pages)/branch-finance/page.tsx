@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBranch } from "@/contexts/branch-context";
 import { api } from "@/lib/api";
-import { getSupabaseBrowserClient, getTokenFromCookie } from "@/lib/supabase-browser";
 import {
   buildFinanceQueues,
   formatCurrency,
@@ -284,47 +283,8 @@ export default function BranchFinancePage() {
   }, [loadFinanceData]);
 
   useEffect(() => {
-    let channel: any = null;
-    let isActive = true;
-
-    async function setupRealtime() {
-      const supabase = await getSupabaseBrowserClient();
-      if (!supabase || !isActive) return;
-
-      const token = getTokenFromCookie();
-      if (token) {
-        void supabase.realtime.setAuth(token).catch(() => {
-          // ignore auth refresh errors for live dashboard updates
-        });
-      }
-
-      channel = supabase
-        .channel("branch-finance-live")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "daily_balances" },
-          () => void loadFinanceData(),
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "transactions" },
-          () => void loadFinanceData(),
-        )
-        .subscribe();
-    }
-
-    void setupRealtime();
-
-    return () => {
-      isActive = false;
-      if (channel) {
-        async function teardown() {
-          const supabase = await getSupabaseBrowserClient();
-          if (supabase) void supabase.removeChannel(channel);
-        }
-        void teardown();
-      }
-    };
+    const interval = window.setInterval(() => void loadFinanceData(), 60_000);
+    return () => window.clearInterval(interval);
   }, [loadFinanceData]);
 
 

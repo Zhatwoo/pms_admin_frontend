@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatPeso } from "@/lib/currency";
+
 interface CancelFundModalProps {
   isOpen: boolean;
   onClose: () => void;
