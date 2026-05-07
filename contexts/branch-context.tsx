@@ -83,7 +83,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           id: (data as BranchApiItem).id,
           name: (data as BranchApiItem).name,
           location: (data as BranchApiItem).location,
-          phone: (data as BranchApiItem).contact_number || (data as BranchApiItem).contactNumber,
+          phone: (data as BranchApiItem).contact_number,
           code: (data as BranchApiItem).branch_code,
         }];
 

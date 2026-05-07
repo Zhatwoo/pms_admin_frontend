@@ -26,8 +26,8 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const SESSION_EXPIRED_REASON = "session-expired";
-const REMEMBERED_SESSION_COOKIE = "pms_was_logged_in=1; path=/; max-age=2592000; samesite=lax";
-const CLEAR_REMEMBERED_SESSION_COOKIE = "pms_was_logged_in=; path=/; max-age=0; samesite=lax";
+const REMEMBERED_SESSION_COOKIE = "pms_was_logged_in=1; path=/; max-age=2592000; samesite=lax; secure;";
+const CLEAR_REMEMBERED_SESSION_COOKIE = "pms_was_logged_in=; path=/; max-age=0; samesite=lax; secure;";
 const SESSION_EXPIRED_MESSAGE = "Your session expired. Please sign in again.";
 const SESSION_REDIRECT_DELAY_MS = 3500;
 
@@ -175,6 +175,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [clearSessionExpiryTimers]);
 
+  // 3. Realtime Listener: Watch for user profile changes (e.g. branch transfers)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const token = getTokenFromCookie();
+    if (token) {
+      void supabase.realtime.setAuth(token);
+    }
+
+    const channel = supabase
+      .channel(`user-profile-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "users",
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          console.log("[AuthContext] Profile change detected, refreshing...");
+          void refreshProfile();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, refreshProfile]);
+
   const login = useCallback(async (email: string, password: string) => {
     const data = await api.post<{ user: User }>(
       "/auth/login",
@@ -187,6 +221,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Unauthorized");
     }
 
+    const maxAge = Math.max(1, data.expires_in ?? 3600);
+
+    document.cookie = `pms_token=${encodeURIComponent(data.access_token)}; path=/; max-age=${maxAge}; samesite=lax; secure;`;
     document.cookie = REMEMBERED_SESSION_COOKIE;
 
     // Save to state and cache

@@ -135,7 +135,7 @@ export default function PublicTicketView() {
             </div>
             <div className="text-left md:text-right">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Pawn Valuation</p>
-              <p className="text-4xl font-black text-emerald-400">{formatPeso(data.amount.toLocaleString())}</p>
+              <p className="text-4xl font-black text-emerald-400">{formatPeso(data.amount)}</p>
             </div>
           </div>
 
