@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatPeso } from "@/lib/currency";
 
 interface ConfirmFundModalProps {
@@ -40,9 +40,7 @@ export function ConfirmFundModal({
   const [receivedAmount, setReceivedAmount] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofName, setProofName] = useState<string | null>(null);
-  const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const proofInputRef = useRef<HTMLInputElement | null>(null);
   const hasMaxAmount = Number.isFinite(amount) && amount > 0;
 
   const formatAmountError = () =>
@@ -56,17 +54,9 @@ export function ConfirmFundModal({
       setReceivedAmount(amount > 0 ? String(amount) : "");
       setProofFile(null);
       setProofName(null);
-      setProofPreviewUrl(null);
       setError(null);
-      if (proofInputRef.current) proofInputRef.current.value = "";
     }
   }, [amount, isOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (proofPreviewUrl) URL.revokeObjectURL(proofPreviewUrl);
-    };
-  }, [proofPreviewUrl]);
 
   if (!isOpen) return null;
 
@@ -102,67 +92,19 @@ export function ConfirmFundModal({
     }
   }
 
-  function handleProofFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) return;
-    selectProofFile(file, event.target);
-  }
-
-  function selectProofFile(file: File, inputToReset?: HTMLInputElement): void {
-    if (!file.type.startsWith("image/")) {
-      setProofFile(null);
-      setProofName(null);
-      setProofPreviewUrl(null);
-      setError("Please choose an image file for the proof of transaction.");
-      if (inputToReset) inputToReset.value = "";
-      return;
-    }
-
-    setProofFile(file);
-    setProofName(file.name);
-    setProofPreviewUrl((currentUrl) => {
-      if (currentUrl) URL.revokeObjectURL(currentUrl);
-      return URL.createObjectURL(file);
-    });
-    setError(null);
-  }
-
-  function handleProofDrop(event: React.DragEvent<HTMLDivElement>): void {
-    event.preventDefault();
-    const file = Array.from(event.dataTransfer.files).find((item) => item.type.startsWith("image/"));
-    if (file) selectProofFile(file);
-  }
-
-  function handleProofPaste(event: React.ClipboardEvent<HTMLDivElement>): void {
-    const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith("image/"));
-    if (!file) return;
-    event.preventDefault();
-    selectProofFile(file);
-  }
-
-  function clearProofFile(): void {
-    setProofFile(null);
-    setProofName(null);
-    setProofPreviewUrl((currentUrl) => {
-      if (currentUrl) URL.revokeObjectURL(currentUrl);
-      return null;
-    });
-    if (proofInputRef.current) proofInputRef.current.value = "";
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border-main px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-surface shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:max-w-md sm:rounded-2xl">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border-main px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300 sm:h-10 sm:w-10">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-text-primary">{stageLabel}</h2>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold leading-tight text-text-primary sm:text-lg">{stageLabel}</h2>
               <p className="text-xs text-text-secondary">
                 Finalize the transfer after your branch has received the funds.
               </p>
@@ -171,7 +113,7 @@ export function ConfirmFundModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+            className="shrink-0 rounded-full p-2 text-text-tertiary transition-colors hover:bg-surface-secondary hover:text-text-primary"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -180,15 +122,22 @@ export function ConfirmFundModal({
           </button>
         </div>
 
-        <div className="space-y-5 px-6 py-5">
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void runConfirm();
+          }}
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-5 sm:px-6 sm:py-5"
+        >
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 sm:p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
               Receipt Confirmation
             </p>
-            <p className="mt-2 text-3xl font-extrabold text-emerald-200">
+            <p className="mt-2 break-words text-2xl font-extrabold text-emerald-200 sm:text-3xl">
               {formatPeso(amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}
             </p>
-            <p className="mt-2 text-xs text-emerald-200/80">
+            <p className="mt-2 break-words text-xs text-emerald-200/80">
               {requestNo ? `${requestNo} ` : ""}{branchName ? `for ${branchName}` : ""}
             </p>
             {sourceBranchName ? (
@@ -203,7 +152,7 @@ export function ConfirmFundModal({
             ) : null}
           </div>
 
-          <div className="rounded-xl border border-border-main bg-surface-secondary px-4 py-3 text-sm text-text-secondary">
+          <div className="rounded-xl border border-border-main bg-surface-secondary px-3 py-3 text-xs leading-relaxed text-text-secondary sm:px-4 sm:text-sm">
             {helperText}
           </div>
 
@@ -232,7 +181,7 @@ export function ConfirmFundModal({
                 setReceivedAmount(nextValue);
                 setError(null);
               }}
-              className="w-full rounded-lg border border-input-border bg-input-bg p-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-input-border bg-input-bg p-3 text-base text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm"
               placeholder="Enter actual amount received"
               required
             />
@@ -243,7 +192,6 @@ export function ConfirmFundModal({
               Proof of Transaction
             </label>
             <input
-              ref={proofInputRef}
               type="file"
               accept="image/*"
               onChange={handleProofFileChange}
@@ -276,7 +224,7 @@ export function ConfirmFundModal({
               <div className="mt-3 overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-500/5">
                 {proofPreviewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={proofPreviewUrl} alt="Selected proof preview" className="h-36 w-full object-cover" />
+                  <img src={proofPreviewUrl} alt="Selected proof preview" className="h-28 w-full object-cover sm:h-36" />
                 ) : null}
                 <div className="flex items-center justify-between gap-3 px-3 py-2">
                   <p className="min-w-0 truncate text-xs font-semibold text-text-secondary">
@@ -303,7 +251,7 @@ export function ConfirmFundModal({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Optional notes about the received funds"
-              className="w-full resize-none rounded-lg border border-input-border bg-input-bg p-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full resize-none rounded-lg border border-input-border bg-input-bg p-3 text-base text-text-primary outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm"
             />
           </div>
 
@@ -313,11 +261,11 @@ export function ConfirmFundModal({
             </div>
           ) : null}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3 sm:pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-input-border bg-surface-secondary px-5 py-2.5 text-sm font-bold text-text-secondary transition-colors hover:bg-surface-hover"
+              className="rounded-lg border border-input-border bg-surface-secondary px-5 py-3 text-sm font-bold text-text-secondary transition-colors hover:bg-surface-hover sm:py-2.5"
             >
               Cancel
             </button>
@@ -325,7 +273,7 @@ export function ConfirmFundModal({
               type="button"
               disabled={isSubmitting}
               onClick={() => void runConfirm()}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:py-2.5"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -334,7 +282,7 @@ export function ConfirmFundModal({
               {isSubmitting ? "Processing..." : "Confirm Receipt"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
