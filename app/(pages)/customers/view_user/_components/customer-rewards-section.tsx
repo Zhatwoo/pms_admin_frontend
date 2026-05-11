@@ -196,11 +196,11 @@ export function CustomerRewardsSection({
   return (
     <div className="rounded-2xl border border-border-main bg-surface shadow-sm transition-colors duration-300">
       {/* Header */}
-      <div className="border-b border-border-main bg-gradient-to-r from-emerald-50 to-amber-50 px-5 py-4">
+      <div className="rounded-t-2xl border-b border-border-main bg-gradient-to-r from-emerald-50 to-amber-50 px-5 py-4 dark:from-emerald-950/40 dark:to-amber-950/40 dark:border-zinc-700">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-800">🎁 Customer Rewards</h3>
-            <p className="mt-0.5 text-xs text-text-secondary">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">🎁 Customer Rewards</h3>
+            <p className="mt-0.5 text-xs text-text-secondary dark:text-zinc-400">
               {earnedRewards.length} earned · {claimedRewards.length} claimed
             </p>
           </div>
@@ -208,7 +208,7 @@ export function CustomerRewardsSection({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border-main">
+      <div className="flex border-b border-border-main dark:border-zinc-700">
         {(
           [
             { key: "progress", label: "Progress", count: uncompletedProgress.length },
@@ -222,16 +222,16 @@ export function CustomerRewardsSection({
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 px-4 py-3 text-center text-xs font-semibold transition-colors ${
               activeTab === tab.key
-                ? "border-b-2 border-emerald-600 text-emerald-700"
-                : "text-text-secondary hover:text-text-primary"
+                ? "border-b-2 border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300"
+                : "text-text-secondary hover:text-text-primary dark:text-zinc-400 dark:hover:text-zinc-200"
             }`}
           >
             {tab.label}
             {tab.count > 0 && (
               <span className={`ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
                 activeTab === tab.key
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-surface-secondary text-text-tertiary"
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  : "bg-surface-secondary text-text-tertiary dark:bg-zinc-800 dark:text-zinc-400"
               }`}>
                 {tab.count}
               </span>
@@ -263,8 +263,8 @@ export function CustomerRewardsSection({
                     key={item.reward_id}
                     className={`group rounded-xl border p-4 transition-all ${
                       item.is_eligible
-                        ? "border-emerald-300 bg-emerald-50/60 shadow-sm"
-                        : "border-border-main bg-surface-secondary"
+                        ? "border-emerald-300 bg-emerald-50/60 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/30"
+                        : "border-border-main bg-surface-secondary dark:border-zinc-700 dark:bg-zinc-900/50"
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -279,10 +279,10 @@ export function CustomerRewardsSection({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-emerald-600">{getRewardIcon(item.reward_type)}</span>
-                          <h4 className="text-sm font-semibold text-text-primary">{item.name}</h4>
+                          <span className="text-emerald-600 dark:text-emerald-400">{getRewardIcon(item.reward_type)}</span>
+                          <h4 className="text-sm font-semibold text-text-primary dark:text-zinc-100">{item.name}</h4>
                         </div>
-                        <p className="mt-0.5 text-xs text-text-secondary">{item.description}</p>
+                        <p className="mt-0.5 text-xs text-text-secondary dark:text-zinc-400">{item.description}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <span className="rounded-md bg-surface px-2 py-0.5 text-[10px] font-semibold text-text-secondary">
                             {item.tx_count_progress}/{item.required_transaction_count} transactions
@@ -293,19 +293,19 @@ export function CustomerRewardsSection({
                             </span>
                           )}
                           {item.transaction_type && (
-                            <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                               {item.transaction_type} only
                             </span>
                           )}
                         </div>
                         {item.is_eligible && (
-                          <p className="mt-2 text-xs font-semibold text-emerald-600">
+                          <p className="mt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                             ✅ Eligible! Reward will be granted on next qualifying transaction.
                           </p>
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-emerald-700">
+                        <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
                           {formatRewardValue(item.reward_type, item.reward_value)}
                         </p>
                       </div>
@@ -328,14 +328,14 @@ export function CustomerRewardsSection({
               earnedRewards.map((reward) => (
                 <div
                   key={reward.id}
-                  className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm"
+                  className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/30"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
                     {getRewardIcon(reward.reward_type)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-semibold text-text-primary">{reward.name}</h4>
-                    <p className="text-xs text-text-secondary">
+                    <h4 className="text-sm font-semibold text-text-primary dark:text-zinc-100">{reward.name}</h4>
+                    <p className="text-xs text-text-secondary dark:text-zinc-400">
                       {formatRewardValue(reward.reward_type, reward.reward_value)} · Earned {formatDate(reward.earned_at)}
                     </p>
                   </div>
@@ -366,14 +366,14 @@ export function CustomerRewardsSection({
               claimedRewards.map((reward) => (
                 <div
                   key={reward.id}
-                  className="flex items-center gap-3 rounded-xl border border-border-main bg-surface-secondary p-4"
+                  className="flex items-center gap-3 rounded-xl border border-border-main bg-surface-secondary p-4 dark:border-zinc-700 dark:bg-zinc-900/50"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                     {getRewardIcon(reward.reward_type)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-semibold text-text-primary line-through opacity-70">{reward.name}</h4>
-                    <p className="text-xs text-text-secondary">
+                    <h4 className="text-sm font-semibold text-text-primary line-through opacity-70 dark:text-zinc-300">{reward.name}</h4>
+                    <p className="text-xs text-text-secondary dark:text-zinc-400">
                       {formatRewardValue(reward.reward_type, reward.reward_value)} · Claimed {formatDate(reward.claimed_at)}
                     </p>
                     {reward.notes && (
