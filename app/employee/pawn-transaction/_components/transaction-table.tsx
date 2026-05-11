@@ -5,6 +5,22 @@ import { formatTimeWithAmPm } from "@/lib/time";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 import { useAuth } from "@/contexts/auth-context";
 
+const eyeIcon = (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 export type PurposeType =
   | "Start"
   | "End"
@@ -308,6 +324,19 @@ export function TransactionTable({
                     )}
                     <td className="whitespace-nowrap px-3 py-2 text-center">
                       <div className="flex items-center justify-center gap-1.5">
+                        {onViewDetails ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onViewDetails(row);
+                            }}
+                            title="View details"
+                            className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-emerald-50 hover:text-emerald-700"
+                          >
+                            {eyeIcon}
+                          </button>
+                        ) : null}
                         {row.purpose === "Pawn" || row.purpose === "Renew" ? (
                           <button
                             onClick={(event) => {
