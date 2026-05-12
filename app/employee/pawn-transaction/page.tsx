@@ -416,7 +416,6 @@ export default function EmployeePawnTransactionsPage() {
     open: false,
     onConfirm: () => { },
   });
-  const [isMainScannerOpen, setIsMainScannerOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const highlightedTransactionRef = useRef<string | null>(null);
 
@@ -650,6 +649,15 @@ export default function EmployeePawnTransactionsPage() {
       return () => window.clearTimeout(timeout);
     }
   }, [allTransactions, searchParams]);
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const ticketNo = searchParams.get("ticketNo");
+    
+    if (action === "renew" && ticketNo) {
+      setIsRenewModalOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchBranchAdmin() {
@@ -905,7 +913,6 @@ export default function EmployeePawnTransactionsPage() {
         })}
         onSalesTransfer={() => handleActionWithPassword(() => setIsSalesTransferModalOpen(true))}
         onNewPawn={() => handleActionWithPassword(openNewPawnForm)}
-        onQrScan={() => setIsMainScannerOpen(true)}
       />
 
       <BranchDaySessionToolbar
@@ -1073,6 +1080,7 @@ export default function EmployeePawnTransactionsPage() {
         onSuccess={handleTransactionSuccess}
         branchName={selectedBranch.name}
         branchId={resolvedBranchIdForModals}
+        initialSearchCode={searchParams.get("action") === "renew" ? searchParams.get("ticketNo") || undefined : undefined}
       />
 
       <NewPawnModal
@@ -1130,33 +1138,6 @@ export default function EmployeePawnTransactionsPage() {
         />
       )}
 
-      <QrScanner
-        isOpen={isMainScannerOpen}
-        onClose={() => setIsMainScannerOpen(false)}
-        onScan={(text) => {
-          // 1. Try to extract from "Code: ID | ..." format
-          const codeMatch = text.match(/Code:\s*([^|]+)/i);
-          if (codeMatch) {
-            const id = codeMatch[1].trim();
-            setSearchQuery(id);
-            setCurrentPage(1);
-            return;
-          }
-
-          // 2. Try to extract from URL format: .../view-ticket/UNITCODE
-          const urlMatch = text.match(/\/view-ticket\/([^/?#\s]+)/i);
-          if (urlMatch) {
-            const id = urlMatch[1].trim();
-            setSearchQuery(id);
-            setCurrentPage(1);
-            return;
-          }
-
-          // 3. Fallback to whole text
-          setSearchQuery(text.trim());
-          setCurrentPage(1);
-        }}
-      />
     </div>
   );
 }
