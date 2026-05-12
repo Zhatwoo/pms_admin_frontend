@@ -25,6 +25,7 @@ import { Role } from "@/types";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { getPhCalendarDateString } from "@/lib/branch-calendar-date";
 import { formatPeso } from "@/lib/currency";
+import { operationalCashTotalsForPawnEnding } from "@/lib/ledger-operational-totals";
 import { BranchDaySessionToolbar } from "@/components/shared/branch-day-session-toolbar";
 import { useOpeningChecklist } from "@/contexts/opening-checklist-context";
 
@@ -243,7 +244,9 @@ function TransactionsCalendar({
 interface ApiTransaction {
   transaction_no: string;
   branch: string | null;
+  voided_at?: string | null;
   purpose: string;
+  created_at?: string | Date | null;
   details?: string | null;
   transaction_date: string;
   transaction_time: string;
@@ -280,6 +283,7 @@ const DEFAULT_STATS = {
   transfer: 0,
   startingBalance: 0,
   endingBalance: 0,
+  sessionOpenedAt: null as string | null,
 };
 
 function normalizeStats(stats?: Partial<typeof DEFAULT_STATS>) {
@@ -412,7 +416,6 @@ export default function EmployeePawnTransactionsPage() {
     open: false,
     onConfirm: () => { },
   });
-  const [isMainScannerOpen, setIsMainScannerOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const highlightedTransactionRef = useRef<string | null>(null);
 
@@ -473,22 +476,29 @@ export default function EmployeePawnTransactionsPage() {
 
       setSelectedDateLedgerRows((data.transactions ?? []).map(toTransactionRow));
 
+      const phToday = getPhCalendarDateString();
+      const ledger = operationalCashTotalsForPawnEnding(
+        data.transactions ?? [],
+        data.stats?.sessionOpenedAt ?? null,
+      );
+
       let startingBalance = Number(data.stats?.startingBalance ?? 0);
-      let endingBalance = Number(data.stats?.endingBalance ?? 0);
 
       if (branchIdForApi === "__all__" && financeSummary.length > 0) {
         startingBalance = financeSummary.reduce(
           (sum, row) => sum + Number(row.startingBalance ?? 0),
           0,
         );
-        endingBalance = financeSummary.reduce(
-          (sum, row) => sum + Number(row.currentBalance ?? 0),
-          0,
+      } else if (
+        selectedDate === phToday &&
+        financeSummary.length === 1
+      ) {
+        startingBalance = Number(
+          financeSummary[0].startingBalance ?? startingBalance,
         );
-      } else if (financeSummary.length === 1) {
-        startingBalance = Number(financeSummary[0].startingBalance ?? startingBalance);
-        endingBalance = Number(financeSummary[0].currentBalance ?? endingBalance);
       }
+
+      const endingBalance = Number((startingBalance + ledger.net).toFixed(2));
 
       setCurrentStats({
         ...normalizeStats(data.stats),
@@ -639,6 +649,15 @@ export default function EmployeePawnTransactionsPage() {
       return () => window.clearTimeout(timeout);
     }
   }, [allTransactions, searchParams]);
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const ticketNo = searchParams.get("ticketNo");
+    
+    if (action === "renew" && ticketNo) {
+      setIsRenewModalOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchBranchAdmin() {
@@ -824,7 +843,7 @@ export default function EmployeePawnTransactionsPage() {
               <tr className="bg-amber-500/5 dark:bg-amber-500/10">
                 <td className="border border-emerald-800/20 p-2 font-bold text-emerald-900">Live Total Balance</td>
                 <td className="border border-emerald-800/20 p-2 text-right font-bold text-emerald-900">
-                  {formatPeso(currentStats.endingBalance.toLocaleString("en-PH", { minimumFractionDigits: 2 }))}
+                  {formatPeso(currentStats.endingBalance)}
                 </td>
               </tr>
             </tbody>
@@ -894,11 +913,11 @@ export default function EmployeePawnTransactionsPage() {
         })}
         onSalesTransfer={() => handleActionWithPassword(() => setIsSalesTransferModalOpen(true))}
         onNewPawn={() => handleActionWithPassword(openNewPawnForm)}
-        onQrScan={() => setIsMainScannerOpen(true)}
       />
 
       <BranchDaySessionToolbar
         branchId={branchIdForApi}
+        logoutAfterEndDay
         syncOpeningChecklist={refreshOpeningChecklistFromServer}
         onSessionChanged={() => {
           void fetchSelectedDateStats();
@@ -1062,6 +1081,7 @@ export default function EmployeePawnTransactionsPage() {
         onSuccess={handleTransactionSuccess}
         branchName={selectedBranch.name}
         branchId={resolvedBranchIdForModals}
+        initialSearchCode={searchParams.get("action") === "renew" ? searchParams.get("ticketNo") || undefined : undefined}
       />
 
       <NewPawnModal
@@ -1119,33 +1139,6 @@ export default function EmployeePawnTransactionsPage() {
         />
       )}
 
-      <QrScanner
-        isOpen={isMainScannerOpen}
-        onClose={() => setIsMainScannerOpen(false)}
-        onScan={(text) => {
-          // 1. Try to extract from "Code: ID | ..." format
-          const codeMatch = text.match(/Code:\s*([^|]+)/i);
-          if (codeMatch) {
-            const id = codeMatch[1].trim();
-            setSearchQuery(id);
-            setCurrentPage(1);
-            return;
-          }
-
-          // 2. Try to extract from URL format: .../view-ticket/UNITCODE
-          const urlMatch = text.match(/\/view-ticket\/([^/?#\s]+)/i);
-          if (urlMatch) {
-            const id = urlMatch[1].trim();
-            setSearchQuery(id);
-            setCurrentPage(1);
-            return;
-          }
-
-          // 3. Fallback to whole text
-          setSearchQuery(text.trim());
-          setCurrentPage(1);
-        }}
-      />
     </div>
   );
 }
