@@ -8,11 +8,11 @@ import { useBranch } from "@/contexts/branch-context";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
-import { InventoryCalendar } from "@/components/shared/inventory-calendar";
 import { toast } from "sonner";
 import { ConfirmActionModal } from "@/components/shared/confirm-action-modal";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 import { AddItemModal } from "@/app/(pages)/inventory/items-for-sale/_components/add-item-modal";
+import { SaleCalendar } from "@/app/(pages)/inventory/items-for-sale/_components/sale-calendar";
 
 type SaleViewMode = "current" | "calendar" | "history";
 
@@ -69,6 +69,11 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 10;
+  const today = new Date();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+  const [calendarData, setCalendarData] = useState<Record<string, number>>({});
   const [viewingItem, setViewingItem] = useState<SaleItem | null>(null);
   const [editingItem, setEditingItem] = useState<SaleItem | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -78,7 +83,7 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [category, status, searchQuery, saleViewMode, selectedBranch.id]);
+  }, [category, status, searchQuery, saleViewMode, selectedBranch.id, selectedDate]);
 
   useEffect(() => {
     async function fetchData() {
@@ -89,9 +94,22 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
         if (status !== "all") params.set("status", status);
         if (searchQuery) params.set("search", searchQuery);
         if (!isAllBranches) params.set("branch", selectedBranch.id);
-        params.set("viewMode", saleViewMode);
-        params.set("page", String(currentPage));
-        params.set("limit", String(itemsPerPage));
+
+        if (saleViewMode === "calendar") {
+          if (!selectedDate) {
+            setSaleItems([]);
+            setTotalItems(0);
+            setIsLoading(false);
+            return;
+          }
+          params.set("date", selectedDate);
+          params.set("page", "1");
+          params.set("limit", "500");
+        } else {
+          params.set("viewMode", saleViewMode);
+          params.set("page", String(currentPage));
+          params.set("limit", String(itemsPerPage));
+        }
 
         const data = await api.get<{ items: SaleItem[]; total: number }>(`/inventory/for-sale?${params}`);
         setSaleItems(data.items || []);
@@ -104,6 +122,22 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
     }
     fetchData();
   }, [category, status, searchQuery, saleViewMode, currentPage, selectedBranch.id, isAllBranches, refreshTick]);
+
+  useEffect(() => {
+    async function fetchCalendar() {
+      if (saleViewMode !== "calendar") return;
+      try {
+        const params = new URLSearchParams();
+        if (!isAllBranches) params.set("branch", selectedBranch.id);
+        params.set("month", `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}`);
+        const data = await api.get<Record<string, number>>(`/inventory/for-sale-calendar?${params}`);
+        setCalendarData(data || {});
+      } catch (err) {
+        console.error("Calendar fetch error:", err);
+      }
+    }
+    fetchCalendar();
+  }, [saleViewMode, selectedBranch.id, isAllBranches, calendarYear, calendarMonth]);
 
   return (
     <div className="space-y-3 pb-4 text-text-primary -mt-2">
@@ -221,9 +255,110 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
         </div>
       </div>
 
-      {saleViewMode === "calendar" ? (
-        <InventoryCalendar items={saleItems} />
-      ) : (
+      {saleViewMode === "calendar" && (
+        <div className="overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300">
+          <div className="border-b border-border-main p-3 sm:p-4">
+            <SaleCalendar
+              calendarData={calendarData}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              calendarYear={calendarYear}
+              calendarMonth={calendarMonth}
+              onChangeMonth={(year, month) => {
+                setCalendarYear(year);
+                setCalendarMonth(month);
+              }}
+            />
+          </div>
+          <div className="overflow-x-auto">
+            <table className={viewOnly ? "min-w-[1220px] w-full text-sm" : "w-full text-sm"}>
+              <thead>
+                <tr className={viewOnly ? "bg-emerald-900 text-amber-400" : "bg-gradient-to-r from-emerald-950 to-emerald-900 text-white"}>
+                  {["ID", "Item Name", "Category", "Branch", "Available Date", "Price", "Status", "Actions"].map((h) => (
+                    <th
+                      key={h}
+                      className={`whitespace-nowrap px-5 py-4 ${viewOnly ? "text-xs font-bold uppercase tracking-[0.16em]" : "text-[10px] font-bold uppercase tracking-wide"} ${h === "Price" ? "text-right" : h === "Actions" ? "text-center" : "text-left"}`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-sm text-zinc-400">
+                      <div className="flex items-center justify-center">
+                        <LoadingSpinnerLabel text="Loading items for sale..." className="text-base font-medium text-text-tertiary" />
+                      </div>
+                    </td>
+                  </tr>
+                ) : saleItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-sm text-zinc-400">
+                      {selectedDate ? "No items on this day" : "No items for sale found"}
+                    </td>
+                  </tr>
+                ) : (
+                  saleItems.map((item, idx) => (
+                    <tr
+                      key={item.id || item.itemId}
+                      onClick={viewOnly ? () => setViewingItem(item) : undefined}
+                      className={`border-t border-border-subtle transition-colors ${viewOnly ? "cursor-pointer bg-surface-secondary hover:bg-emerald-surface/60" : `${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary/40"} hover:bg-surface-hover`}`}
+                    >
+                      <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm font-bold text-emerald-700" : "whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-800"}>{item.itemId}</td>
+                      <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-secondary" : "whitespace-nowrap px-3 py-2 text-xs text-text-secondary"}>{item.itemName}</td>
+                      <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-tertiary" : "whitespace-nowrap px-3 py-2 text-xs text-text-tertiary"}>{item.category}</td>
+                      <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-tertiary" : "whitespace-nowrap px-3 py-2 text-xs text-text-tertiary"}>{item.branch}</td>
+                      <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-tertiary" : "whitespace-nowrap px-3 py-2 text-xs text-text-tertiary"}>{item.availableDate}</td>
+                      <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-right font-semibold text-text-primary" : "whitespace-nowrap px-3 py-2 text-xs text-right font-medium text-text-primary"}>
+                        &#8369;{item.price.toLocaleString()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <StatusBadge label={item.status} variant={statusVariant[item.status] || "green"} />
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={(event) => { event.stopPropagation(); setViewingItem(item); }}
+                            title={`View ${item.itemName}`}
+                            aria-label={`View ${item.itemName}`}
+                            className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100" : "rounded px-2 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center"}
+                          >
+                            {isSuperAdmin ? (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-700">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            ) : (
+                              "View"
+                            )}
+                          </button>
+                          {canEdit && (
+                            <>
+                              <button onClick={(event) => { event.stopPropagation(); setEditingItem(item); }} className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-blue-700 border border-blue-200 bg-blue-50 hover:bg-blue-100" : "rounded px-2 py-1 text-[10px] font-bold text-blue-700 border border-blue-200 bg-blue-50 hover:bg-blue-100"}>
+                                Edit
+                              </button>
+                              <button
+                                onClick={(event) => { event.stopPropagation(); setDeleteConfirmId(item.id); }}
+                                className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100" : "rounded px-2 py-1 text-[10px] font-bold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100"}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {saleViewMode !== "calendar" && (
       <div className={viewOnly ? "overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300" : "overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm"}>
         <div className="overflow-x-auto">
           <table className={viewOnly ? "min-w-[1220px] w-full text-sm" : "w-full text-sm"}>
@@ -274,8 +409,20 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={(event) => { event.stopPropagation(); setViewingItem(item); }} className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100" : "rounded px-2 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100"}>
-                          View
+                        <button
+                          onClick={(event) => { event.stopPropagation(); setViewingItem(item); }}
+                          title={`View ${item.itemName}`}
+                          aria-label={`View ${item.itemName}`}
+                          className={viewOnly ? "rounded px-3.5 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100" : "rounded px-2 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center"}
+                        >
+                          {isSuperAdmin ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-700">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          ) : (
+                            "View"
+                          )}
                         </button>
                         {canEdit && (
                           <>

@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { FilterSelect } from "@/components/shared/filter-select";
-import { InventoryCalendar } from "@/components/shared/inventory-calendar";
+import { SaleCalendar } from "@/app/(pages)/inventory/items-for-sale/_components/sale-calendar";
 import { useBranch } from "@/contexts/branch-context";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
 
@@ -60,10 +60,15 @@ export default function EmployeeItemsForSalePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const today = new Date();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+  const [calendarData, setCalendarData] = useState<Record<string, number>>({});
   const [viewingItem, setViewingItem] = useState<SaleItem | null>(null);
   const itemsPerPage = 10;
 
-  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery, saleViewMode]);
+  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery, saleViewMode, selectedDate]);
 
   useEffect(() => {
     async function fetchData() {
@@ -79,9 +84,21 @@ export default function EmployeeItemsForSalePage() {
         if (category !== "all") params.set("category", category);
         if (status !== "all") params.set("status", status);
         if (searchQuery) params.set("search", searchQuery);
-        params.set("viewMode", saleViewMode);
-        params.set("page", String(currentPage));
-        params.set("limit", String(itemsPerPage));
+        if (saleViewMode === "calendar") {
+          if (!selectedDate) {
+            setSaleItems([]);
+            setTotalItems(0);
+            setIsLoading(false);
+            return;
+          }
+          params.set("date", selectedDate);
+          params.set("page", "1");
+          params.set("limit", "500");
+        } else {
+          params.set("viewMode", saleViewMode);
+          params.set("page", String(currentPage));
+          params.set("limit", String(itemsPerPage));
+        }
 
         const data = await api.get<{ items: SaleItem[]; total: number }>(`/inventory/for-sale?${params}`);
         setSaleItems(data.items || []);
@@ -94,6 +111,22 @@ export default function EmployeeItemsForSalePage() {
     }
     fetchData();
   }, [branchIdent, category, status, searchQuery, saleViewMode, currentPage]);
+
+  useEffect(() => {
+    async function fetchCalendar() {
+      if (saleViewMode !== "calendar") return;
+      try {
+        const params = new URLSearchParams();
+        params.set("branch", branchIdent);
+        params.set("month", `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}`);
+        const data = await api.get<Record<string, number>>(`/inventory/for-sale-calendar?${params}`);
+        setCalendarData(data || {});
+      } catch (err) {
+        console.error("Calendar fetch error:", err);
+      }
+    }
+    fetchCalendar();
+  }, [saleViewMode, branchIdent, calendarYear, calendarMonth]);
 
   return (
     <div className="space-y-3 pb-4 text-text-primary -mt-2">
@@ -127,7 +160,71 @@ export default function EmployeeItemsForSalePage() {
 
 
       {saleViewMode === "calendar" ? (
-        <InventoryCalendar items={saleItems} />
+        <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20">
+          <div className="border-b border-border-main p-3 sm:p-4">
+            <SaleCalendar
+              calendarData={calendarData}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              calendarYear={calendarYear}
+              calendarMonth={calendarMonth}
+              onChangeMonth={(year, month) => {
+                setCalendarYear(year);
+                setCalendarMonth(month);
+              }}
+            />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-emerald-900 text-amber-400">
+                  {["ID", "Item Name", "Category", "Date Expired", "Price", "Status", "Actions"].map((h) => (
+                    <th key={h} className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${h === "Price" ? "text-right" : "text-left"}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-sm text-zinc-400">
+                      <div className="flex items-center justify-center">
+                        <LoadingSpinnerLabel text="Loading items for sale..." className="text-base font-medium text-text-tertiary" />
+                      </div>
+                    </td>
+                  </tr>
+                ) : saleItems.length === 0 ? (
+                  <tr><td colSpan={7} className="py-8 text-center text-sm text-zinc-400">{selectedDate ? "No items on this day" : "No items for sale found"}</td></tr>
+                ) : (
+                  saleItems.map((item, idx) => (
+                    <tr key={item.id || item.itemId} className={`border-t border-border-subtle transition-colors ${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary/40"} hover:bg-surface-hover`}>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.itemId}</td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <button onClick={() => setViewingItem(item)} className="text-xs font-bold text-zinc-900 transition-colors hover:underline hover:text-emerald-700">
+                          {item.itemName}
+                        </button>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary">{item.category}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs font-bold italic text-text-secondary">{item.availableDate}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-xs font-black text-text-primary">&#8369;{item.price.toLocaleString()}</td>
+                      <td className="whitespace-nowrap px-3 py-2"><StatusBadge label={item.status} variant={statusVariant[item.status] || "green"} /></td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {item.status === "Available" ? (
+                          <button className="rounded-xl bg-emerald-700 px-4 py-1.5 text-[10px] font-black text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-800 active:scale-95">
+                            Sell Item
+                          </button>
+                        ) : item.status === "Reserved" ? (
+                          <span className="text-[10px] font-bold italic text-sky-500">Reserved for Layaway</span>
+                        ) : (
+                          <span className="text-[10px] font-bold italic text-zinc-400">Sold to Customer</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20">
           <div className="overflow-x-auto">
