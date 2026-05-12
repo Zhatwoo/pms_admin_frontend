@@ -58,6 +58,8 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
   const userRole = user?.role || "employee";
   const isSuperAdmin = userRole === "super_admin";
   const canEdit = !viewOnly && (userRole === "super_admin" || userRole === "admin");
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   const [saleViewMode, setSaleViewMode] = useState<SaleViewMode>("current");
   const [category, setCategory] = useState("all");
@@ -69,8 +71,7 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 10;
-  const today = new Date();
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => todayString);
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarData, setCalendarData] = useState<Record<string, number>>({});
@@ -152,7 +153,7 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={saleStatusOptions} value={status} onChange={setStatus} />
           <div className="flex flex-col gap-1">
-            <label className={viewOnly ? "text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500" : "text-[10px] font-bold uppercase tracking-wide text-zinc-500"}>Search</label>
+            <label className={viewOnly ? "text-[11px] font-bold uppercase tracking-wide text-zinc-500" : "text-[10px] font-bold uppercase tracking-wide text-zinc-500"}>Search</label>
             <input
               type="text"
               value={searchQuery}
@@ -160,6 +161,23 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
               placeholder="Search items..."
               className={viewOnly ? "h-10 w-56 rounded-md border border-zinc-300 px-4 text-sm outline-none transition-colors focus:border-emerald-500" : "h-9 w-44 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500"}
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={viewOnly ? "text-[11px] font-bold uppercase tracking-wide text-zinc-500" : "text-[10px] font-bold uppercase tracking-wide text-zinc-500"}>Date</label>
+            <div className="relative flex items-center">
+              <input
+                type="date"
+                value={selectedDate || ""}
+                max={todayString}
+                onChange={(e) => setSelectedDate(e.target.value || null)}
+                className={viewOnly ? "h-10 rounded-md border border-zinc-300 px-4 text-sm outline-none transition-colors focus:border-emerald-500 pr-8" : "h-9 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500 pr-8"}
+              />
+              {selectedDate && (
+                <button type="button" onClick={() => setSelectedDate(null)} className="absolute right-2 text-text-muted hover:text-text-primary">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -187,8 +205,8 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
           </div>
           {isSuperAdmin && (
             <div className="flex items-center gap-1.5">
-              <select 
-                value={qrSize} 
+              <select
+                value={qrSize}
                 onChange={(e) => setQrSize(e.target.value as "small" | "large")}
                 className="h-8 rounded border border-emerald-200 bg-white px-2 text-[10px] font-bold uppercase text-emerald-800 outline-none transition-colors focus:border-emerald-500"
               >
@@ -201,12 +219,12 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
                   const sizeCm = qrSize === "small" ? "2cm" : "3cm";
                   const fontSize = qrSize === "small" ? "8px" : "10px";
                   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-                  
+
                   const qrHtml = saleItems.map(item => {
                     const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(item.itemId)}`;
                     const encoded = encodeURIComponent(publicViewUrl);
                     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=250x250&color=065f46&bgcolor=f0fdf4&margin=2`;
-                    
+
                     return `
                       <div style="display:inline-flex; flex-direction:column; align-items:center; margin:3mm; vertical-align:top;">
                         <img src="${qrUrl}" style="width:${sizeCm}; height:${sizeCm}; display:block;" />
@@ -218,7 +236,7 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
                   const iframe = document.createElement('iframe');
                   iframe.style.display = 'none';
                   document.body.appendChild(iframe);
-                  
+
                   const html = `<!DOCTYPE html>
                     <html>
                     <head>

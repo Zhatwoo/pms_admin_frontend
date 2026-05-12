@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
-import { FilterSelect } from "@/components/shared/filter-select";
 import { InventoryCalendar } from "@/components/shared/inventory-calendar";
 import { PawnedItemDetailsModal } from "@/components/shared/pawned-item-details-modal";
 import { InventoryAuditModal } from "@/components/shared/inventory-audit-modal";
@@ -58,6 +57,9 @@ const pawnedStatusOptions = [
   { value: "Redeemed", label: "Redeemed" },
   { value: "Expired", label: "Expired" },
 ];
+
+const toolbarLabelClass = "text-[10px] font-bold uppercase tracking-wider text-text-tertiary";
+const toolbarSelectClass = "h-9 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500";
 
 const statusVariant: Record<string, "green" | "blue" | "red" | "orange"> = {
   Active: "green",
@@ -220,9 +222,69 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
   const [editingItem, setEditingItem] = useState<PawnedItem | null>(null);
   const [isQrScanOpen, setIsQrScanOpen] = useState(false);
   const [confirmIntent, setConfirmIntent] = useState<null | { type: "expire" | "delete"; itemId: string }>(null);
-  const [qrSize, setQrSize] = useState<"small" | "large">("small");
+  const [isPrintQrMenuOpen, setIsPrintQrMenuOpen] = useState(false);
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => todayString);
 
-  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery, selectedBranch.id]);
+  const handlePrintQr = useCallback((size: "small" | "large") => {
+    const sizeCm = size === "small" ? "2cm" : "3cm";
+    const fontSize = size === "small" ? "8px" : "10px";
+
+    const qrHtml = pawnedItems.map((item) => {
+      let qrUrl = "";
+      const itemQr = item.qrCode || item.qr_code;
+
+      if (itemQr?.startsWith("http") || itemQr?.startsWith("data:")) {
+        qrUrl = itemQr;
+      } else {
+        const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+        const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(item.itemId)}`;
+        const encoded = encodeURIComponent(publicViewUrl);
+        qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=250x250&color=065f46&bgcolor=f0fdf4&margin=2`;
+      }
+
+      return `
+        <div style="display:inline-flex; flex-direction:column; align-items:center; margin:3mm; vertical-align:top;">
+          <img src="${qrUrl}" style="width:${sizeCm}; height:${sizeCm}; display:block;" />
+          <p style="font-family:sans-serif; font-size:${fontSize}; font-weight:bold; margin-top:1mm; color:#333;">${item.itemId}</p>
+        </div>
+      `;
+    }).join("");
+
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+
+    const html = `<!DOCTYPE html>
+      <html>
+      <head>
+      <meta charset="utf-8">
+      <style>
+        * { margin: 0; padding: 0; }
+        @page { size: A4; margin: 5mm; }
+        body { display: flex; flex-wrap: wrap; padding: 5mm; }
+      </style>
+      </head>
+      <body>
+      ${qrHtml}
+      </body>
+      </html>`;
+
+    iframe.contentDocument?.open();
+    iframe.contentDocument?.write(html);
+    iframe.contentDocument?.close();
+
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }, 500);
+    };
+  }, [pawnedItems]);
+
+  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery, selectedBranch.id, selectedDate]);
 
   useEffect(() => {
     async function fetchData() {
@@ -232,6 +294,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
         if (category !== "all") params.set("category", category);
         if (status !== "all") params.set("status", status);
         if (searchQuery) params.set("search", searchQuery);
+        if (selectedDate) params.set("date", selectedDate);
         if (!isAllBranches) params.set("branch", selectedBranch.id);
         params.set("page", String(currentPage));
         params.set("limit", String(itemsPerPage));
@@ -247,7 +310,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
       }
     }
     fetchData();
-  }, [category, status, searchQuery, currentPage, selectedBranch.id, isAllBranches]);
+  }, [category, status, searchQuery, selectedDate, currentPage, selectedBranch.id, isAllBranches]);
 
   const handleSaveRemarks = useCallback(async (itemId: string, remarks: string) => {
     try {
@@ -273,118 +336,163 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
           Comprehensive list of all active, redeemed, and expired pawn contracts across your branch.
         </p>
       </div>
-      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border-main bg-surface-secondary/85 dark:bg-zinc-800/40 p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 dark:bg-zinc-800/40 p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
+      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border-main bg-surface p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
         <div className="flex flex-wrap items-end gap-3">
-          <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
-          <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />
           <div className="flex flex-col gap-1">
-            <label className={viewOnly ? "text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400" : "text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"}>Search</label>
+            <label className={toolbarLabelClass}>Search</label>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search items..."
-              className={viewOnly ? "h-10 w-56 rounded-md border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 px-4 text-sm outline-none transition-colors focus:border-emerald-500 dark:focus:border-emerald-400" : "h-9 w-44 rounded-md border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 px-3 text-xs outline-none transition-colors focus:border-emerald-500 dark:focus:border-emerald-400"}
+              className={viewOnly ? "h-10 w-56 rounded-md border border-border-main bg-surface-secondary px-4 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500" : "h-9 w-44 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500"}
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Date</label>
+            <div className="relative flex items-center">
+              <input
+                type="date"
+                value={selectedDate || ""}
+                max={todayString}
+                onChange={(e) => setSelectedDate(e.target.value || null)}
+                className={viewOnly ? "h-10 rounded-md border border-border-main bg-surface-secondary px-4 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 pr-8" : "h-9 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500 pr-8"}
+              />
+              {selectedDate && (
+                <button type="button" onClick={() => setSelectedDate(null)} className="absolute right-2 text-text-muted hover:text-text-primary">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Category</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={toolbarSelectClass}>
+              {categoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={toolbarSelectClass}>
+              {pawnedStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {!viewOnly && (
-            <button onClick={() => setIsQrScanOpen(true)} className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-              </svg>
-              QR Scan
-            </button>
-          )}
-          <div className="flex overflow-hidden rounded-md border border-border-main bg-surface-secondary dark:border-slate-700 dark:bg-slate-900">
-            <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
-              List
-            </button>
-            <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
-              Calendar
-            </button>
-          </div>
-          {userRole === "super_admin" && (
-            <div className="flex items-center gap-1.5">
-              <select 
-                value={qrSize} 
-                onChange={(e) => setQrSize(e.target.value as "small" | "large")}
-                className="h-8 rounded border border-emerald-200 bg-white px-2 text-[10px] font-bold uppercase text-emerald-800 outline-none transition-colors focus:border-emerald-500"
-              >
-                <option value="small">Small</option>
-                <option value="large">Large</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => {
-                  const sizeCm = qrSize === "small" ? "2cm" : "3cm";
-                  const fontSize = qrSize === "small" ? "8px" : "10px";
-                  
-                  const qrHtml = pawnedItems.map(item => {
-                    let qrUrl = "";
-                    const itemQr = item.qrCode || item.qr_code;
-                    if (itemQr?.startsWith('http') || itemQr?.startsWith('data:')) {
-                      qrUrl = itemQr;
-                    } else {
-                      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-                      const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(item.itemId)}`;
-                      const encoded = encodeURIComponent(publicViewUrl);
-                      qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=250x250&color=065f46&bgcolor=f0fdf4&margin=2`;
-                    }
-                    
-                    return `
-                      <div style="display:inline-flex; flex-direction:column; align-items:center; margin:3mm; vertical-align:top;">
-                        <img src="${qrUrl}" style="width:${sizeCm}; height:${sizeCm}; display:block;" />
-                        <p style="font-family:sans-serif; font-size:${fontSize}; font-weight:bold; margin-top:1mm; color:#333;">${item.itemId}</p>
-                      </div>
-                    `;
-                  }).join('');
-
-                  const iframe = document.createElement('iframe');
-                  iframe.style.display = 'none';
-                  document.body.appendChild(iframe);
-                  
-                  const html = `<!DOCTYPE html>
-                    <html>
-                    <head>
-                    <meta charset="utf-8">
-                    <style>
-                      * { margin: 0; padding: 0; }
-                      @page { size: A4; margin: 5mm; }
-                      body { display: flex; flex-wrap: wrap; padding: 5mm; }
-                    </style>
-                    </head>
-                    <body>
-                    ${qrHtml}
-                    </body>
-                    </html>`;
-
-                  iframe.contentDocument?.open();
-                  iframe.contentDocument?.write(html);
-                  iframe.contentDocument?.close();
-
-                  iframe.onload = () => {
-                    setTimeout(() => {
-                      iframe.contentWindow?.focus();
-                      iframe.contentWindow?.print();
-                      setTimeout(() => document.body.removeChild(iframe), 1000);
-                    }, 500);
-                  };
-                }}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded border border-emerald-700 shadow-md whitespace-nowrap transition-colors"
-              >
-                PRINT QR
-              </button>
-            </div>
+        <div className="flex items-center gap-3">
+          {viewOnly ? (
+            <>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsPrintQrMenuOpen((prev) => !prev)}
+                  className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-bold shadow-sm hover:bg-emerald-700 transition-colors"
+                >
+                  PRINT QR
+                </button>
+                {isPrintQrMenuOpen && (
+                  <div className="absolute left-0 top-full z-20 mt-2 w-32 overflow-hidden rounded-md border border-border-main bg-surface shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintQrMenuOpen(false);
+                        handlePrintQr("small");
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                    >
+                      Small
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintQrMenuOpen(false);
+                        handlePrintQr("large");
+                      }}
+                      className="w-full border-t border-border-subtle px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                    >
+                      Large
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex overflow-hidden rounded-md border border-border-main bg-surface">
+                <button onClick={() => setViewMode("list")} className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>
+                  List
+                </button>
+                <button onClick={() => setViewMode("calendar")} className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>
+                  Calendar
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {!viewOnly && (
+                <button onClick={() => setIsQrScanOpen(true)} className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                  </svg>
+                  QR Scan
+                </button>
+              )}
+              <div className="flex overflow-hidden rounded-md border border-border-main bg-surface-secondary dark:border-slate-700 dark:bg-slate-900">
+                <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
+                  List
+                </button>
+                <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
+                  Calendar
+                </button>
+              </div>
+              {userRole === "super_admin" && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsPrintQrMenuOpen((prev) => !prev)}
+                    className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded border border-emerald-700 shadow-md whitespace-nowrap transition-colors"
+                  >
+                    PRINT QR
+                  </button>
+                  {isPrintQrMenuOpen && (
+                    <div className="absolute right-0 top-full z-20 mt-2 w-32 overflow-hidden rounded-md border border-border-main bg-surface shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPrintQrMenuOpen(false);
+                          handlePrintQr("small");
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                      >
+                        Small
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPrintQrMenuOpen(false);
+                          handlePrintQr("large");
+                        }}
+                        className="w-full border-t border-border-subtle px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                      >
+                        Large
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
 
       {viewMode === "list" && (
-        <div className={viewOnly ? "overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300 dark:bg-zinc-900" : "overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900"}>
+        <div className={viewOnly ? "overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300" : "overflow-hidden rounded-lg border border-border-main bg-surface shadow-sm"}>
           <div className="overflow-x-auto">
             <table className={viewOnly ? "min-w-[1320px] w-full text-sm" : "w-full text-sm"}>
               <thead>
@@ -398,7 +506,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr className="bg-white dark:bg-zinc-900">
+                  <tr className="bg-surface">
                     <td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">
                       <div className="flex items-center justify-center">
                         <LoadingSpinnerLabel text="Loading pawned items..." className="text-base font-medium text-text-tertiary" />
@@ -406,11 +514,11 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
                     </td>
                   </tr>
                 ) : pawnedItems.length === 0 ? (
-                  <tr><td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-900">No pawned items found</td></tr>
+                  <tr><td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 bg-surface">No pawned items found</td></tr>
                 ) : (
                   pawnedItems.map((item, idx) => (
                     <Fragment key={item.id}>
-                      <tr onClick={viewOnly ? () => setSelectedItemId(item.id) : undefined} className={`border-t border-border-subtle transition-colors ${viewOnly ? "cursor-pointer bg-surface-secondary hover:bg-emerald-surface/60 dark:bg-zinc-800 dark:hover:bg-zinc-700" : `${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"} hover:bg-zinc-100 dark:hover:bg-zinc-700`}`}>
+                      <tr onClick={viewOnly ? () => setSelectedItemId(item.id) : undefined} className={`border-t border-border-subtle transition-colors ${viewOnly ? "cursor-pointer bg-surface-secondary hover:bg-emerald-surface/60" : `${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary/40"} hover:bg-surface-hover`}`}>
                         <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm font-bold text-emerald-700 dark:text-emerald-400" : "whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400"}>{item.itemId}</td>
                         <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-secondary dark:text-zinc-300" : "whitespace-nowrap px-3 py-2 text-xs text-text-secondary dark:text-zinc-300"}>{item.itemName}</td>
                         <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-tertiary dark:text-zinc-400" : "whitespace-nowrap px-3 py-2 text-xs text-text-tertiary dark:text-zinc-400"}>{item.category}</td>
@@ -430,7 +538,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
                                 <img
                                   src={item.qrCode || item.qr_code}
                                   alt={`${item.itemName} QR`}
-                                  className="h-8 w-8 rounded border border-border-main bg-white p-0.5 object-contain dark:bg-zinc-700 dark:border-zinc-600"
+                                  className="h-8 w-8 rounded border border-border-main bg-surface p-0.5 object-contain"
                                 />
                               </div>
                             ) : (
