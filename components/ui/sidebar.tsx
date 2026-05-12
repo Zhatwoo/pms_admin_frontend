@@ -19,6 +19,7 @@ interface SidebarProps {
   onNavigate?: () => void;
   userName?: string;
   userRole?: Role;
+  userAvatarUrl?: string;
   onLogout?: () => void;
   disabled?: boolean;
 }
@@ -204,6 +205,7 @@ export function Sidebar({
   onNavigate,
   userName,
   userRole,
+  userAvatarUrl,
   onLogout,
   disabled,
 }: SidebarProps) {
@@ -437,8 +439,16 @@ export function Sidebar({
             isCompact ? "justify-center" : ""
           }`}
         >
-          <div className="flex h-11 w-11 shrink-0 aspect-square items-center justify-center rounded-full bg-pawn-gold text-base font-bold leading-none text-zinc-900">
-            {userInitials}
+          <div className="flex h-11 w-11 shrink-0 aspect-square overflow-hidden items-center justify-center rounded-full bg-pawn-gold text-base font-bold leading-none text-zinc-900">
+            {userAvatarUrl ? (
+              <img
+                src={userAvatarUrl}
+                alt="User avatar"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              userInitials
+            )}
           </div>
           {!isCompact && (
             <div className="min-w-0">

@@ -12,6 +12,7 @@ interface AppLayoutProps {
   userInitials?: string;
   userName?: string;
   userRole?: Role;
+  userAvatarUrl?: string;
   notificationCount?: number;
   branchName?: string;
   hideBranchSelector?: boolean;
@@ -25,6 +26,7 @@ export function AppLayout({
   userInitials,
   userName,
   userRole,
+  userAvatarUrl,
   notificationCount,
   branchName,
   hideBranchSelector = false,
@@ -69,6 +71,7 @@ export function AppLayout({
         onNavigate={() => setMobileMenuOpen(false)}
           userName={userName}
           userRole={userRole}
+          userAvatarUrl={userAvatarUrl}
           onLogout={onLogout}
           disabled={isRestricted}
         />
