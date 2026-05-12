@@ -34,6 +34,7 @@ interface OpeningChecklistContextValue {
   resetChecklist: () => void;
   /** Re-fetch daily opening from server (e.g. after end-of-day balance closes the session). */
   refreshOpeningChecklistFromServer: () => Promise<void>;
+  debugSetInventoryAudit: () => void;
 }
 
 const OpeningChecklistContext = createContext<OpeningChecklistContextValue | null>(null);
@@ -227,6 +228,11 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
     lastSyncedOpeningDateRef.current = null;
   }, []);
 
+  const debugSetInventoryAudit = useCallback(() => {
+    setCurrentStep("INVENTORY_AUDIT");
+    setIsComplete(false);
+  }, []);
+
   const refreshOpeningChecklistFromServer = useCallback(async () => {
     if (!user || user.role !== "employee" || !user.branchId) {
       return;
@@ -247,6 +253,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
         completeInventoryAudit,
         resetChecklist,
         refreshOpeningChecklistFromServer,
+        debugSetInventoryAudit,
       }}
     >
       {children}
@@ -258,4 +265,8 @@ export function useOpeningChecklist() {
   const context = useContext(OpeningChecklistContext);
   if (!context) throw new Error("useOpeningChecklist must be used within OpeningChecklistProvider");
   return context;
+}
+
+export function useOptionalOpeningChecklist() {
+  return useContext(OpeningChecklistContext);
 }

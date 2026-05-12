@@ -1,46 +1,91 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import { useOpeningChecklist } from "@/contexts/opening-checklist-context";
 import { DailyBalanceConfirmation } from "./daily-balance-confirmation";
 import { api } from "@/lib/api";
 
+/** Subset of `/branch-finance/business-session` used for expected starting cash. */
+interface BusinessSessionExpectedApi {
+  pendingStartingSession: {
+    suggestedStartingBalance: number;
+  } | null;
+  latestBalance: {
+    startingBalance: number;
+    endingBalance: number;
+    date: string;
+  };
+}
+
 /**
- * Pawn Transaction owns starting-balance modal on that route (single UX surface).
- * Global checklist modal applies sa iba pang employee routes.
+ * Branch-wide starting balance + checklist modal for employees (all routes, including pawn).
  */
 export function OpeningChecklistWrapper() {
-  const pathname = usePathname();
-  const ownsLocally =
-    pathname === "/employee/pawn-transaction" ||
-    pathname.startsWith("/employee/pawn-transaction/");
-
   const { currentStep, isComplete, completeCashOnHand } = useOpeningChecklist();
   const [expectedCash, setExpectedCash] = useState("0");
 
-  // Fetch latest balance dynamically when the cash-on-hand step is active
+  // Expected cash: business-session suggestion first (matches toolbar), then latest-balance.
   useEffect(() => {
     if (currentStep !== "CASH_ON_HAND" || isComplete) return;
 
     let cancelled = false;
     (async () => {
+      let resolved: number | null = null;
+
       try {
-        const bal = await api.get<{ startingBalance: number; endingBalance: number }>(
-          "/branch-finance/latest-balance"
+        const session = await api.get<BusinessSessionExpectedApi>(
+          "/branch-finance/business-session",
         );
-        if (!cancelled) {
-          setExpectedCash(String(bal?.endingBalance ?? 0));
+        if (cancelled) return;
+        if (session?.pendingStartingSession != null) {
+          resolved = Number(
+            session.pendingStartingSession.suggestedStartingBalance ?? 0,
+          );
+        } else if (session) {
+          resolved = Math.max(
+            Number(session.latestBalance?.endingBalance ?? 0),
+            Number(session.latestBalance?.startingBalance ?? 0),
+          );
         }
-      } catch {
-        // Fallback to 0 if API fails
+      } catch (e) {
+        console.warn(
+          "[OpeningChecklistWrapper] business-session fetch failed",
+          e,
+        );
+      }
+
+      if (cancelled) return;
+
+      if (resolved === null) {
+        try {
+          const bal = await api.get<{
+            startingBalance: number;
+            endingBalance: number;
+          }>("/branch-finance/latest-balance");
+          if (!cancelled) {
+            resolved = Math.max(
+              Number(bal?.endingBalance ?? 0),
+              Number(bal?.startingBalance ?? 0),
+            );
+          }
+        } catch (e) {
+          console.warn(
+            "[OpeningChecklistWrapper] latest-balance fetch failed",
+            e,
+          );
+          resolved = 0;
+        }
+      }
+
+      if (!cancelled) {
+        setExpectedCash(String(resolved ?? 0));
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [currentStep, isComplete]);
-
-  if (ownsLocally) return null;
 
   if (isComplete) return null;
 

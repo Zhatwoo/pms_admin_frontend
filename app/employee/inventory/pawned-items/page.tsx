@@ -89,7 +89,7 @@ function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
             Renew {i + 1}
           </span>
           <span className="text-[10px] text-text-tertiary dark:text-zinc-400">{r.date}</span>
-          <span className="text-[10px] font-bold text-text-secondary dark:text-zinc-300">{formatPeso(r.amount.toLocaleString())}</span>
+          <span className="text-[10px] font-bold text-text-secondary dark:text-zinc-300">{formatPeso(r.amount)}</span>
         </div>
       ))}
     </div>
