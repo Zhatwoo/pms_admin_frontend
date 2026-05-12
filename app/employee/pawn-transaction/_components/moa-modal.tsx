@@ -181,7 +181,6 @@ export function MoaModal({
 
         {/* MOA Content - Matches Image 2 */}
         <div className="flex-1 overflow-y-auto">
-          <div id="moa-slip-printable" ref={printRef} className="p-8 space-y-6 text-[11px] text-zinc-800 leading-tight bg-[#fafafa]">
           <div id="moa-slip-printable" ref={printRef} className="p-8 pb-20 space-y-8 text-[11px] text-zinc-800 leading-tight bg-white">
             {/* Title moved to the very top */}
             <div className="text-center mb-8">
@@ -195,46 +194,13 @@ export function MoaModal({
                   {data.branchPhone && (
                     <div className="flex items-center gap-1">
                       <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-300">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                       </svg>
                       <p className="text-[8px] font-medium text-zinc-400 uppercase tracking-tight">{data.branchPhone}</p>
                     </div>
                   )}
                 </div>
               )}
-          {/* Title moved to the very top */}
-          <div className="text-center mb-8">
-             <h1 className="text-xl font-black underline uppercase tracking-[0.2em] text-emerald-900">{labels?.moaTitle || "Memorandum of Agreement Slip"}</h1>
-             <p className="text-[10px] font-bold text-zinc-400 mt-1 uppercase tracking-widest leading-none">{data.branchName || "Main Branch"}</p>
-             {(data.branchAddress || data.branchPhone) && (
-               <div className="mt-1 flex flex-col items-center gap-0.5">
-                 {data.branchAddress && (
-                   <p className="text-[8px] font-medium text-zinc-400 uppercase tracking-tight">{data.branchAddress}</p>
-                 )}
-                 {data.branchPhone && (
-                   <div className="flex items-center gap-1">
-                     <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-300">
-                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                     </svg>
-                     <p className="text-[8px] font-medium text-zinc-400 uppercase tracking-tight">{data.branchPhone}</p>
-                   </div>
-                 )}
-               </div>
-             )}
-          </div>
-
-          <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
-            <div className="space-y-1">
-               <p className="font-bold">{labels?.originalCopy || "Original copy"}</p>
-               <div className="flex items-center gap-2">
-                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.purchasedDate || "Purchased Date:"}</span>
-                 <span className="w-32 border-b border-zinc-400">{data.purchasedDate || new Date().toLocaleDateString()}</span>
-               </div>
-               <div className="flex items-center gap-2">
-                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.idsPresented || "ID(s) Presented:"}</span>
-                 <span className="w-32 border-b border-zinc-400">{data.idPresented || "No ID"}</span>
-               </div>
-
             </div>
 
             <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
@@ -334,11 +300,8 @@ export function MoaModal({
               </div>
             </div>
 
-          <div className="space-y-4 pt-4">
-             <div className="grid grid-cols-5 gap-4 text-[8px] font-black uppercase text-zinc-400 italic text-center">
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-5 gap-4 text-[8px] font-black uppercase text-zinc-400 italic text-center">
-
                 <span>{labels?.dateHeader || "Date"}</span>
                 <span>{labels?.storageHeader || "Storage"}</span>
                 <span>{labels?.periodHeader || "Period"}</span>
@@ -369,33 +332,28 @@ export function MoaModal({
               </div>
             </div>
 
-          <div className="grid grid-cols-2 gap-20 pt-12 pb-4 items-end">
-            <div className="bg-emerald-50 border border-emerald-100 p-2 text-center text-[9px] font-black uppercase tracking-widest text-emerald-800 italic">
-              {labels?.adviseText || "SELLER IS ADVISED TO READ AND UNDERSTAND THE TERMS AND CONDITIONS ON THE REVERSE SIDE HEREOF"}
-            </div>
+            <div className="grid grid-cols-2 gap-20 pt-12 pb-4 items-end">
+              <div className="bg-emerald-50 border border-emerald-100 p-2 text-center text-[9px] font-black uppercase tracking-widest text-emerald-800 italic">
+                {labels?.adviseText || "SELLER IS ADVISED TO READ AND UNDERSTAND THE TERMS AND CONDITIONS ON THE REVERSE SIDE HEREOF"}
+              </div>
 
-            <div className="space-y-2 border-t border-zinc-200 pt-6">
-              <h4 className="text-center font-black uppercase underline tracking-tighter">{labels?.termsHeading || "Terms and Conditions"}</h4>
-              <div className="rounded border border-zinc-200 p-4 bg-white/80 text-[9px] leading-relaxed text-zinc-600 whitespace-pre-line">
-                {termsText}
+              <div className="space-y-2 border-t border-zinc-200 pt-6">
+                <h4 className="text-center font-black uppercase underline tracking-tighter">{labels?.termsHeading || "Terms and Conditions"}</h4>
+                <div className="rounded border border-zinc-200 p-4 bg-white/80 text-[9px] leading-relaxed text-zinc-600 whitespace-pre-line">
+                  {termsText}
+                </div>
               </div>
             </div>
 
             <div className="flex justify-between gap-20 pt-10 pb-4 items-end">
-              <div className="flex-1 flex flex-col text-center space-y-2">
-                <div className="h-10 border-b-2 border-zinc-800 flex items-end justify-center pb-1">
-                  {/* Sign line for Seller */}
-                </div>
-             <div className="flex flex-col text-center space-y-2">
-                {/* Invisible spacer matches "I HEREBY AUTHORIZED" height */}
+              <div className="flex flex-col text-center space-y-2">
                 <span className="block text-[9px] font-black uppercase tracking-widest text-emerald-900 invisible select-none" aria-hidden="true">
                   I HEREBY AUTHORIZED
                 </span>
                 <div className="h-8 border-b-2 border-zinc-800"></div>
-
                 <p className="font-black uppercase text-[8px] tracking-widest">{labels?.sellerSignature || "(Name and Signature of Seller)"}</p>
               </div>
-              <div className="flex-1 flex flex-col text-center space-y-2">
+              <div className="flex flex-col text-center space-y-2">
                 <p className="font-black uppercase text-[9px] text-emerald-900 tracking-widest">{labels?.authorizedText || "I HEREBY AUTHORIZED"}</p>
                 <div className="h-10 border-b-2 border-zinc-800 flex items-end justify-center pb-1">
                   {data.processedBy && (
