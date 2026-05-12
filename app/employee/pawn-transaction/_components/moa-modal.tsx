@@ -123,10 +123,18 @@ export function MoaModal({
 
   // Maturity dates calc (every 10 days)
   const baseDate = data.purchasedDate ? new Date(data.purchasedDate) : new Date();
+  const formatCompactDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    });
+  };
+
   const addDays = (d: Date, days: number) => {
     const res = new Date(d);
     res.setDate(res.getDate() + days);
-    return res.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatCompactDate(res);
   };
 
   const maturityDates = [
