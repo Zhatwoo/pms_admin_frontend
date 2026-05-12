@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { formatPeso } from '@/lib/currency';
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
-import { FilterSelect } from "@/components/shared/filter-select";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/contexts/auth-context";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
@@ -61,6 +60,14 @@ interface CalendarDayData {
   available?: number;
   sold?: number;
 }
+
+const categoryOptions = [
+  { value: "all", label: "All" },
+  { value: "electronics", label: "Electronics" },
+  { value: "jewellery", label: "Jewellery" },
+  { value: "gadgets", label: "Gadgets" },
+  { value: "vehicles", label: "Vehicles" },
+];
 
 const saleStatusOptions = [
   { value: "all", label: "All" },
@@ -119,6 +126,7 @@ export default function ItemsForSalePage() {
   const { user } = useAuth();
   const { selectedBranch, branches, setSelectedBranch, isAllBranches } = useBranch();
   const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedSaleItem, setSelectedSaleItem] = useState<SaleItem | null>(null);
@@ -126,7 +134,7 @@ export default function ItemsForSalePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => todayString);
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarCategory, setCalendarCategory] = useState("all");
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
@@ -143,12 +151,8 @@ export default function ItemsForSalePage() {
   const [categoryList, setCategoryList] = useState<CategoryCount[]>([]);
   const [categoryTotal, setCategoryTotal] = useState(0);
 
-  const branchOptions = branches.map((branch) => ({ value: branch.id, label: branch.name }));
-
-  const handleBranchChange = useCallback((value: string) => {
-    const found = branches.find((branch) => branch.id === value);
-    if (found) setSelectedBranch(found);
-  }, [branches, setSelectedBranch]);
+  const toolbarLabelClass = "text-[11px] font-bold uppercase tracking-wider text-text-tertiary";
+  const toolbarSelectClass = "h-10 rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500";
 
   useEffect(() => { setCurrentPage(1); }, [selectedBranch.id, viewMode, category, calendarCategory, status, searchQuery, selectedDate]);
 
@@ -174,6 +178,8 @@ export default function ItemsForSalePage() {
           setTotalItems(data.total || 0);
         } else {
           if (!selectedDate) { setSaleItems([]); setAllDayItems([]); setTotalItems(0); setIsLoading(false); return; }
+          if (status !== "all") params.set("status", status);
+          if (searchQuery) params.set("search", searchQuery);
           params.set("date", selectedDate);
           params.set("page", "1");
           params.set("limit", "500");
@@ -263,27 +269,55 @@ export default function ItemsForSalePage() {
 
       <div className="flex flex-wrap items-end justify-between gap-3 bg-surface p-3 rounded-lg border border-border-main">
         <div className="flex flex-wrap items-end gap-3">
-          <FilterSelect label="Branch" options={branchOptions} value={selectedBranch.id} onChange={handleBranchChange} />
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Category</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={toolbarSelectClass}>
+              {categoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Search</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search items..."
+              className="h-10 w-48 rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500"
+            />
+          </div>
           {viewMode === "list" && (
-            <>
-              <FilterSelect label="Status" options={saleStatusOptions} value={status} onChange={setStatus} />
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold uppercase tracking-wide text-text-tertiary">Date</label>
-                <div className="relative flex items-center">
-                  <input type="date" value={selectedDate || ""} onChange={(e) => setSelectedDate(e.target.value || null)} className="h-10 rounded-md border border-input-border bg-input-bg px-3 text-sm text-text-primary outline-none focus:border-emerald-500 pr-8" />
-                  {selectedDate && (
-                    <button onClick={() => setSelectedDate(null)} className="absolute right-2 text-text-muted hover:text-text-primary">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                    </button>
-                  )}
-                </div>
+            <div className="flex flex-col gap-1">
+              <label className={toolbarLabelClass}>Date</label>
+              <div className="relative flex items-center">
+                <input
+                  type="date"
+                  value={selectedDate || ""}
+                  max={todayString}
+                  onChange={(e) => setSelectedDate(e.target.value || null)}
+                  className="h-10 rounded-lg border border-border-main bg-surface-secondary px-3 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 pr-8"
+                />
+                {selectedDate && (
+                  <button type="button" onClick={() => setSelectedDate(null)} className="absolute right-2 text-text-muted hover:text-text-primary">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                )}
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold uppercase tracking-wide text-text-tertiary">Search</label>
-                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search items..." className="h-10 rounded-md border border-input-border bg-input-bg px-4 text-sm text-text-primary outline-none focus:border-emerald-500 w-48" />
-              </div>
-            </>
+            </div>
           )}
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={toolbarSelectClass}>
+              {saleStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {user?.role === "super_admin" && (

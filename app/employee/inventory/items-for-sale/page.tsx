@@ -61,7 +61,8 @@ export default function EmployeeItemsForSalePage() {
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => todayString);
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarData, setCalendarData] = useState<Record<string, number>>({});
@@ -140,14 +141,31 @@ export default function EmployeeItemsForSalePage() {
           <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
           <FilterSelect label="Status" options={saleStatusOptions} value={status} onChange={setStatus} />
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Search</label>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">Search</label>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search items..."
-              className="h-9 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500 w-44"
+              className="h-9 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500 w-44"
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-emerald-900/40 dark:text-emerald-400">Date</label>
+            <div className="relative flex items-center">
+              <input
+                type="date"
+                value={selectedDate || ""}
+                max={todayString}
+                onChange={(e) => setSelectedDate(e.target.value || null)}
+                className="h-9 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500 pr-8"
+              />
+              {selectedDate && (
+                <button type="button" onClick={() => setSelectedDate(null)} className="absolute right-2 text-text-muted hover:text-text-primary">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
