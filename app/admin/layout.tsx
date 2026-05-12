@@ -55,6 +55,7 @@ export default function ProtectedLayout({
       userInitials={initials}
       userName={user.fullName || user.email}
       userRole={user.role}
+      userAvatarUrl={user.avatarUrl}
       onLogout={logout}
       branchName={selectedBranch.name}
       hideBranchSelector={false}

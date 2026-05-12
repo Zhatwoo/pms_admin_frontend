@@ -71,6 +71,7 @@ function EmployeeLayoutInner({
       userInitials={initials}
       userName={user.fullName || user.email}
       userRole={user.role}
+      userAvatarUrl={user.avatarUrl}
       onLogout={logout}
       branchName={selectedBranch.name}
       hideBranchSelector={true}
