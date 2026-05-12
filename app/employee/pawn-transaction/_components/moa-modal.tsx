@@ -123,10 +123,18 @@ export function MoaModal({
 
   // Maturity dates calc (every 10 days)
   const baseDate = data.purchasedDate ? new Date(data.purchasedDate) : new Date();
+  const formatCompactDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    });
+  };
+
   const addDays = (d: Date, days: number) => {
     const res = new Date(d);
     res.setDate(res.getDate() + days);
-    return res.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatCompactDate(res);
   };
 
   const maturityDates = [
@@ -173,6 +181,7 @@ export function MoaModal({
 
         {/* MOA Content - Matches Image 2 */}
         <div className="flex-1 overflow-y-auto">
+<<<<<<< HEAD
           <div id="moa-slip-printable" ref={printRef} className="p-8 pb-20 space-y-8 text-[11px] text-zinc-800 leading-tight bg-white">
             {/* Title moved to the very top */}
             <div className="text-center mb-8">
@@ -193,6 +202,41 @@ export function MoaModal({
                   )}
                 </div>
               )}
+=======
+          <div id="moa-slip-printable" ref={printRef} className="p-5 space-y-3 text-[11px] text-zinc-800 leading-tight bg-[#fafafa]">
+          {/* Title moved to the very top */}
+          <div className="text-center mb-4">
+             <h1 className="text-xl font-black underline uppercase tracking-[0.2em] text-emerald-900">{labels?.moaTitle || "Memorandum of Agreement Slip"}</h1>
+             <p className="text-[10px] font-bold text-zinc-400 mt-1 uppercase tracking-widest leading-none">{data.branchName || "Main Branch"}</p>
+             {(data.branchAddress || data.branchPhone) && (
+               <div className="mt-1 flex flex-col items-center gap-0.5">
+                 {data.branchAddress && (
+                   <p className="text-[8px] font-medium text-zinc-400 uppercase tracking-tight">{data.branchAddress}</p>
+                 )}
+                 {data.branchPhone && (
+                   <div className="flex items-center gap-1">
+                     <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-300">
+                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                     </svg>
+                     <p className="text-[8px] font-medium text-zinc-400 uppercase tracking-tight">{data.branchPhone}</p>
+                   </div>
+                 )}
+               </div>
+             )}
+          </div>
+
+          <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
+            <div className="space-y-1">
+               <p className="font-bold">{labels?.originalCopy || "Original copy"}</p>
+               <div className="flex items-center gap-2">
+                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.purchasedDate || "Purchased Date:"}</span>
+                 <span className="w-32 border-b border-zinc-400">{data.purchasedDate || new Date().toLocaleDateString()}</span>
+               </div>
+               <div className="flex items-center gap-2">
+                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.idsPresented || "ID(s) Presented:"}</span>
+                 <span className="w-32 border-b border-zinc-400">{data.idPresented || "No ID"}</span>
+               </div>
+>>>>>>> 998f5ac46319b8b28c5e814c0c44cb99dcb45c8a
             </div>
 
             <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
@@ -292,13 +336,19 @@ export function MoaModal({
               </div>
             </div>
 
+<<<<<<< HEAD
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-5 gap-4 text-[8px] font-black uppercase text-zinc-400 italic text-center">
+=======
+          <div className="space-y-2 pt-2">
+             <div className="grid grid-cols-5 gap-3 text-[7.5px] font-black uppercase text-zinc-400 italic text-center">
+>>>>>>> 998f5ac46319b8b28c5e814c0c44cb99dcb45c8a
                 <span>{labels?.dateHeader || "Date"}</span>
                 <span>{labels?.storageHeader || "Storage"}</span>
                 <span>{labels?.periodHeader || "Period"}</span>
                 <span>{labels?.extendHeader || "Extend"}</span>
                 <span>{labels?.signHeader || "Sign"}</span>
+<<<<<<< HEAD
               </div>
               {(extensionRows.length > 0 ? extensionRows : [1, 2, 3]).map((row, idx) => (
                 <div key={idx} className="grid grid-cols-5 gap-4">
@@ -322,8 +372,44 @@ export function MoaModal({
                 <div className="h-6 border-b border-zinc-300"></div>
                 <div className="h-6 border-b border-zinc-300"></div>
               </div>
+=======
+             </div>
+             {(extensionRows.length > 0 ? extensionRows : [1, 2, 3]).map((row, idx) => (
+               <div key={idx} className="grid grid-cols-5 gap-3">
+                  <div className="h-5 border-b border-zinc-300 bg-white/30 flex items-center justify-center font-bold text-zinc-900 text-[8px]">
+                    {maturityDates[idx] || ""}
+                  </div>
+                  <div className="h-5 border-b border-zinc-300 bg-white/50 text-[7px]">{typeof row === 'object' ? row.storage : ''}</div>
+                  <div className="h-5 border-b border-zinc-300 bg-zinc-50 flex items-center justify-center font-bold text-zinc-500 text-[7px]">
+                    {typeof row === 'object' ? row.period : `${idx + 1}${idx === 0?'st':idx === 1?'nd':'rd'} Period`}
+                  </div>
+                  <div className="h-5 border-b border-zinc-300 bg-white/50 text-[7px]">{typeof row === 'object' ? row.extend : ''}</div>
+                  <div className="h-5 border-b border-zinc-300 bg-white/50 text-[7px]">{typeof row === 'object' ? row.sign : ''}</div>
+               </div>
+             ))}
+             <div className="grid grid-cols-5 gap-3">
+                <div className="h-5 border-b border-zinc-300 bg-white/30 flex items-center justify-center font-bold text-zinc-900 text-[8px]">
+                  {gracePeriodEnd}
+                </div>
+                <div className="h-5 border-b border-zinc-300 bg-white/50"></div>
+                <div className="h-5 border-b border-zinc-300 flex items-center justify-center font-black text-zinc-400 text-[6.5px] uppercase">{labels?.gracePeriodHeader || "GRACE PERIOD"}</div>
+                <div className="h-5 border-b border-zinc-300"></div>
+                <div className="h-5 border-b border-zinc-300"></div>
+             </div>
+          </div>
+
+          <div className="bg-emerald-50 border border-emerald-100 p-2 text-center text-[8px] font-black uppercase tracking-widest text-emerald-800 italic" style={{lineHeight: '1.1'}}>
+            {labels?.adviseText || "SELLER IS ADVISED TO READ AND UNDERSTAND THE TERMS AND CONDITIONS ON THE REVERSE SIDE HEREOF"}
+          </div>
+
+          <div className="space-y-1 border-t border-zinc-200 pt-2 print:page-break-inside-avoid print:break-inside-avoid">
+            <h4 className="text-center font-black uppercase underline tracking-tighter text-[9px]">{labels?.termsHeading || "Terms and Conditions"}</h4>
+            <div className="rounded border border-zinc-200 p-2 bg-white/80 text-[7.5px] leading-snug text-zinc-600 whitespace-pre-line">
+              {termsText}
+>>>>>>> 998f5ac46319b8b28c5e814c0c44cb99dcb45c8a
             </div>
 
+<<<<<<< HEAD
             <div className="bg-emerald-50 border border-emerald-100 p-2 text-center text-[9px] font-black uppercase tracking-widest text-emerald-800 italic">
               {labels?.adviseText || "SELLER IS ADVISED TO READ AND UNDERSTAND THE TERMS AND CONDITIONS ON THE REVERSE SIDE HEREOF"}
             </div>
@@ -340,6 +426,15 @@ export function MoaModal({
                 <div className="h-10 border-b-2 border-zinc-800 flex items-end justify-center pb-1">
                   {/* Sign line for Seller */}
                 </div>
+=======
+          <div className="grid grid-cols-2 gap-12 pt-4 pb-2 items-end print:page-break-inside-avoid print:break-inside-avoid">
+             <div className="flex flex-col text-center space-y-2">
+                {/* Invisible spacer matches "I HEREBY AUTHORIZED" height */}
+                <span className="block text-[9px] font-black uppercase tracking-widest text-emerald-900 invisible select-none" aria-hidden="true">
+                  I HEREBY AUTHORIZED
+                </span>
+                <div className="h-8 border-b-2 border-zinc-800"></div>
+>>>>>>> 998f5ac46319b8b28c5e814c0c44cb99dcb45c8a
                 <p className="font-black uppercase text-[8px] tracking-widest">{labels?.sellerSignature || "(Name and Signature of Seller)"}</p>
               </div>
               <div className="flex-1 flex flex-col text-center space-y-2">
@@ -433,6 +528,8 @@ export function MoaModal({
             #moa-slip-printable, 
             #moa-slip-printable * {
               visibility: visible !important;
+              page-break-inside: auto !important;
+              break-inside: auto !important;
             }
 
             #moa-slip-printable {
@@ -447,13 +544,39 @@ export function MoaModal({
               display: block !important;
             }
 
+            /* Improve print readability: force all gray text shades to black */
+            #moa-slip-printable .text-zinc-300,
+            #moa-slip-printable .text-zinc-400,
+            #moa-slip-printable .text-zinc-500,
+            #moa-slip-printable .text-zinc-600,
+            #moa-slip-printable .text-zinc-700,
+            #moa-slip-printable .text-zinc-800 {
+              color: #000 !important;
+            }
+
             /* Restore grid/flex for specific components that need them */
             #moa-slip-printable .grid { display: grid !important; }
             #moa-slip-printable .flex { display: flex !important; }
 
+            /* Prevent orphaned text and ensure signatories stay together */
+            #moa-slip-printable > div:last-child {
+              page-break-before: auto !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              keep-with-next: always !important;
+            }
+
+            #moa-slip-printable > div:nth-last-child(2) {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+
+            /* Reduce bottom margin to prevent content cutoff */
             @page {
               size: portrait;
-              margin: 10mm;
+              margin: 6mm 6mm 6mm 6mm;
+              orphans: 2;
+              widows: 2;
             }
           }
         `}</style>

@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
-import { FilterSelect } from "@/components/shared/filter-select";
 import { InventoryCalendar } from "@/components/shared/inventory-calendar";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -63,6 +62,9 @@ const pawnedStatusOptions = [
   { value: "Expired", label: "Expired" },
 ];
 
+const toolbarLabelClass = "text-[10px] font-bold uppercase tracking-wider text-text-tertiary";
+const toolbarSelectClass = "h-9 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500";
+
 const statusVariant: Record<string, "green" | "blue" | "red" | "orange"> = {
   Active: "green",
   Redeemed: "blue",
@@ -108,7 +110,10 @@ export default function EmployeePawnedItemsPage() {
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [qrSize, setQrSize] = useState<"small" | "large">("small");
+  const [isPrintQrMenuOpen, setIsPrintQrMenuOpen] = useState(false);
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => todayString);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -127,6 +132,61 @@ export default function EmployeePawnedItemsPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
+  const handlePrintQr = useCallback((size: "small" | "large") => {
+    const sizeCm = size === "small" ? "2cm" : "3cm";
+    const fontSize = size === "small" ? "8px" : "10px";
+
+    const qrHtml = pawnedItems.map((item) => {
+      let qrUrl = "";
+      if (item.qrCode?.startsWith("http") || item.qrCode?.startsWith("data:")) {
+        qrUrl = item.qrCode;
+      } else {
+        const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+        const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(item.itemId)}`;
+        const encoded = encodeURIComponent(publicViewUrl);
+        qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=250x250&color=065f46&bgcolor=f0fdf4&margin=2`;
+      }
+
+      return `
+        <div style="display:inline-flex; flex-direction:column; align-items:center; margin:3mm; vertical-align:top;">
+          <img src="${qrUrl}" style="width:${sizeCm}; height:${sizeCm}; display:block;" />
+          <p style="font-family:sans-serif; font-size:${fontSize}; font-weight:bold; margin-top:1mm; color:#333;">${item.itemId}</p>
+        </div>
+      `;
+    }).join("");
+
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+
+    const html = `<!DOCTYPE html>
+      <html>
+      <head>
+      <meta charset="utf-8">
+      <style>
+        * { margin: 0; padding: 0; }
+        @page { size: A4; margin: 5mm; }
+        body { display: flex; flex-wrap: wrap; padding: 5mm; }
+      </style>
+      </head>
+      <body>
+      ${qrHtml}
+      </body>
+      </html>`;
+
+    iframe.contentDocument?.open();
+    iframe.contentDocument?.write(html);
+    iframe.contentDocument?.close();
+
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }, 500);
+    };
+  }, [pawnedItems]);
+
   useEffect(() => {
     if (highlightedItemId) {
       setViewMode("list");
@@ -142,7 +202,7 @@ export default function EmployeePawnedItemsPage() {
     }
   }, [highlightedItemId, isLoading, pawnedItems]);
 
-  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery, selectedDate]);
 
   useEffect(() => {
     async function fetchData() {
@@ -158,6 +218,7 @@ export default function EmployeePawnedItemsPage() {
         if (category !== "all") params.set("category", category);
         if (status !== "all") params.set("status", status);
         if (searchQuery) params.set("search", searchQuery);
+        if (selectedDate) params.set("date", selectedDate);
         params.set("page", String(currentPage));
         params.set("limit", String(itemsPerPage));
 
@@ -171,7 +232,7 @@ export default function EmployeePawnedItemsPage() {
       }
     }
     fetchData();
-  }, [branchIdent, category, status, searchQuery, currentPage]);
+  }, [branchIdent, category, status, searchQuery, selectedDate, currentPage]);
 
   const handleSaveRemarks = useCallback(async (itemId: string, remarks: string) => {
     try {
@@ -221,103 +282,101 @@ export default function EmployeePawnedItemsPage() {
           </button>
         </div>
       )}
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 dark:bg-zinc-800/40 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
         <div className="flex flex-wrap items-end gap-3">
-            <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
-            <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wide text-text-muted dark:text-zinc-400">Search</label>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Search</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search items..."
+              className="h-9 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500 w-44"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Date</label>
+            <div className="relative flex items-center">
               <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search items..."
-                className="h-9 rounded-md border border-input-border bg-input-bg dark:bg-zinc-700 dark:border-zinc-600 px-3 text-xs text-text-primary dark:text-zinc-100 outline-none transition-colors focus:border-emerald-500 dark:focus:border-emerald-400 w-44"
+                type="date"
+                value={selectedDate || ""}
+                max={todayString}
+                onChange={(e) => setSelectedDate(e.target.value || null)}
+                className="h-9 rounded-md border border-border-main bg-surface-secondary px-3 text-xs text-text-primary outline-none transition-colors focus:border-emerald-500 pr-8"
               />
+              {selectedDate && (
+                <button type="button" onClick={() => setSelectedDate(null)} className="absolute right-2 text-text-muted hover:text-text-primary">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              )}
             </div>
           </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Category</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={toolbarSelectClass}>
+              {categoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={toolbarSelectClass}>
+              {pawnedStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-md border border-border-main bg-surface dark:bg-zinc-800">
-              <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white dark:bg-emerald-600" : "bg-surface dark:bg-zinc-800 text-text-secondary dark:text-zinc-300 hover:bg-surface-hover dark:hover:bg-zinc-700"}`}>
-                List
-              </button>
-              <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white dark:bg-emerald-600" : "bg-surface dark:bg-zinc-800 text-text-secondary dark:text-zinc-300 hover:bg-surface-hover dark:hover:bg-zinc-700"}`}>
-                Calendar
-              </button>
-            </div>
+          <div className="flex items-center gap-3">
             {isAdminOrSuperAdmin && (
-              <div className="flex items-center gap-1.5">
-                <select 
-                  value={qrSize} 
-                  onChange={(e) => setQrSize(e.target.value as "small" | "large")}
-                  className="h-8 rounded border border-border-main bg-surface dark:bg-zinc-800 px-2 text-[10px] font-bold uppercase text-text-secondary dark:text-zinc-300 outline-none transition-colors focus:border-emerald-500 dark:focus:border-emerald-400"
-                >
-                  <option value="small">Small</option>
-                  <option value="large">Large</option>
-                </select>
+              <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
-                    const sizeCm = qrSize === "small" ? "2cm" : "3cm";
-                    const fontSize = qrSize === "small" ? "8px" : "10px";
-
-                    const qrHtml = pawnedItems.map(item => {
-                      let qrUrl = "";
-                      if (item.qrCode?.startsWith('http') || item.qrCode?.startsWith('data:')) {
-                        qrUrl = item.qrCode;
-                      } else {
-                        const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-                        const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(item.itemId)}`;
-                        const encoded = encodeURIComponent(publicViewUrl);
-                        qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=250x250&color=065f46&bgcolor=f0fdf4&margin=2`;
-                      }
-
-                      return `
-                        <div style="display:inline-flex; flex-direction:column; align-items:center; margin:3mm; vertical-align:top;">
-                          <img src="${qrUrl}" style="width:${sizeCm}; height:${sizeCm}; display:block;" />
-                          <p style="font-family:sans-serif; font-size:${fontSize}; font-weight:bold; margin-top:1mm; color:#333;">${item.itemId}</p>
-                        </div>
-                      `;
-                    }).join('');
-
-                    const iframe = document.createElement('iframe');
-                    iframe.style.display = 'none';
-                    document.body.appendChild(iframe);
-                    
-                    const html = `<!DOCTYPE html>
-                      <html>
-                      <head>
-                      <meta charset="utf-8">
-                      <style>
-                        * { margin: 0; padding: 0; }
-                        @page { size: A4; margin: 5mm; }
-                        body { display: flex; flex-wrap: wrap; padding: 5mm; }
-                      </style>
-                      </head>
-                      <body>
-                      ${qrHtml}
-                      </body>
-                      </html>`;
-
-                    iframe.contentDocument?.open();
-                    iframe.contentDocument?.write(html);
-                    iframe.contentDocument?.close();
-
-                    iframe.onload = () => {
-                      setTimeout(() => {
-                        iframe.contentWindow?.focus();
-                        iframe.contentWindow?.print();
-                        setTimeout(() => document.body.removeChild(iframe), 1000);
-                      }, 500);
-                    };
-                  }}
-                  className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded border border-emerald-700 shadow-md whitespace-nowrap dark:bg-emerald-700 dark:hover:bg-emerald-600 dark:border-emerald-600"
+                  onClick={() => setIsPrintQrMenuOpen((prev) => !prev)}
+                  className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-bold shadow-sm hover:bg-emerald-700 transition-colors"
                 >
                   PRINT QR
                 </button>
+                {isPrintQrMenuOpen && (
+                  <div className="absolute left-0 top-full z-20 mt-2 w-32 overflow-hidden rounded-md border border-border-main bg-surface shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintQrMenuOpen(false);
+                        handlePrintQr("small");
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                    >
+                      Small
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintQrMenuOpen(false);
+                        handlePrintQr("large");
+                      }}
+                      className="w-full border-t border-border-subtle px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                    >
+                      Large
+                    </button>
+                  </div>
+                )}
               </div>
             )}
+            <div className="flex overflow-hidden rounded-md border border-border-main bg-surface">
+              <button onClick={() => setViewMode("list")} className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>
+                List
+              </button>
+              <button onClick={() => setViewMode("calendar")} className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>
+                Calendar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -329,7 +388,7 @@ export default function EmployeePawnedItemsPage() {
       )}
 
       {viewMode === "list" && (
-        <div className="overflow-hidden rounded-lg border border-border-main bg-surface dark:bg-zinc-900 shadow-lg shadow-black/20">
+        <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -343,7 +402,7 @@ export default function EmployeePawnedItemsPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr className="bg-surface dark:bg-zinc-900">
+                  <tr className="bg-surface">
                     <td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">
                       <div className="flex items-center justify-center">
                         <LoadingSpinnerLabel text="Loading pawned items..." className="text-base font-medium text-text-tertiary" />
@@ -351,7 +410,7 @@ export default function EmployeePawnedItemsPage() {
                     </td>
                   </tr>
                 ) : pawnedItems.length === 0 ? (
-                  <tr><td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 bg-surface dark:bg-zinc-900">No pawned items found for this branch</td></tr>
+                  <tr><td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 bg-surface">No pawned items found for this branch</td></tr>
                 ) : (
                   pawnedItems.map((item, idx) => (
                     <Fragment key={item.id}>
@@ -366,7 +425,7 @@ export default function EmployeePawnedItemsPage() {
                             setSelectedItemId(item.id);
                           }
                         }}
-                        className={`cursor-pointer border-t border-border-subtle transition-colors ${idx % 2 === 0 ? "bg-surface dark:bg-zinc-900" : "bg-surface-secondary/40 dark:bg-zinc-800"} ${highlightedItemId === item.itemId ? "bg-amber-400/10 ring-2 ring-amber-400/60 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.25)] dark:bg-amber-500/10 dark:ring-amber-500/40" : ""} ${hasHighlightedItem && highlightedItemId === item.itemId ? "scroll-mt-24" : ""}`}
+                        className={`cursor-pointer border-t border-border-subtle transition-colors ${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary/40"} ${highlightedItemId === item.itemId ? "bg-amber-400/10 ring-2 ring-amber-400/60 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.25)]" : ""} ${hasHighlightedItem && highlightedItemId === item.itemId ? "scroll-mt-24" : ""}`}
                       >
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.itemId}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-medium text-text-primary dark:text-zinc-100">{item.itemName}</td>
@@ -390,7 +449,7 @@ export default function EmployeePawnedItemsPage() {
                                 <img
                                   src={item.qrCode || item.qr_code}
                                   alt={`${item.itemName} QR`}
-                                  className="h-8 w-8 rounded border border-border-main bg-white p-0.5 object-contain"
+                                  className="h-8 w-8 rounded border border-border-main bg-surface p-0.5 object-contain"
                                 />
                               </div>
                             ) : (
@@ -428,7 +487,7 @@ export default function EmployeePawnedItemsPage() {
         <InventoryCalendar items={pawnedItems} />
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border-main bg-surface dark:bg-zinc-900 shadow-lg shadow-black/20 mt-4">
+      <div className="overflow-hidden rounded-lg border border-border-main bg-surface shadow-lg shadow-black/20 mt-4">
         <PaginationFooter
           currentPage={currentPage}
           totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}
