@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
+import { useOpeningChecklist } from "@/contexts/opening-checklist-context";
 import { DailyBalanceConfirmation } from "@/components/shared/daily-balance-confirmation";
 import { BranchEndDayModal } from "@/components/shared/branch-end-day-modal";
 
@@ -27,6 +29,8 @@ export interface BranchDaySessionToolbarProps {
   onSessionChanged?: () => void;
   /** Employee shell: keep opening checklist in sync after submitting starting balance. */
   syncOpeningChecklist?: () => Promise<void>;
+  /** Employee pawn: after successful End day, sign out and return to login. */
+  logoutAfterEndDay?: boolean;
 }
 
 function errorMessage(err: unknown): string {
@@ -39,9 +43,12 @@ export function BranchDaySessionToolbar({
   branchId,
   onSessionChanged,
   syncOpeningChecklist,
+  logoutAfterEndDay = false,
 }: BranchDaySessionToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { logout } = useAuth();
+  const { currentStep, isComplete } = useOpeningChecklist();
   const [session, setSession] = useState<BusinessSessionApi | null>(null);
   const [loading, setLoading] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
@@ -192,6 +199,10 @@ export function BranchDaySessionToolbar({
           : {}),
       });
       setEndOpen(false);
+      if (logoutAfterEndDay) {
+        logout();
+        return;
+      }
       await loadSession();
       onSessionChanged?.();
     } catch (e: unknown) {
@@ -204,6 +215,8 @@ export function BranchDaySessionToolbar({
 
   const open = session?.operationalCashAllowed === true;
   const needsStart = session != null && !session.operationalCashAllowed;
+  const checklistHandlesStarting =
+    currentStep === "CASH_ON_HAND" && !isComplete;
 
   return (
     <>
@@ -229,7 +242,11 @@ export function BranchDaySessionToolbar({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              disabled={loading || !needsStart}
+              disabled={
+                loading ||
+                !needsStart ||
+                checklistHandlesStarting
+              }
               onClick={() => setStartOpen(true)}
               className="rounded-lg border border-emerald-700 bg-emerald-800 px-4 py-2 text-xs font-bold uppercase tracking-wide text-amber-300 shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >

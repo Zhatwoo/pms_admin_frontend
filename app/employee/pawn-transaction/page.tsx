@@ -910,6 +910,7 @@ export default function EmployeePawnTransactionsPage() {
 
       <BranchDaySessionToolbar
         branchId={branchIdForApi}
+        logoutAfterEndDay
         syncOpeningChecklist={refreshOpeningChecklistFromServer}
         onSessionChanged={() => {
           void fetchSelectedDateStats();
