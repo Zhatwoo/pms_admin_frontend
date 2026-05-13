@@ -211,29 +211,29 @@ export function PasswordChangeRequestCard() {
       <button
         onClick={() => setIsModalOpen(true)}
         disabled={!canRequest}
-        className="mt-2 w-full rounded-lg border border-amber-100 bg-amber-50 py-2 text-[9px] font-bold uppercase tracking-wider text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900/70"
+        className="mt-2 w-full rounded-lg border border-amber-100 bg-amber-50 py-2 text-[9px] font-bold uppercase tracking-wider text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900/70"
       >
         Change Password
       </button>
 
       {canRequest && (
         <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Last Request Status</p>
-          <p className="mt-1 text-[11px] font-semibold capitalize text-zinc-800 dark:text-zinc-100">
+          <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-400">Last Request Status</p>
+          <p className="mt-1 text-[11px] font-semibold capitalize text-zinc-900 dark:text-zinc-100">
             {lastRequest?.status || "No requests yet"}
           </p>
           {lastRequest?.reviewNote && (
-            <p className="mt-1 text-[10px] text-zinc-600 dark:text-zinc-400">{lastRequest.reviewNote}</p>
+            <p className="mt-1 text-[10px] text-zinc-700 dark:text-zinc-400">{lastRequest.reviewNote}</p>
           )}
           {approverLabel && (
-            <p className="mt-1 text-[9px] text-zinc-500 dark:text-zinc-500">Approval Route: {approverLabel}</p>
+            <p className="mt-1 text-[9px] text-zinc-600 dark:text-zinc-500">Approval Route: {approverLabel}</p>
           )}
           {lastRequest?.status === "approved" && !isActivationComplete && (
             <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/60">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
                 Activate Approved Password
               </p>
-              <p className="mt-1 text-[10px] text-emerald-800 dark:text-emerald-200">
+              <p className="mt-1 text-[10px] text-emerald-900 dark:text-emerald-200">
                 Log in using your old password, then confirm the approved new password here to activate it.
               </p>
 
@@ -328,25 +328,25 @@ export function PasswordChangeRequestCard() {
       )}
 
       {canReview && (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-left shadow-sm">
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-left shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 className="text-[11px] font-bold uppercase tracking-wide text-zinc-700">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-200">
               Password Approval Queue
             </h3>
-            {isLoading && <span className="text-[9px] text-zinc-500">Loading...</span>}
+            {isLoading && <span className="text-[9px] text-zinc-600 dark:text-zinc-400">Loading...</span>}
           </div>
 
           {pending.length === 0 ? (
-            <p className="text-[10px] text-zinc-500">No pending password requests.</p>
+            <p className="text-[10px] text-zinc-700 dark:text-zinc-400">No pending password requests.</p>
           ) : (
             <div className="space-y-2">
               {pending.slice(0, 5).map((request) => (
-                <div key={request.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-2">
-                  <p className="text-[10px] font-bold text-zinc-800">
+                <div key={request.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-950/60">
+                  <p className="text-[10px] font-bold text-zinc-900 dark:text-zinc-100">
                     {request.requester?.fullName || "User"}
                   </p>
-                  <p className="mt-1 text-[10px] text-zinc-600">{request.reason}</p>
-                  <p className="mt-1 text-[9px] text-zinc-500">
+                  <p className="mt-1 text-[10px] text-zinc-700 dark:text-zinc-300">{request.reason}</p>
+                  <p className="mt-1 text-[9px] text-zinc-600 dark:text-zinc-500">
                     {new Date(request.createdAt).toLocaleString()}
                   </p>
                   <div className="mt-2 flex gap-2">

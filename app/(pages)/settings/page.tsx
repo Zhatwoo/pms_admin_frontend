@@ -812,8 +812,8 @@ export default function SettingsPage() {
         </div>
 
         <aside className="space-y-4">
-          <section className="rounded-xl border border-zinc-200 bg-white p-4 text-center shadow-sm dark:bg-slate-900 dark:border-zinc-700">
-            <div className="mx-auto mb-3 h-16 w-16 overflow-hidden rounded-full border-2 border-zinc-200 bg-pawn-gold dark:border-zinc-700">
+          <section className="rounded-xl border border-zinc-200 bg-white p-4 text-center shadow-sm dark:border-zinc-700 dark:bg-slate-900">
+            <div className="mx-auto mb-3 h-16 w-16 overflow-hidden rounded-full border-2 border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
               {user?.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
@@ -821,27 +821,27 @@ export default function SettingsPage() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-zinc-900">
+                <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-zinc-950 dark:text-zinc-50">
                   {adminInitials}
                 </div>
               )}
             </div>
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Admin Panel</h3>
-            <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">Super Admin Settings</p>
+            <h3 className="text-sm font-bold text-zinc-950 dark:text-zinc-100">Admin Panel</h3>
+            <p className="mt-1 text-[10px] text-zinc-700 dark:text-zinc-400">Super Admin Settings</p>
             <button
               onClick={() => setIsAvatarModalOpen(true)}
-              className="mt-3 w-full rounded-lg border border-emerald-100 bg-emerald-50 py-2 text-[9px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
+              className="mt-3 w-full rounded-lg border border-emerald-100 bg-emerald-50 py-2 text-[9px] font-bold uppercase tracking-wider text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
             >
               Change Avatar
             </button>
             {avatarToast && (
-              <p className="mt-2 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{avatarToast}</p>
+              <p className="mt-2 text-[10px] font-medium text-emerald-800 dark:text-emerald-300">{avatarToast}</p>
             )}
             <PasswordChangeRequestCard />
           </section>
 
           <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-200">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-200">
               Security Restriction
             </p>
             <p className="mt-2 text-xs leading-5 text-emerald-950 dark:text-emerald-100">
