@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { formatPeso } from "@/lib/currency";
+import { MOA_BODY_PRINT_COLOR_SNIPPET, MOA_PRINT_PAGE_RULE_CSS } from "@/lib/print-templates";
 
 interface MoaModalProps {
   isOpen: boolean;
@@ -424,8 +425,7 @@ export function MoaModal({
               overflow: visible !important;
               margin: 0 !important;
               padding: 0 !important;
-              print-color-adjust: exact !important;
-              -webkit-print-color-adjust: exact !important;
+              ${MOA_BODY_PRINT_COLOR_SNIPPET}
             }
 
             /* Only reset the modal's outer positioning, NOT the MOA's internal divs */
@@ -472,10 +472,7 @@ export function MoaModal({
             #moa-slip-printable .grid { display: grid !important; }
             #moa-slip-printable .flex { display: flex !important; }
 
-            @page {
-              size: portrait;
-              margin: 10mm;
-            }
+            ${MOA_PRINT_PAGE_RULE_CSS}
           }
         `}</style>
       </div>
