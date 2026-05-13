@@ -235,9 +235,7 @@ export function BranchDaySessionToolbar({
                     : `Needs starting balance / closed — ${session.manilaCalendarDate}`
                   : "Session unavailable"}
             </p>
-            <p className="mt-0.5 text-[11px] text-text-tertiary">
-              Simulan ang araw (starting balance) o tapusin ang araw dito — hindi lang sa Branch Finance.
-            </p>
+          
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
