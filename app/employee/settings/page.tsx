@@ -243,8 +243,8 @@ export default function EmployeeSettingsPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-xl border border-border-main bg-surface p-6 shadow-sm text-center">
-            <div className="mx-auto mb-4 h-20 w-20 overflow-hidden rounded-full border-4 border-emerald-50 bg-emerald-800">
+          <div className="rounded-xl border border-border-main bg-surface p-6 text-center shadow-sm">
+            <div className="mx-auto mb-4 h-20 w-20 overflow-hidden rounded-full border-4 border-emerald-50 bg-white dark:border-emerald-950/60 dark:bg-zinc-800">
               {user?.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
@@ -252,13 +252,13 @@ export default function EmployeeSettingsPage() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-white">
+                <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-emerald-950 dark:text-zinc-50">
                   {initials}
                 </div>
               )}
             </div>
-            <h4 className="text-lg font-bold text-text-primary truncate px-2">{fullName || "Employee"}</h4>
-            <p className="text-xs text-text-tertiary mb-4">{branchName}</p>
+            <h4 className="truncate px-2 text-lg font-bold text-text-primary">{fullName || "Employee"}</h4>
+            <p className="mb-4 text-xs text-text-secondary">{branchName}</p>
             <button
               onClick={() => setIsAvatarModalOpen(true)}
               className="w-full rounded-lg border border-emerald-100 bg-emerald-50 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900/70"
