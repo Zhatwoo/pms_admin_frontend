@@ -133,7 +133,7 @@ interface TransactionStatsProps {
 
 export function TransactionStats({ data }: TransactionStatsProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+    <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:gap-6 xl:grid-cols-7 xl:gap-6">
       <StatCard
         label="Pawn Today"
         value={data?.pawnedToday || 0}
@@ -178,31 +178,31 @@ export function TransactionStats({ data }: TransactionStatsProps) {
       />
       
       <div className="flex flex-col justify-between rounded-lg border border-border-main bg-surface p-3 shadow-sm transition-colors duration-300">
-        <div className="mb-2 h-1 w-full rounded-full bg-emerald-950" />
+        <div className="mb-2 h-1 w-full rounded-full bg-emerald-900 dark:bg-emerald-500" />
 
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-              Start Day
+              Starting balance
             </p>
-            <p className="mt-0.5 text-lg font-black text-emerald-950 leading-none">
-              ₱ {(data?.startingBalance || 0).toLocaleString()}
+            <p className="mt-0.5 text-lg font-black text-text-primary leading-none">
+              {formatPeso(data?.startingBalance ?? 0)}
             </p>
           </div>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-text-tertiary">
             {balanceIcon}
           </div>
         </div>
 
-        <div className="my-2 border-t border-dashed border-zinc-100" />
+        <div className="my-2 border-t border-dashed border-border-subtle" />
 
         <div className="flex items-end justify-between">
           <div className="text-right w-full">
             <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-              End Day
+              Ending balance
             </p>
             <p className="mt-0.5 text-lg font-black text-emerald-600 leading-none">
-              ₱ {(data?.endingBalance || 0).toLocaleString()}
+              {formatPeso(data?.endingBalance ?? 0)}
             </p>
           </div>
         </div>

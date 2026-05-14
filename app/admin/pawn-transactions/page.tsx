@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { TransactionActions, type FilterType, type ViewMode } from "@/app/employee/pawn-transaction/_components/transaction-actions";
+import type { FilterType, ViewMode } from "@/app/employee/pawn-transaction/_components/transaction-actions";
 import { api } from "@/lib/api";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { TransactionStats } from "@/app/employee/pawn-transaction/_components/transaction-stats";
@@ -15,7 +15,6 @@ import { SellsTransferModal } from "@/app/employee/pawn-transaction/_components/
 import { ReserveLayawayModal } from "@/app/employee/pawn-transaction/_components/reserve-layaway-modal";
 import { MoaModal } from "@/app/employee/pawn-transaction/_components/moa-modal";
 import { ActionButton } from "@/components/shared/action-button";
-import { DailyBalanceConfirmation } from "@/components/shared/daily-balance-confirmation";
 import { TransactionDetailsModal } from "@/components/shared/transaction-details-modal";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -24,7 +23,10 @@ import { QrScanner } from "@/components/shared/qr-scanner";
 import { Role } from "@/types";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { formatDateToYMD } from "@/lib/time";
+import { getPhCalendarDateString } from "@/lib/branch-calendar-date";
+import { operationalCashTotalsForPawnEnding } from "@/lib/ledger-operational-totals";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
+import { BranchDaySessionToolbar } from "@/components/shared/branch-day-session-toolbar";
 
 // Use shared `PurposeType` and `FilterType` imported from components
 const filterToPurpose: Record<FilterType, PurposeType | null> = {
@@ -90,10 +92,6 @@ const MONTH_NAMES = [
 ];
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function isSmartphoneTransaction(transaction: TransactionRow) {
-  return (transaction.category ?? "").trim().toLowerCase() === "smartphone";
-}
 
 function formatSelectedDateLabel(dateString: string) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -213,7 +211,7 @@ function TransactionsCalendar({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <div className="h-2.5 w-2.5 rounded-sm bg-emerald-500/50" />
-            <span className="text-[10px] font-bold uppercase text-text-muted">Has smartphone records</span>
+            <span className="text-[10px] font-bold uppercase text-text-muted">Has transactions</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-2.5 w-2.5 rounded-sm ring-1 ring-amber-400" />
@@ -228,7 +226,9 @@ function TransactionsCalendar({
 interface ApiTransaction {
   transaction_no: string;
   branch: string | null;
+  voided_at?: string | null;
   purpose: string;
+  created_at?: string | Date | null;
   details?: string | null;
   transaction_date: string;
   transaction_time: string;
@@ -268,6 +268,7 @@ interface TransactionsResponse {
     transfer?: number;
     startingBalance?: number;
     endingBalance?: number;
+    sessionOpenedAt?: string | null;
   };
 }
 
@@ -358,13 +359,10 @@ export default function SuperAdminPawnTransactionsPage() {
     endingBalance: 0,
   });
   const [allTransactions, setAllTransactions] = useState<TransactionRow[]>([]);
+  /** Same calendar date as stats — full ledger from `/transactions?date=`, not `range=all` slice + smartphone filter. */
+  const [selectedDateLedgerRows, setSelectedDateLedgerRows] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [highlightedTransactionNo, setHighlightedTransactionNo] = useState<string | null>(null);
-  const [balanceModal, setBalanceModal] = useState<{ open: boolean; type: "starting" | "ending" }>({
-    open: false,
-    type: "starting",
-  });
-  const [expectedCash, setExpectedCash] = useState("0");
   const [passwordModal, setPasswordModal] = useState<{ open: boolean; onConfirm: () => void }>({
     open: false,
     onConfirm: () => { },
@@ -391,24 +389,44 @@ export default function SuperAdminPawnTransactionsPage() {
 
   const fetchSelectedDateStats = useCallback(async () => {
     try {
-      const [data, financeSummary] = await Promise.all([
-        api.get<TransactionsResponse>(
-          `/transactions?branch=${encodeURIComponent(selectedBranch.id)}&date=${selectedDate}`,
-        ),
-        api
-          .get<BranchFinanceSummary[]>(
-            `/branch-finance/summary?branch=${encodeURIComponent(selectedBranch.id)}`,
-          )
-          .catch(() => [] as BranchFinanceSummary[]),
-      ]);
+      const branchParam =
+        selectedBranch.id === "__all__"
+          ? ""
+          : `branch=${encodeURIComponent(selectedBranch.id)}`;
+
+      const txUrl = `/transactions?${branchParam}${branchParam ? "&" : ""}date=${selectedDate}`;
+      const summaryUrl = `/branch-finance/summary${branchParam ? `?${branchParam}` : ""}`;
+
+      const data = await api.get<TransactionsResponse>(txUrl);
+      const financeSummary = await api
+        .get<BranchFinanceSummary[]>(summaryUrl)
+        .catch(() => [] as BranchFinanceSummary[]);
+
+      setSelectedDateLedgerRows((data.transactions ?? []).map(toTransactionRow));
+
+      const phToday = getPhCalendarDateString();
+      const ledger = operationalCashTotalsForPawnEnding(
+        data.transactions ?? [],
+        data.stats?.sessionOpenedAt ?? null,
+      );
 
       let startingBalance = Number(data.stats?.startingBalance ?? 0);
-      let endingBalance = Number(data.stats?.endingBalance ?? 0);
 
-      if (financeSummary.length === 1) {
-        startingBalance = Number(financeSummary[0].startingBalance ?? startingBalance);
-        endingBalance = Number(financeSummary[0].currentBalance ?? endingBalance);
+      if (selectedBranch.id === "__all__" && financeSummary.length > 0) {
+        startingBalance = financeSummary.reduce(
+          (sum, row) => sum + Number(row.startingBalance ?? 0),
+          0,
+        );
+      } else if (
+        selectedDate === phToday &&
+        financeSummary.length === 1
+      ) {
+        startingBalance = Number(
+          financeSummary[0].startingBalance ?? startingBalance,
+        );
       }
+
+      const endingBalance = Number((startingBalance + ledger.net).toFixed(2));
 
       setCurrentStats({
         ...normalizeStats(data.stats),
@@ -418,6 +436,7 @@ export default function SuperAdminPawnTransactionsPage() {
     } catch (error) {
       console.error("Failed to load selected date transaction stats:", error);
       setCurrentStats(normalizeStats());
+      setSelectedDateLedgerRows([]);
     }
   }, [selectedBranch.id, selectedDate]);
 
@@ -434,15 +453,10 @@ export default function SuperAdminPawnTransactionsPage() {
     fetchTransactionsRef.current = fetchTransactions;
   }, [fetchTransactions]);
 
-  const smartphoneTransactions = useMemo(
-    () => allTransactions.filter(isSmartphoneTransaction),
-    [allTransactions],
-  );
-
   const calendarData = useMemo(() => {
     const counts: Record<string, number> = {};
 
-    for (const transaction of smartphoneTransactions) {
+    for (const transaction of allTransactions) {
       const [yearString, monthString] = transaction.date.split("-");
       const year = Number(yearString);
       const month = Number(monthString) - 1;
@@ -455,11 +469,11 @@ export default function SuperAdminPawnTransactionsPage() {
     }
 
     return counts;
-  }, [calendarMonth, calendarYear, smartphoneTransactions]);
+  }, [calendarMonth, calendarYear, allTransactions]);
 
   const selectedDateTransactions = useMemo(
-    () => smartphoneTransactions.filter((transaction) => transaction.date === selectedDate),
-    [selectedDate, smartphoneTransactions],
+    () => selectedDateLedgerRows,
+    [selectedDateLedgerRows],
   );
 
   useEffect(() => {
@@ -615,16 +629,25 @@ export default function SuperAdminPawnTransactionsPage() {
 
   const handleTransactionSuccess = useCallback((_transactionNo?: string) => {
     void fetchTransactionsRef.current();
+    void fetchSelectedDateStats();
     window.dispatchEvent(new CustomEvent("transaction_created"));
-  }, []);
+  }, [fetchSelectedDateStats]);
 
   return (
     <div className="space-y-3 pb-4">
       <div>
         <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
-          Smartphone transactions across the selected branch with calendar and list views.
+          Branch transactions for the selected calendar date — list and calendar views (calendar counts reflect loaded history).
         </p>
       </div>
+
+      <BranchDaySessionToolbar
+        branchId={selectedBranch.id === "__all__" ? null : selectedBranch.id}
+        onSessionChanged={() => {
+          void fetchSelectedDateStats();
+          void fetchTransactions();
+        }}
+      />
 
       <TransactionStats data={currentStats} />
 
@@ -726,7 +749,7 @@ export default function SuperAdminPawnTransactionsPage() {
         onReprint={handleReprint}
         onViewDetails={setSelectedTransaction}
         highlightedTransactionNo={highlightedTransactionNo}
-        title={`Smartphone transactions for ${formatSelectedDateLabel(selectedDate)}`}
+        title={`Transactions for ${formatSelectedDateLabel(selectedDate)}`}
       />
 
       <div className="mt-4">
@@ -743,25 +766,6 @@ export default function SuperAdminPawnTransactionsPage() {
         isOpen={Boolean(selectedTransaction)}
         transaction={selectedTransaction}
         onClose={() => setSelectedTransaction(null)}
-      />
-
-      <DailyBalanceConfirmation
-        isOpen={balanceModal.open}
-        type={balanceModal.type}
-        currentCash={expectedCash}
-        onClose={() => setBalanceModal((p) => ({ ...p, open: false }))}
-        onConfirm={async (amt) => {
-          try {
-            await api.post("/branch-finance/daily-balance", {
-              type: balanceModal.type,
-              amount: parseFloat(amt) || 0,
-            });
-            setBalanceModal((p) => ({ ...p, open: false }));
-            void fetchTransactionsRef.current();
-          } catch (err) {
-            console.error("Failed to confirm daily balance:", err);
-          }
-        }}
       />
 
       <ConfirmPasswordModal

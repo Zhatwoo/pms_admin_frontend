@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useBranch } from "@/contexts/branch-context";
 import { calculateGadgetInterest } from "@/lib/interest";
+import { getPhCalendarDateString } from "@/lib/branch-calendar-date";
+import { operationalCashTotalsForPawnEnding } from "@/lib/ledger-operational-totals";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { MoaModal } from "@/app/employee/pawn-transaction/_components/moa-modal";
 import { TransactionActions, type ViewMode } from "./_components/transaction-actions";
@@ -18,6 +20,7 @@ import type {
   TransactionStatsData,
 } from "./_components/types";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
+import { BranchDaySessionToolbar } from "@/components/shared/branch-day-session-toolbar";
 
 function csvCell(value: string) {
   return `"${value.replaceAll('"', '""')}"`;
@@ -42,7 +45,9 @@ interface ApiTransaction {
   transaction_no: string;
   branch_id?: string | null;
   branch: string | null;
+  voided_at?: string | null;
   purpose: ApiPurpose;
+  created_at?: string | Date | null;
   details?: string | null;
   transaction_date: string;
   transaction_time: string;
@@ -72,7 +77,7 @@ interface ApiTransaction {
 }
 
 interface TransactionsResponse {
-  stats?: Partial<TransactionStatsData>;
+  stats?: Partial<TransactionStatsData> & { sessionOpenedAt?: string | null };
   transactions: ApiTransaction[];
 }
 
@@ -349,24 +354,29 @@ export default function PawnTransactionsPage() {
             .catch(() => [] as BranchFinanceSummary[]),
         ]);
 
-        let startingBalance = Number(data.stats?.startingBalance ?? 0);
-        let endingBalance = Number(data.stats?.endingBalance ?? 0);
+        const phToday = getPhCalendarDateString();
+        const ledger = operationalCashTotalsForPawnEnding(
+          data.transactions ?? [],
+          data.stats?.sessionOpenedAt ?? null,
+        );
 
-        // Super admin "All Branches" should show totals across branches, not a single-branch stat.
+        let startingBalance = Number(data.stats?.startingBalance ?? 0);
+
         if (isAllBranches && financeSummary.length > 0) {
           startingBalance = financeSummary.reduce(
             (sum, row) => sum + Number(row.startingBalance ?? 0),
             0,
           );
-          endingBalance = financeSummary.reduce(
-            (sum, row) => sum + Number(row.currentBalance ?? 0),
-            0,
+        } else if (
+          selectedDate === phToday &&
+          financeSummary.length === 1
+        ) {
+          startingBalance = Number(
+            financeSummary[0].startingBalance ?? startingBalance,
           );
-        } else if (financeSummary.length === 1) {
-          // Keep branch values synced with branch-finance source-of-truth.
-          startingBalance = Number(financeSummary[0].startingBalance ?? startingBalance);
-          endingBalance = Number(financeSummary[0].currentBalance ?? endingBalance);
         }
+
+        const endingBalance = Number((startingBalance + ledger.net).toFixed(2));
 
         const normalizedStats: TransactionStatsData = {
           ...EMPTY_STATS,
@@ -665,6 +675,17 @@ export default function PawnTransactionsPage() {
 
 
       <div className="print-hide">
+        {/* Page Title Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-text-primary">Pawn Transactions</h1>
+          <p className="mt-1 text-sm text-text-tertiary">
+            View and manage all pawn transaction records
+          </p>
+        </div>
+
+        <BranchDaySessionToolbar
+          branchId={isAllBranches ? null : selectedBranch.id}
+        />
         <TransactionStats data={stats} />
       </div>
 

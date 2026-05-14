@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useBranch } from "@/contexts/branch-context";
+import { useAuth } from "@/contexts/auth-context";
 import { ExpirationStats } from "./_components/expiration-stats";
 import { ExpirationTabs } from "./_components/expiration-tabs";
 import { ExpirationTable } from "./_components/expiration-table";
@@ -55,15 +56,18 @@ interface ExpirationMonitoringResponse {
 function ExpirationMonitoringPageContent() {
   const [activeTab, setActiveTab] = useState("30days");
   const { selectedBranch, isAllBranches } = useBranch();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedData, setHasLoadedData] = useState(false);
   const searchParams = useSearchParams();
   const highlightTicketNo = searchParams?.get("ticketNo");
   const highlightTransaction = searchParams?.get("highlightTransaction");
+  const router = useRouter();
   const [isBlastSending, setIsBlastSending] = useState(false);
   const [sendingItemId, setSendingItemId] = useState<string | null>(null);
   const [renewingItemId, setRenewingItemId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const canRenew = user?.role === "admin" || user?.role === "employee";
 
   const [stats, setStats] = useState({
     overdue: 0,
@@ -176,28 +180,8 @@ function ExpirationMonitoringPageContent() {
     }
   };
 
-  const handleRenew = async (id: string) => {
-    setRenewingItemId(id);
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      await api.post(`/inventory/pawned/${id}/renew`, {
-        renewal_date: today,
-        amount_paid: 0,
-      });
-      showToast("Item renewed successfully.");
-      const query = isAllBranches ? "" : `?branch=${encodeURIComponent(selectedBranch.id)}`;
-      const data = await api.get<ExpirationMonitoringResponse>(
-        `/dashboard/expiration-monitoring${query}`
-      );
-      if (data) {
-        setStats(data.stats);
-        setBuckets(data.buckets);
-      }
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to renew item.");
-    } finally {
-      setRenewingItemId(null);
-    }
+  const handleRenew = (id: string, ticketNo: string) => {
+    router.push(`/employee/pawn-transaction?action=renew&ticketNo=${encodeURIComponent(ticketNo)}`);
   };
 
   return (
@@ -238,6 +222,7 @@ function ExpirationMonitoringPageContent() {
         sendingItemId={sendingItemId}
         onRenew={handleRenew}
         renewingItemId={renewingItemId}
+        canRenew={canRenew}
         highlightTicketNo={highlightTicketNo}
       />
     </div>

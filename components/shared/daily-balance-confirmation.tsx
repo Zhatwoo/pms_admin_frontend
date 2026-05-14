@@ -9,6 +9,10 @@ interface DailyBalanceConfirmationProps {
   currentCash: string;
   onConfirm: (amount: string) => void;
   onClose: () => void;
+  /** Override title line (e.g. new business day branch messaging). */
+  titleOverride?: string;
+  /** Override subtitle under title. */
+  subtitleOverride?: string;
 }
 
 export function DailyBalanceConfirmation({
@@ -17,16 +21,30 @@ export function DailyBalanceConfirmation({
   currentCash,
   onConfirm,
   onClose,
+  titleOverride,
+  subtitleOverride,
 }: DailyBalanceConfirmationProps) {
   const [confirmedAmount, setConfirmedAmount] = useState("0.00");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setConfirmedAmount("0.00");
-      setIsSubmitting(false);
+    if (!isOpen) return;
+
+    setIsSubmitting(false);
+    if (type === "starting") {
+      const raw = parseFloat(String(currentCash ?? "").replace(/,/g, ""));
+      const n = Number.isFinite(raw) ? raw : 0;
+      setConfirmedAmount(
+        n.toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      );
+      return;
     }
-  }, [isOpen]);
+
+    setConfirmedAmount("0.00");
+  }, [isOpen, currentCash, type]);
 
   if (!isOpen) return null;
 
@@ -71,15 +89,24 @@ export function DailyBalanceConfirmation({
             </svg>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-text-primary capitalize">{type} Cash Confirmation</h2>
-            <p className="text-xs text-text-tertiary">Please verify the physical cash on hand before proceeding.</p>
+            <h2 className="text-xl font-bold text-text-primary capitalize">
+              {titleOverride ?? `${type} Cash Confirmation`}
+            </h2>
+            <p className="text-xs text-text-tertiary">
+              {subtitleOverride ??
+                "Please verify the physical cash on hand before proceeding."}
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-xl bg-surface-secondary p-4 border border-border-subtle">
             <label className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2 block">Expected Amount</label>
-            <p className="text-2xl font-black text-amber-400">{formatPeso(parseFloat(currentCash).toLocaleString())}</p>
+            <p className="text-2xl font-black text-amber-400">
+              {formatPeso(
+                Number(String(currentCash ?? "0").replace(/,/g, "")) || 0,
+              )}
+            </p>
           </div>
 
           <div className="space-y-2">

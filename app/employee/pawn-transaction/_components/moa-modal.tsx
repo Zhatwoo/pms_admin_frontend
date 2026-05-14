@@ -3,11 +3,16 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { formatPeso } from "@/lib/currency";
+import { MOA_BODY_PRINT_COLOR_SNIPPET, MOA_PRINT_PAGE_RULE_CSS } from "@/lib/print-templates";
 
 interface MoaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  /** When true, blocks finalizing (e.g. branch cash below loan amount). */
+  confirmDisabled?: boolean;
+  /** Short explanation shown when confirm is disabled. */
+  confirmDisabledReason?: string;
   data: {
     firstName: string;
     middleName: string;
@@ -48,7 +53,46 @@ const DEFAULT_TERMS_TEXT = `TERMS AND CONDITIONS (GADGETS):
 4. Seller must advise the shop of any changes in address or contact information.
 5. In case of loss of this MOA, present a valid ID and a notarized affidavit promptly.`;
 
-export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrint }: MoaModalProps) {
+const CANONICAL_TERMS_LINES = [
+  "1. This Memorandum of Agreement is renewable every TEN (10) days.",
+  "2. The Seller shall advise the Buyer of any change of address or mobile number.",
+  "3. This is not a PAWN; this is an extended purchase sale known as the buyback agreement.",
+  "4. JCLB BUY BACK SHOP OPC has the right to open the sealed item and put on display and dispose this item after the extension period expires.",
+  "5. Unpurchased item and all penalties become binding to this MOA.",
+  "6. The seller declares all information and submitted documents are true and authentic.",
+  "7. There are no FINANCE or INTEREST charges connected with this MOA.",
+  "8. In case of loss of this MOA, bring a valid ID and notarized affidavit before buyback period expires.",
+  "9. Representative's signature is required when authorization from owner is used.",
+  "10. Seller confirms ownership and freedom from liens and encumbrances.",
+];
+
+const CANONICAL_TERMS_TEXT = CANONICAL_TERMS_LINES.join("\n");
+
+function normalizeTermsText(rawText?: string) {
+  const normalizedLines = (rawText ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => /^\d+\./.test(line))
+    .slice(0, 10); // Limit to exactly 10 terms, ignore any corrupted extras
+
+  if (normalizedLines.length >= 8) {
+    return normalizedLines.join("\n");
+  }
+
+  return CANONICAL_TERMS_TEXT;
+}
+
+export function MoaModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  data,
+  isLoading,
+  autoPrint,
+  confirmDisabled = false,
+  confirmDisabledReason,
+}: MoaModalProps) {
   const [termsText, setTermsText] = useState(DEFAULT_TERMS_TEXT);
   const [labels, setLabels] = useState<any>(null);
   const [extensionRows, setExtensionRows] = useState<any[]>([]);
@@ -60,7 +104,7 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrin
         try {
           const res = await api.get<{ terms_text: string; labels: any; extensionRows?: any[] }>(`/settings/moa_template`);
           if (res) {
-            setTermsText(res.terms_text);
+            setTermsText(normalizeTermsText(res.terms_text));
             setLabels(res.labels);
             if (res.extensionRows) setExtensionRows(res.extensionRows);
           }
@@ -110,10 +154,18 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrin
 
   // Maturity dates calc (every 10 days)
   const baseDate = data.purchasedDate ? new Date(data.purchasedDate) : new Date();
+  const formatCompactDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    });
+  };
+
   const addDays = (d: Date, days: number) => {
     const res = new Date(d);
     res.setDate(res.getDate() + days);
-    return res.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatCompactDate(res);
   };
 
   const maturityDates = [
@@ -122,14 +174,15 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrin
     addDays(baseDate, 30),
   ];
   const gracePeriodEnd = addDays(baseDate, 34);
+  const printableTermsText = CANONICAL_TERMS_TEXT;
 
   const lineInputClass = "border-b-2 border-zinc-400 bg-transparent px-2 text-xs font-bold text-zinc-900 outline-none w-full h-6 transition-all focus:border-emerald-600";
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 text-zinc-900">
       <div className="fixed inset-0 bg-emerald-950/40 backdrop-blur-md transition-opacity no-print" onClick={onClose} />
-      <div 
-        className="relative w-full max-w-4xl max-h-[95vh] overflow-hidden bg-white rounded-3xl shadow-2xl shadow-emerald-900/20 animate-in fade-in zoom-in-95 duration-300 flex flex-col relative z-10" 
+      <div
+        className="relative w-full max-w-4xl max-h-[95vh] overflow-hidden bg-white rounded-3xl shadow-2xl shadow-emerald-900/20 animate-in fade-in zoom-in-95 duration-300 flex flex-col relative z-10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -139,11 +192,11 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrin
               <h2 className="text-xl font-black tracking-tight text-white leading-none">{labels?.moaTitle || "Memorandum of Agreement Slip"}</h2>
               <p className="text-xs text-emerald-100/70">Please review the details before finalizing the transaction.</p>
             </div>
-            <button 
+            <button
               onClick={onClose}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           </div>
         )}
@@ -160,226 +213,244 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrin
 
         {/* MOA Content - Matches Image 2 */}
         <div className="flex-1 overflow-y-auto">
-          <div id="moa-slip-printable" ref={printRef} className="p-8 space-y-6 text-[11px] text-zinc-800 leading-tight bg-[#fafafa]">
-          {/* Title moved to the very top */}
-          <div className="text-center mb-8">
-             <h1 className="text-xl font-black underline uppercase tracking-[0.2em] text-emerald-900">{labels?.moaTitle || "Memorandum of Agreement Slip"}</h1>
-             <p className="text-[10px] font-bold text-zinc-400 mt-1 uppercase tracking-widest leading-none">{data.branchName || "Main Branch"}</p>
-             {(data.branchAddress || data.branchPhone) && (
-               <div className="mt-1 flex flex-col items-center gap-0.5">
-                 {data.branchAddress && (
-                   <p className="text-[8px] font-medium text-zinc-400 uppercase tracking-tight">{data.branchAddress}</p>
-                 )}
-                 {data.branchPhone && (
-                   <div className="flex items-center gap-1">
-                     <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-300">
-                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                     </svg>
-                     <p className="text-[8px] font-medium text-zinc-400 uppercase tracking-tight">{data.branchPhone}</p>
-                   </div>
-                 )}
-               </div>
-             )}
-          </div>
-
-          <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
-            <div className="space-y-1">
-               <p className="font-bold">{labels?.originalCopy || "Original copy"}</p>
-               <div className="flex items-center gap-2">
-                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.purchasedDate || "Purchased Date:"}</span>
-                 <span className="w-32 border-b border-zinc-400">{data.purchasedDate || new Date().toLocaleDateString()}</span>
-               </div>
-               <div className="flex items-center gap-2">
-                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.idsPresented || "ID(s) Presented:"}</span>
-                 <span className="w-32 border-b border-zinc-400">{data.idPresented || "No ID"}</span>
-               </div>
+          <div id="moa-slip-printable" ref={printRef} className="max-w-full overflow-x-hidden p-6 pb-10 space-y-5 text-[9px] text-zinc-800 leading-tight bg-white sm:text-[10px]">
+            {/* Title moved to the very top */}
+            <div className="text-center mb-4">
+              <h1 className="text-[18px] font-black uppercase tracking-[0.18em] text-emerald-900 underline">{labels?.moaTitle || "Memorandum of Agreement Slip"}</h1>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.22em] leading-none text-zinc-500">{data.branchName || "Main Branch"}</p>
+              {(data.branchAddress || data.branchPhone) && (
+                <div className="mt-1 flex flex-col items-center gap-0.5">
+                  {data.branchAddress && (
+                    <p className="text-[8px] font-medium uppercase tracking-tight text-zinc-500">{data.branchAddress}</p>
+                  )}
+                  {data.branchPhone && (
+                    <div className="flex items-center gap-1">
+                      <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor" className="text-zinc-400">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                      </svg>
+                      <p className="text-[8px] font-medium uppercase tracking-tight text-zinc-500">{data.branchPhone}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="text-center flex-1">
-               {/* Spacer or additional small branding can go here */}
-            </div>
-
-            <div className="space-y-1 text-right">
-               <div className="flex items-center justify-end gap-2">
-                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.unitCode || "UNIT CODE:"}</span>
-                 <span className="w-32 border-b border-zinc-400 text-right">{data.unitCode || "---"}</span>
-               </div>
-               <div className="flex items-center justify-end gap-2">
-                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.maturityDate || "Maturity Date:"}</span>
-                 <span className="text-[9px]">1st</span>
-                 <span className="w-16 border-b border-zinc-400 text-center">{addDays(baseDate, 10)}</span>
-                 <span className="text-[9px]">2nd</span>
-                 <span className="w-16 border-b border-zinc-400 text-center">{addDays(baseDate, 20)}</span>
-                 <span className="text-[9px]">3rd</span>
-                 <span className="w-16 border-b border-zinc-400 text-center">{addDays(baseDate, 30)}</span>
-               </div>
-               <div className="flex items-center justify-end gap-2">
-                 <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider text-red-600">{labels?.expiryDate || "Grace Period End:"}</span>
-                 <span className="w-32 border-b border-zinc-400 text-right text-red-600 font-bold">{gracePeriodEnd}</span>
-               </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 px-2">
-            <p className="leading-6">
-              {labels?.customerIntro || "I, Mr./Mrs."} <span className="inline-block px-2 border-b border-zinc-500 font-bold min-w-[200px] text-center">{fullName}</span>, {labels?.legalAgeResident || "of legal age and a resident of"} <span className="inline-block px-2 border-b border-zinc-500 font-medium min-w-[400px] text-center">{data.address.toUpperCase()}</span>, {labels?.agreementText || "agree to transfer and convey by way of sale with a right to repurchase back."}
-            </p>
-            <p className="leading-6">
-              {labels?.repayIntro || "If I have repurchased the above unit, I shall pay the amount of"} <span className="inline-block px-2 border-b border-zinc-500 font-bold min-w-[100px] text-center">{formatPeso(amount.toLocaleString())}</span> {labels?.plusText || "plus"} <span className="inline-block px-2 border-b border-zinc-500 font-bold min-w-[100px] text-center">{formatPeso(storageFee.toLocaleString())}</span> {labels?.storageFeeText || "every 10 days as storage fee. Penalty amounting to"} <span className="inline-block px-2 border-b border-zinc-500 min-w-[100px] text-center">₱0.00</span> {labels?.overdueText || "applies when overdue."}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-12 border-y border-zinc-200 py-6 px-4 bg-zinc-50/50">
-            <div className="space-y-3">
-              <h3 className="font-black text-[9px] uppercase underline tracking-wider text-emerald-900">{labels?.financialDetails || "Financial Details"}</h3>
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 items-center">
-                  <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.amount || "Amount:"}</span>
-                  <span className="font-bold text-zinc-900">{formatPeso(amount.toLocaleString())}</span>
+            <div className="flex flex-col gap-3 border-b border-zinc-100 pb-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-1">
+                <p className="font-bold">{labels?.originalCopy || "Original copy"}</p>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.purchasedDate || "Purchased Date:"}</span>
+                  <span className="w-32 border-b border-zinc-400">{data.purchasedDate || new Date().toLocaleDateString()}</span>
                 </div>
-                <div className="grid grid-cols-2 items-center">
-                   <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.storageFee || "Storage fee:"}</span>
-                   <span className="font-medium text-zinc-900 text-right pr-4">{formatPeso(storageFee.toLocaleString())}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.idsPresented || "ID(s) Presented:"}</span>
+                  <span className="w-32 border-b border-zinc-400">{data.idPresented || "No ID"}</span>
                 </div>
-                <div className="grid grid-cols-2 items-center">
-                   <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.parkingFee || "Parking fee:"}</span>
-                   <span className="font-medium text-zinc-900 text-right pr-4">{formatPeso(parkingFee.toLocaleString())}</span>
+              </div>
+
+              <div className="hidden text-center flex-1 lg:block">
+                {/* Spacer or additional small branding can go here */}
+              </div>
+
+              <div className="space-y-1 text-left lg:ml-auto lg:text-right">
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider">{labels?.unitCode || "UNIT CODE:"}</span>
+                  <span className="w-28 sm:w-32 border-b border-zinc-400 text-left lg:text-right">{data.unitCode || "---"}</span>
                 </div>
-                <div className="grid grid-cols-2 items-center border-t border-zinc-200 pt-2">
-                   <span className="font-black uppercase text-emerald-800 text-[9px]">{labels?.totalDue || "Total Due:"}</span>
-                   <span className="font-black text-emerald-800 text-lg">{formatPeso(totalDue.toLocaleString())}</span>
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  <span className="font-semibold text-[9px] uppercase tracking-wider">{labels?.maturityDate || "Maturity Date:"}</span>
+                  <span className="text-[9px]">1st</span>
+                  <span className="w-12 sm:w-16 border-b border-zinc-400 text-center">{addDays(baseDate, 10)}</span>
+                  <span className="text-[9px]">2nd</span>
+                  <span className="w-12 sm:w-16 border-b border-zinc-400 text-center">{addDays(baseDate, 20)}</span>
+                  <span className="text-[9px]">3rd</span>
+                  <span className="w-12 sm:w-16 border-b border-zinc-400 text-center">{addDays(baseDate, 30)}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  <span className="font-semibold whitespace-nowrap text-[9px] uppercase tracking-wider text-red-600">{labels?.expiryDate || "Grace Period End:"}</span>
+                  <span className="w-28 sm:w-32 border-b border-zinc-400 text-left lg:text-right text-red-600 font-bold">{gracePeriodEnd}</span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h3 className="font-black text-[9px] uppercase underline tracking-wider text-emerald-900">{labels?.unitDescription || "Unit Description"}</h3>
-              <div className="space-y-2">
-                <div className="grid grid-cols-[80px_1fr] items-center gap-2">
-                  <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.brandModel || "Brand and model:"}</span>
-                  <span className="font-bold text-zinc-900 border-b border-zinc-300">{data.unitName || "---"}</span>
+            <div className="space-y-2 px-2">
+              <p className="leading-5">
+                {labels?.customerIntro || "I, Mr./Mrs."} <span className="inline-block max-w-full px-2 border-b border-zinc-500 font-bold min-w-[120px] sm:min-w-[200px] text-center break-words">{fullName}</span>, {labels?.legalAgeResident || "of legal age and a resident of"} <span className="inline-block max-w-full px-2 border-b border-zinc-500 font-medium min-w-[180px] sm:min-w-[400px] text-center break-words">{data.address.toUpperCase()}</span>, {labels?.agreementText || "agree to transfer and convey by way of sale with a right to repurchase back."}
+              </p>
+              <p className="leading-5">
+                {labels?.repayIntro || "If I have repurchased the above unit, I shall pay the amount of"} <span className="inline-block px-2 border-b border-zinc-500 font-bold min-w-[100px] text-center">{formatPeso(amount)}</span> {labels?.plusText || "plus"} <span className="inline-block px-2 border-b border-zinc-500 font-bold min-w-[100px] text-center">{formatPeso(storageFee)}</span> {labels?.storageFeeText || "every 10 days as storage fee. Penalty amounting to"} <span className="inline-block px-2 border-b border-zinc-500 min-w-[100px] text-center">₱0.00</span> {labels?.overdueText || "applies when overdue."}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 border-y border-zinc-200 py-4 px-3 bg-zinc-50/50">
+              <div className="space-y-3">
+                <h3 className="font-black text-[9px] uppercase underline tracking-wider text-emerald-900">{labels?.financialDetails || "Financial Details"}</h3>
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-[1fr_96px] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.amount || "Amount:"}</span>
+                    <span className="text-right font-bold tabular-nums text-zinc-900">{formatPeso(amount)}</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_96px] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.storageFee || "Storage fee:"}</span>
+                    <span className="text-right font-medium tabular-nums text-zinc-900">{formatPeso(storageFee)}</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_96px] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.parkingFee || "Parking fee:"}</span>
+                    <span className="text-right font-medium tabular-nums text-zinc-900">{formatPeso(parkingFee)}</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_96px] items-center gap-2 border-t border-zinc-200 pt-2">
+                    <span className="font-black uppercase text-emerald-800 text-[9px]">{labels?.totalDue || "Total Due:"}</span>
+                    <span className="text-right font-black tabular-nums text-emerald-800 text-lg">{formatPeso(totalDue)}</span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-[80px_1fr] items-center gap-2">
-                   <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.itemsIncluded || "Items included:"}</span>
-                   <span className="text-zinc-700 border-b border-zinc-300">{data.itemsIncluded || "---"}</span>
-                </div>
-                <div className="grid grid-cols-[80px_1fr] items-center gap-2">
-                   <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.condition || "Condition:"}</span>
-                   <span className="text-zinc-700 border-b border-zinc-300 italic">{data.condition || "---"}</span>
-                </div>
-                <div className="grid grid-cols-[80px_1fr] items-center gap-2">
-                   <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.serialNo || "Serial No.:"}</span>
-                   <span className="font-medium text-zinc-900 border-b border-zinc-300 tracking-wider uppercase">{data.serialNumber || "---"}</span>
-                </div>
-                <div className="grid grid-cols-[80px_1fr] items-center gap-2">
-                   <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.memory || "Memory:"}</span>
-                   <span className="text-zinc-700 border-b border-zinc-300">{data.memory || "---"}</span>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-black text-[9px] uppercase underline tracking-wider text-emerald-900">{labels?.unitDescription || "Unit Description"}</h3>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.brandModel || "Brand and model:"}</span>
+                    <span className="font-bold text-zinc-900 border-b border-zinc-300">{data.unitName || "---"}</span>
+                  </div>
+                  <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.itemsIncluded || "Items included:"}</span>
+                    <span className="text-zinc-700 border-b border-zinc-300">{data.itemsIncluded || "---"}</span>
+                  </div>
+                  <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.condition || "Condition:"}</span>
+                    <span className="text-zinc-700 border-b border-zinc-300 italic">{data.condition || "---"}</span>
+                  </div>
+                  <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.serialNo || "Serial No.:"}</span>
+                    <span className="font-medium text-zinc-900 border-b border-zinc-300 tracking-wider uppercase">{data.serialNumber || "---"}</span>
+                  </div>
+                  <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+                    <span className="font-semibold uppercase text-zinc-500 text-[8px]">{labels?.memory || "Memory:"}</span>
+                    <span className="text-zinc-700 border-b border-zinc-300">{data.memory || "---"}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-4 pt-4">
-             <div className="grid grid-cols-5 gap-4 text-[8px] font-black uppercase text-zinc-400 italic text-center">
+            <div className="space-y-3 pt-3">
+              <div className="grid grid-cols-5 gap-4 text-[8px] font-black uppercase text-zinc-400 italic text-center">
                 <span>{labels?.dateHeader || "Date"}</span>
                 <span>{labels?.storageHeader || "Storage"}</span>
                 <span>{labels?.periodHeader || "Period"}</span>
                 <span>{labels?.extendHeader || "Extend"}</span>
                 <span>{labels?.signHeader || "Sign"}</span>
-             </div>
-             {(extensionRows.length > 0 ? extensionRows : [1, 2, 3]).map((row, idx) => (
-               <div key={idx} className="grid grid-cols-5 gap-4">
-                  <div className="h-6 border-b border-zinc-300 bg-white/30 flex items-center justify-center font-bold text-zinc-900">
+              </div>
+              {(extensionRows.length > 0 ? extensionRows : [1, 2, 3]).map((row, idx) => (
+                <div key={idx} className="grid grid-cols-5 gap-4">
+                  <div className="flex h-5 items-center justify-center border-b border-zinc-300 bg-white/30 font-bold text-zinc-900">
                     {maturityDates[idx] || ""}
                   </div>
-                  <div className="h-6 border-b border-zinc-300 bg-white/50">{typeof row === 'object' ? row.storage : ''}</div>
-                  <div className="h-6 border-b border-zinc-300 bg-zinc-50 flex items-center justify-center font-bold text-zinc-500">
-                    {typeof row === 'object' ? row.period : `${idx + 1}${idx === 0?'st':idx === 1?'nd':'rd'} Period`}
+                  <div className="h-5 border-b border-zinc-300 bg-white/50">{typeof row === 'object' ? row.storage : ''}</div>
+                  <div className="flex h-5 items-center justify-center border-b border-zinc-300 bg-zinc-50 font-bold text-zinc-500">
+                    {typeof row === 'object' ? row.period : `${idx + 1}${idx === 0 ? 'st' : idx === 1 ? 'nd' : 'rd'} Period`}
                   </div>
-                  <div className="h-6 border-b border-zinc-300 bg-white/50">{typeof row === 'object' ? row.extend : ''}</div>
-                  <div className="h-6 border-b border-zinc-300 bg-white/50">{typeof row === 'object' ? row.sign : ''}</div>
-               </div>
-             ))}
-             <div className="grid grid-cols-5 gap-4">
-                <div className="h-6 border-b border-zinc-300 bg-white/30 flex items-center justify-center font-bold text-zinc-900">
+                  <div className="h-5 border-b border-zinc-300 bg-white/50">{typeof row === 'object' ? row.extend : ''}</div>
+                  <div className="h-5 border-b border-zinc-300 bg-white/50">{typeof row === 'object' ? row.sign : ''}</div>
+                </div>
+              ))}
+              <div className="grid grid-cols-5 gap-4">
+                <div className="flex h-5 items-center justify-center border-b border-zinc-300 bg-white/30 font-bold text-zinc-900">
                   {gracePeriodEnd}
                 </div>
-                <div className="h-6 border-b border-zinc-300 bg-white/50"></div>
-                <div className="h-6 border-b border-zinc-300 flex items-center justify-center font-black text-zinc-400 text-[7px] uppercase">{labels?.gracePeriodHeader || "GRACE PERIOD"}</div>
-                <div className="h-6 border-b border-zinc-300"></div>
-                <div className="h-6 border-b border-zinc-300"></div>
-             </div>
-          </div>
-
-          <div className="bg-emerald-50 border border-emerald-100 p-2 text-center text-[9px] font-black uppercase tracking-widest text-emerald-800 italic">
-            {labels?.adviseText || "SELLER IS ADVISED TO READ AND UNDERSTAND THE TERMS AND CONDITIONS ON THE REVERSE SIDE HEREOF"}
-          </div>
-
-          <div className="space-y-2 border-t border-zinc-200 pt-6">
-            <h4 className="text-center font-black uppercase underline tracking-tighter">{labels?.termsHeading || "Terms and Conditions"}</h4>
-            <div className="rounded border border-zinc-200 p-4 bg-white/80 text-[9px] leading-relaxed text-zinc-600 whitespace-pre-line">
-              {termsText}
+                <div className="h-5 border-b border-zinc-300 bg-white/50"></div>
+                <div className="flex h-5 items-center justify-center border-b border-zinc-300 font-black text-[7px] uppercase text-zinc-400">{labels?.gracePeriodHeader || "GRACE PERIOD"}</div>
+                <div className="h-5 border-b border-zinc-300"></div>
+                <div className="h-5 border-b border-zinc-300"></div>
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-20 pt-12 pb-4 items-end">
-             <div className="flex flex-col text-center space-y-2">
-                {/* Invisible spacer matches "I HEREBY AUTHORIZED" height */}
+            <div className="moa-bottom-block max-w-full overflow-x-hidden space-y-2 pt-4 pb-2">
+              {/* Seller advised banner - full width */}
+              <div className="w-full border border-emerald-300 bg-emerald-50 p-2 text-center text-[7px] font-black uppercase tracking-widest text-emerald-800 italic leading-[1.25]">
+                {labels?.adviseText || "SELLER IS ADVISED TO READ AND UNDERSTAND THE TERMS AND CONDITIONS ON THE REVERSE SIDE HEREOF"}
+              </div>
+
+              {/* Terms and Conditions - full width, centered */}
+              <div className="w-full space-y-1 pt-1.5">
+                <h4 className="text-center font-black uppercase underline tracking-tighter text-[10px] text-zinc-900">{labels?.termsHeading || "Terms and Conditions"}</h4>
+                <div className="rounded border border-zinc-200 bg-white/80 p-1 text-[7px] leading-tight text-zinc-700">
+                  <ol className="space-y-0 pl-2">
+                    {CANONICAL_TERMS_LINES.map((line) => (
+                      <li key={line} className="list-decimal">
+                        {line.replace(/^\d+\.\s*/, "")}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+
+              {/* Signatures - left and right */}
+              <div className="flex max-w-full flex-col items-stretch gap-8 overflow-x-hidden pt-6 pb-2 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
+              <div className="flex flex-1 min-w-0 flex-col text-center space-y-2 lg:max-w-[48%]">
                 <span className="block text-[9px] font-black uppercase tracking-widest text-emerald-900 invisible select-none" aria-hidden="true">
                   I HEREBY AUTHORIZED
                 </span>
-                <div className="h-8 border-b-2 border-zinc-800"></div>
+                <div className="h-8 w-full border-b-2 border-zinc-800"></div>
                 <p className="font-black uppercase text-[8px] tracking-widest">{labels?.sellerSignature || "(Name and Signature of Seller)"}</p>
-             </div>
-             <div className="flex flex-col text-center space-y-2">
+              </div>
+              <div className="flex flex-1 min-w-0 flex-col text-center space-y-2 lg:max-w-[48%]">
                 <p className="font-black uppercase text-[9px] text-emerald-900 tracking-widest">{labels?.authorizedText || "I HEREBY AUTHORIZED"}</p>
-                <div className="h-8 border-b-2 border-zinc-800 flex items-end justify-center pb-0.5">
-                   {data.processedBy && (
-                     <span className="font-bold text-[11px] uppercase tracking-wider text-zinc-900">{data.processedBy}</span>
-                   )}
+                <div className="h-10 w-full border-b-2 border-zinc-800 flex items-end justify-center pb-1">
+                  {data.processedBy && (
+                    <span className="font-bold text-[11px] uppercase tracking-wider text-zinc-900">{data.processedBy}</span>
+                  )}
                 </div>
                 <p className="font-black uppercase text-[8px] tracking-widest">{labels?.representativeSignature || "(Name and Signature of Representative)"}</p>
-             </div>
+              </div>
+              </div>
+            </div>
           </div>
-        </div>
         </div>
 
         {/* Footer Actions */}
         {!autoPrint && (
           <div className="sticky bottom-0 bg-white border-t border-zinc-200 px-8 py-4 flex justify-between items-center z-10 no-print">
-             <p className="text-[10px] text-zinc-400 font-medium italic">
-               Review carefully. Finalizing will generate the ticket and store record permanently.
-             </p>
-             <div className="flex gap-4">
-               <button 
-                 onClick={onClose}
-                 disabled={isLoading}
-                 className="px-6 py-2.5 text-xs font-black text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-all active:scale-95 disabled:opacity-50"
-               >
-                 Back to Form
-               </button>
-               <button 
-                  onClick={handlePrint}
-                  className="px-6 py-2.5 text-xs font-black text-white bg-zinc-800 rounded-xl hover:bg-black transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
-                  Print / PDF
-                </button>
-               <button 
-                 onClick={onConfirm}
-                 disabled={isLoading}
-                 className="px-8 py-2.5 text-xs font-black text-white bg-emerald-700 rounded-xl shadow-lg shadow-emerald-700/20 hover:bg-emerald-800 transition-all active:scale-95 flex items-center gap-2 disabled:bg-zinc-400"
-               >
-                 {isLoading ? (
-                   <>
-                     <span className="anim-loading h-4 w-4 border-white/30 border-t-white rounded-full"/>
-                     Saving Record...
-                   </>
-                 ) : (
-                   "Save & Finalize Transaction"
-                 )}
-               </button>
-             </div>
+            <div className="min-w-0 pr-4">
+              <p className="text-[10px] text-zinc-400 font-medium italic">
+                Review carefully. Finalizing will generate the ticket and store record permanently.
+              </p>
+              {confirmDisabled && confirmDisabledReason ? (
+                <p className="mt-2 text-[11px] font-semibold text-amber-800" role="alert">
+                  {confirmDisabledReason}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex gap-4 shrink-0">
+              <button
+                onClick={onClose}
+                disabled={isLoading}
+                className="px-6 py-2.5 text-xs font-black text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-all active:scale-95 disabled:opacity-50"
+              >
+                Back to Form
+              </button>
+              <button
+                onClick={handlePrint}
+                className="px-6 py-2.5 text-xs font-black text-white bg-zinc-800 rounded-xl hover:bg-black transition-all active:scale-95 flex items-center gap-2"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" /></svg>
+                Print / PDF
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isLoading || confirmDisabled}
+                className="px-8 py-2.5 text-xs font-black text-white bg-emerald-700 rounded-xl shadow-lg shadow-emerald-700/20 hover:bg-emerald-800 transition-all active:scale-95 flex items-center gap-2 disabled:bg-zinc-400 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="anim-loading h-4 w-4 border-white/30 border-t-white rounded-full" />
+                    Saving Record...
+                  </>
+                ) : (
+                  "Save & Finalize Transaction"
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -394,8 +465,7 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrin
               overflow: visible !important;
               margin: 0 !important;
               padding: 0 !important;
-              print-color-adjust: exact !important;
-              -webkit-print-color-adjust: exact !important;
+              ${MOA_BODY_PRINT_COLOR_SNIPPET}
             }
 
             /* Only reset the modal's outer positioning, NOT the MOA's internal divs */
@@ -428,14 +498,26 @@ export function MoaModal({ isOpen, onClose, onConfirm, data, isLoading, autoPrin
               display: block !important;
             }
 
+            /* Improve print readability: force all gray text shades to black */
+            #moa-slip-printable .text-zinc-300,
+            #moa-slip-printable .text-zinc-400,
+            #moa-slip-printable .text-zinc-500,
+            #moa-slip-printable .text-zinc-600,
+            #moa-slip-printable .text-zinc-700,
+            #moa-slip-printable .text-zinc-800 {
+              color: #000 !important;
+            }
+
             /* Restore grid/flex for specific components that need them */
             #moa-slip-printable .grid { display: grid !important; }
             #moa-slip-printable .flex { display: flex !important; }
-
-            @page {
-              size: portrait;
-              margin: 10mm;
+            #moa-slip-printable .moa-bottom-block {
+              margin-top: 16px !important;
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
             }
+
+            ${MOA_PRINT_PAGE_RULE_CSS}
           }
         `}</style>
       </div>

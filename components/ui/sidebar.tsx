@@ -9,6 +9,7 @@ import { APP_SHORT_NAME, APP_TAGLINE } from "@/lib/constants";
 import { getRoleLabel } from "@/lib/auth";
 import { LogoutIcon, MenuIcon, CloseIcon } from "@/lib/icons";
 import { LogoutModal } from "./logout-modal";
+import { useOptionalOpeningChecklist } from "@/contexts/opening-checklist-context";
 
 interface SidebarProps {
   navGroups: NavGroup[];
@@ -19,6 +20,7 @@ interface SidebarProps {
   onNavigate?: () => void;
   userName?: string;
   userRole?: Role;
+  userAvatarUrl?: string;
   onLogout?: () => void;
   disabled?: boolean;
 }
@@ -111,7 +113,7 @@ function NavItemComponent({
         </button>
 
         <div
-          className={`grid transition-all duration-300 ease-in-out ${
+          className={`grid transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
             isExpanded && !collapsed
               ? "grid-rows-[1fr] opacity-100 mt-1"
               : "grid-rows-[0fr] opacity-0 mt-0"
@@ -204,6 +206,7 @@ export function Sidebar({
   onNavigate,
   userName,
   userRole,
+  userAvatarUrl,
   onLogout,
   disabled,
 }: SidebarProps) {
@@ -211,6 +214,7 @@ export function Sidebar({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const sidebarRef = useRef<HTMLElement | null>(null);
+  const openingChecklist = useOptionalOpeningChecklist();
 
   const isCompact = collapsed && !isMobileOpen;
 
@@ -302,7 +306,7 @@ export function Sidebar({
         role={isMobileOpen ? "dialog" : undefined}
         aria-modal={isMobileOpen ? "true" : undefined}
         aria-label="Sidebar navigation"
-        className={`fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col overflow-hidden bg-pawn-sidebar text-white shadow-2xl transition-[transform,opacity,width] duration-300 ease-in-out lg:static lg:z-auto lg:h-screen lg:flex-none lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col overflow-hidden bg-pawn-sidebar text-white shadow-2xl transition-[transform,opacity,width] duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] lg:static lg:z-auto lg:h-screen lg:flex-none lg:shadow-none ${
           isMobileOpen
             ? "translate-x-0 opacity-100 pointer-events-auto"
             : "-translate-x-full opacity-0 pointer-events-none lg:translate-x-0 lg:opacity-100 lg:pointer-events-auto"
@@ -310,12 +314,12 @@ export function Sidebar({
       >
         {/* Brand header */}
         <div
-          className={`overflow-hidden py-4 transition-all duration-300 ease-in-out ${
+          className={`overflow-hidden py-4 transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
             isCompact ? "px-0" : "px-4"
           }`}
         >
           <div
-            className={`flex w-full items-center transition-all duration-300 ease-in-out ${
+            className={`flex w-full items-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
               isCompact ? "justify-center" : "justify-start gap-3"
             }`}
           >
@@ -338,7 +342,7 @@ export function Sidebar({
               className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-lg transition hover:bg-pawn-sidebar-light"
             >
               <span
-                className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-in-out ${
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
                   isCompact
                     ? "translate-x-0 opacity-100"
                     : "-translate-x-2 opacity-0"
@@ -347,7 +351,7 @@ export function Sidebar({
                 <MenuIcon />
               </span>
               <span
-                className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-in-out ${
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
                   isCompact
                     ? "translate-x-2 opacity-0"
                     : "translate-x-0 opacity-100"
@@ -363,7 +367,7 @@ export function Sidebar({
               </span>
             </button>
           <div
-            className={`overflow-hidden whitespace-nowrap text-left transition-all duration-300 ease-in-out ${
+            className={`overflow-hidden whitespace-nowrap text-left transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
               isCompact
                 ? "max-w-0 -translate-x-2 opacity-0"
                 : "max-w-[180px] translate-x-0 opacity-100"
@@ -388,7 +392,7 @@ export function Sidebar({
                 onToggle();
               }}
               aria-label="Collapse sidebar"
-              className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-300 hover:bg-pawn-sidebar-light opacity-100"
+              className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] hover:bg-pawn-sidebar-light opacity-100"
             >
               {isMobileOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
@@ -437,8 +441,16 @@ export function Sidebar({
             isCompact ? "justify-center" : ""
           }`}
         >
-          <div className="flex h-11 w-11 shrink-0 aspect-square items-center justify-center rounded-full bg-pawn-gold text-base font-bold leading-none text-zinc-900">
-            {userInitials}
+          <div className="flex h-11 w-11 shrink-0 aspect-square overflow-hidden items-center justify-center rounded-full bg-pawn-gold text-base font-bold leading-none text-zinc-900">
+            {userAvatarUrl ? (
+              <img
+                src={userAvatarUrl}
+                alt="User avatar"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              userInitials
+            )}
           </div>
           {!isCompact && (
             <div className="min-w-0">
@@ -452,6 +464,21 @@ export function Sidebar({
           )}
         </div>
       </div>
+
+      {process.env.NODE_ENV === "development" && openingChecklist && (
+        <div className="border-t border-white/10 p-2">
+          <button
+            onClick={() => openingChecklist.debugSetInventoryAudit()}
+            title={isCompact ? "Test Inv Scan" : undefined}
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-amber-400 bg-amber-400/10 transition-colors hover:bg-amber-400/20 ${
+              isCompact ? "justify-center px-2" : ""
+            }`}
+          >
+            <span className="flex shrink-0">🛠️</span>
+            {!isCompact && "Test Inv Scan"}
+          </button>
+        </div>
+      )}
 
       {/* Logout */}
       <div className="border-t border-white/10 p-2">

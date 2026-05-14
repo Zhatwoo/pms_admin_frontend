@@ -9,6 +9,11 @@ import { BranchSalesTable } from "./_components/branch-sales-table";
 import { SalesTrendChart } from "./_components/sales-trend-chart";
 import { DailyReportSection } from "./_components/daily-report-section";
 import { LoadingSpinnerLabel } from "@/components/shared/loading-spinner-label";
+import {
+  buildPmsPrintDocument,
+  escapeHtml,
+  printHtmlDocument,
+} from "@/lib/print-templates";
 const periods = ["Daily", "Weekly", "Monthly", "Yearly"];
 
 const downloadIcon = (
@@ -28,59 +33,11 @@ const downloadIcon = (
   </svg>
 );
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 function formatPeso(amount: number) {
   return `PHP ${amount.toLocaleString("en-PH", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-}
-
-function printHtmlDocument(html: string) {
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  iframe.setAttribute("aria-hidden", "true");
-
-  const cleanup = () => {
-    window.setTimeout(() => iframe.remove(), 500);
-  };
-
-  iframe.onload = () => {
-    const frameWindow = iframe.contentWindow;
-    if (!frameWindow) {
-      cleanup();
-      return;
-    }
-
-    frameWindow.onafterprint = cleanup;
-    frameWindow.focus();
-    window.setTimeout(() => frameWindow.print(), 250);
-  };
-
-  document.body.appendChild(iframe);
-
-  const frameDocument = iframe.contentDocument;
-  if (!frameDocument) {
-    cleanup();
-    throw new Error("Unable to create print document.");
-  }
-
-  frameDocument.open();
-  frameDocument.write(html);
-  frameDocument.close();
 }
 
 interface ReportData {
@@ -102,8 +59,39 @@ interface ReportData {
     date: string;
     openingBalance: number;
     totalSales: number;
-    totalExpenses: number;
+    totalCashOut: number;
     netTotal: number;
+  };
+}
+
+/** API may still send legacy `totalExpenses`; normalize to `totalCashOut` for UI / PDF. */
+function normalizeReportPayload(raw: unknown): ReportData | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const dr = r.dailyReport as Record<string, unknown> | undefined | null;
+  const dailyReport: ReportData["dailyReport"] = dr
+    ? {
+        date: String(dr.date ?? ""),
+        openingBalance: Number(dr.openingBalance ?? 0),
+        totalSales: Number(dr.totalSales ?? 0),
+        netTotal: Number(dr.netTotal ?? 0),
+        totalCashOut: Number(
+          dr.totalCashOut ??
+            dr.totalExpenses ??
+            0,
+        ),
+      }
+    : {
+        date: "",
+        openingBalance: 0,
+        totalSales: 0,
+        totalCashOut: 0,
+        netTotal: 0,
+      };
+
+  return {
+    ...(r as unknown as ReportData),
+    dailyReport,
   };
 }
 
@@ -127,8 +115,8 @@ export default function ReportsPage() {
         params.set("period", activePeriod.toLowerCase());
         if (startDate) params.set("startDate", startDate);
         if (endDate) params.set("endDate", endDate);
-        const data = await api.get<ReportData>(`/reports/system?${params}`);
-        setReportData(data);
+        const data = await api.get<unknown>(`/reports/system?${params}`);
+        setReportData(normalizeReportPayload(data));
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to load reports.";
         console.error("Failed to load reports:", err);
@@ -196,7 +184,7 @@ export default function ReportsPage() {
       const dailyRows = [
         ["Opening Balance", formatPeso(reportData.dailyReport.openingBalance)],
         ["Total Sales", formatPeso(reportData.dailyReport.totalSales)],
-        ["Total Expenses", formatPeso(reportData.dailyReport.totalExpenses)],
+        ["Total Cash Out", formatPeso(reportData.dailyReport.totalCashOut)],
         ["Net Total", formatPeso(reportData.dailyReport.netTotal)],
       ]
         .map(
@@ -207,91 +195,49 @@ export default function ReportsPage() {
             </tr>`,
         )
         .join("");
+      const generatedAt = escapeHtml(
+        new Date().toLocaleString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      );
+      const metaHtml = `
+        <p><strong>Generated for:</strong> ${escapeHtml(branchLabel)}</p>
+        <p><strong>Period:</strong> ${escapeHtml(activePeriod)}</p>
+        <p><strong>Date:</strong> ${escapeHtml(selectionLabel)}</p>
+        <p><strong>Generated:</strong> ${generatedAt}</p>`;
 
-      const html = `
-        <!doctype html>
-        <html>
-          <head>
-            <meta charset="utf-8" />
-            <title>System Performance Report</title>
-            <style>
-              body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111; margin: 0; padding: 0; }
-              .header { background: #064e3b; color: white; padding: 50px 20px; text-align: center; margin-bottom: 30px; border-bottom: 8px solid #f59e0b; }
-              .header h1 { margin: 0; font-size: 38px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; line-height: 1.1; }
-              .header p { margin: 12px 0 0; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 4px; opacity: 0.9; }
-              .content-wrapper { padding: 0 44px 44px; }
-              .meta p { margin: 0 0 8px; font-size: 12px; }
-              .divider { border-top: 2px solid #111; margin: 18px 0 28px; }
-              h2 { margin: 0 0 14px; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #064e3b; border-bottom: 1px solid #064e3b; padding-bottom: 4px; }
-              .summary-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; padding: 10px 0; }
-              .summary-item { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 4px; }
-              .summary-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-              .summary-value { font-size: 18px; font-weight: 900; color: #0f172a; }
-              .summary { margin-bottom: 20px; }
-              .summary p { margin: 0 0 6px; font-size: 12px; }
-              .section { margin-top: 22px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-              th, td { border-bottom: 1px solid #e2e8f0; padding: 12px 8px; font-size: 12px; text-align: left; }
-              thead th { background: #f1f5f9; border-top: 2px solid #064e3b; border-bottom: 2px solid #064e3b; font-weight: 700; color: #064e3b; }
-              .num { text-align: right; font-family: monospace; font-weight: 700; }
-              .empty { color: #64748b; font-style: italic; text-align: center; }
-              .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-              @media print {
-                body { margin: 0; }
-                .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>JCLB Buy Back Shop</h1>
-              <p>System Performance Report - ${escapeHtml(branchLabel)}</p>
-            </div>
-            <div class="content-wrapper">
-            <div class="meta">
-              <p><strong>Generated for:</strong> ${escapeHtml(branchLabel)}</p>
-              <p><strong>Period:</strong> ${escapeHtml(activePeriod)}</p>
-              <p><strong>Date:</strong> ${escapeHtml(selectionLabel)}</p>
-              <p><strong>Generated:</strong> ${escapeHtml(
-                new Date().toLocaleString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                }),
-              )}</p>
-            </div>
-            <div class="divider"></div>
+      const headerSubtitle = `System Performance Report — ${branchLabel}`;
 
-            <h2>Executive Summary</h2>
-            <div class="summary-grid">
-              <div class="summary-item">
-                <span class="summary-label">Total Sales Today</span>
-                <span class="summary-value">${escapeHtml(formatPeso(stats.totalSalesToday))}</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">Total Transactions</span>
-                <span class="summary-value">${stats.totalTransactions}</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">Avg. Per Branch</span>
-                <span class="summary-value">${escapeHtml(formatPeso(stats.avgPerBranch))}</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">Active Branches</span>
-                <span class="summary-value">${stats.activeBranches} / ${stats.totalBranches}</span>
+      let bodyHtml: string;
+      if (isAllBranches) {
+        bodyHtml = `
+            <div class="pms-print-section">
+              <h2>Executive Summary</h2>
+              <div class="pms-summary-grid">
+                <div class="pms-summary-item">
+                  <span class="pms-summary-label">Total Sales Today</span>
+                  <span class="pms-summary-value">${escapeHtml(formatPeso(stats.totalSalesToday))}</span>
+                </div>
+                <div class="pms-summary-item">
+                  <span class="pms-summary-label">Total Transactions</span>
+                  <span class="pms-summary-value">${stats.totalTransactions}</span>
+                </div>
+                <div class="pms-summary-item">
+                  <span class="pms-summary-label">Avg. Per Branch</span>
+                  <span class="pms-summary-value">${escapeHtml(formatPeso(stats.avgPerBranch))}</span>
+                </div>
+                <div class="pms-summary-item">
+                  <span class="pms-summary-label">Active Branches</span>
+                  <span class="pms-summary-value">${stats.activeBranches} / ${stats.totalBranches}</span>
+                </div>
               </div>
             </div>
 
-            <div class="section summary">
-              <h2>Historical Sales Trend Summary</h2>
-              <p><strong>14-day Average:</strong> ${escapeHtml(formatPeso(reportData.trendSummary.average))}</p>
-              <p><strong>Peak Date:</strong> ${escapeHtml(reportData.trendSummary.peakDate)}</p>
-              <p><strong>Peak Sales:</strong> ${escapeHtml(formatPeso(reportData.trendSummary.peakSales))}</p>
-            </div>
-
-            <div class="section">
+            <div class="pms-print-section">
               <h2>Branch Breakdown</h2>
               <table>
                 <thead>
@@ -306,7 +252,28 @@ export default function ReportsPage() {
               </table>
             </div>
 
-            <div class="section">
+            <div class="pms-print-section">
+              <h2>Daily Sales Report (DSR)</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th class="num">Value</th>
+                  </tr>
+                </thead>
+                <tbody>${dailyRows}</tbody>
+              </table>
+            </div>`;
+      } else {
+        const trendRows = reportData.salesTrend
+          .map(
+            (t) =>
+              `<tr><td>${escapeHtml(t.date)}</td><td class="num">${escapeHtml(formatPeso(t.sales))}</td></tr>`,
+          )
+          .join("");
+
+        bodyHtml = `
+            <div class="pms-print-section">
               <h2>Daily Sales Report (DSR)</h2>
               <table>
                 <thead>
@@ -319,11 +286,23 @@ export default function ReportsPage() {
               </table>
             </div>
 
-            </div>
-            <div class="footer">Pawnshop Management System</div>
-          </body>
-        </html>
-      `;
+            <div class="pms-print-section">
+              <h2>Sales Trend</h2>
+              <table>
+                <thead>
+                  <tr><th>Date</th><th class="num">Sales</th></tr>
+                </thead>
+                <tbody>${trendRows || '<tr><td colspan="2" class="empty">No trend data</td></tr>'}</tbody>
+              </table>
+            </div>`;
+      }
+
+      const html = buildPmsPrintDocument({
+        documentTitle: isAllBranches ? "System Performance Report" : "Branch Performance Report",
+        headerSubtitle,
+        metaHtml,
+        bodyHtml,
+      });
 
       printHtmlDocument(html);
     } catch (err) {

@@ -211,35 +211,35 @@ export function PasswordChangeRequestCard() {
       <button
         onClick={() => setIsModalOpen(true)}
         disabled={!canRequest}
-        className="mt-2 w-full rounded-lg border border-amber-100 bg-amber-50 py-2 text-[9px] font-bold uppercase tracking-wider text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 w-full rounded-lg border border-amber-100 bg-amber-50 py-2 text-[9px] font-bold uppercase tracking-wider text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900/70"
       >
         Change Password
       </button>
 
       {canRequest && (
-        <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-left">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-500">Last Request Status</p>
-          <p className="mt-1 text-[11px] font-semibold capitalize text-zinc-800">
+        <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-900">
+          <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-400">Last Request Status</p>
+          <p className="mt-1 text-[11px] font-semibold capitalize text-zinc-900 dark:text-zinc-100">
             {lastRequest?.status || "No requests yet"}
           </p>
           {lastRequest?.reviewNote && (
-            <p className="mt-1 text-[10px] text-zinc-600">{lastRequest.reviewNote}</p>
+            <p className="mt-1 text-[10px] text-zinc-700 dark:text-zinc-400">{lastRequest.reviewNote}</p>
           )}
           {approverLabel && (
-            <p className="mt-1 text-[9px] text-zinc-500">Approval Route: {approverLabel}</p>
+            <p className="mt-1 text-[9px] text-zinc-600 dark:text-zinc-500">Approval Route: {approverLabel}</p>
           )}
           {lastRequest?.status === "approved" && !isActivationComplete && (
-            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/60">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
                 Activate Approved Password
               </p>
-              <p className="mt-1 text-[10px] text-emerald-800">
+              <p className="mt-1 text-[10px] text-emerald-900 dark:text-emerald-200">
                 Log in using your old password, then confirm the approved new password here to activate it.
               </p>
 
               <div className="mt-3 space-y-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     Current Password
                   </label>
                   <div className="relative">
@@ -248,12 +248,12 @@ export function PasswordChangeRequestCard() {
                       value={activationCurrentPassword}
                       onChange={(e) => setActivationCurrentPassword(e.target.value)}
                       placeholder="Enter current password"
-                      className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 pr-12 text-sm text-zinc-900 outline-none transition-colors focus:border-emerald-500"
+                      className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 pr-12 text-sm text-zinc-900 outline-none transition-colors focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                     />
                     <button
                       type="button"
                       onClick={() => setShowActivationCurrentPassword((value) => !value)}
-                      className="absolute inset-y-0 right-2 my-auto flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                      className="absolute inset-y-0 right-2 my-auto flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                     >
                       {showActivationCurrentPassword ? "•" : "o"}
                     </button>
@@ -328,25 +328,25 @@ export function PasswordChangeRequestCard() {
       )}
 
       {canReview && (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-left shadow-sm">
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-left shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 className="text-[11px] font-bold uppercase tracking-wide text-zinc-700">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-200">
               Password Approval Queue
             </h3>
-            {isLoading && <span className="text-[9px] text-zinc-500">Loading...</span>}
+            {isLoading && <span className="text-[9px] text-zinc-600 dark:text-zinc-400">Loading...</span>}
           </div>
 
           {pending.length === 0 ? (
-            <p className="text-[10px] text-zinc-500">No pending password requests.</p>
+            <p className="text-[10px] text-zinc-700 dark:text-zinc-400">No pending password requests.</p>
           ) : (
             <div className="space-y-2">
               {pending.slice(0, 5).map((request) => (
-                <div key={request.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-2">
-                  <p className="text-[10px] font-bold text-zinc-800">
+                <div key={request.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-950/60">
+                  <p className="text-[10px] font-bold text-zinc-900 dark:text-zinc-100">
                     {request.requester?.fullName || "User"}
                   </p>
-                  <p className="mt-1 text-[10px] text-zinc-600">{request.reason}</p>
-                  <p className="mt-1 text-[9px] text-zinc-500">
+                  <p className="mt-1 text-[10px] text-zinc-700 dark:text-zinc-300">{request.reason}</p>
+                  <p className="mt-1 text-[9px] text-zinc-600 dark:text-zinc-500">
                     {new Date(request.createdAt).toLocaleString()}
                   </p>
                   <div className="mt-2 flex gap-2">
@@ -379,24 +379,24 @@ export function PasswordChangeRequestCard() {
             onClick={() => setIsModalOpen(false)}
           />
 
-          <div className="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
-            <h3 className="text-lg font-bold text-zinc-900">Request Password Change</h3>
-            <p className="mt-1 text-sm text-zinc-600">
+          <div className="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Request Password Change</h3>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               Provide a reason. This request will be sent to {approverLabel || "the assigned approver"} for approval.
             </p>
 
             <div className="mt-4 space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Reason for Password Change
               </label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Example: I suspect my password was exposed and need immediate reset approval."
-                className="h-28 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-emerald-500 focus:bg-white"
+                className="h-28 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-emerald-500 focus:bg-white dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500 dark:focus:bg-zinc-700"
               />
-              <p className="text-[10px] text-zinc-500">Minimum 10 characters.</p>
-              {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Minimum 10 characters.</p>
+              {error && <p className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>}
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-2">
@@ -406,7 +406,7 @@ export function PasswordChangeRequestCard() {
                   setError(null);
                 }}
                 disabled={isSubmitting}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-xs font-bold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-60"
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-xs font-bold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               >
                 Cancel
               </button>

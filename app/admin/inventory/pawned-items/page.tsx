@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback, Fragment } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { formatPeso } from "@/lib/currency";
+import { buildQrSheetDocument, escapeHtml, printHtmlDocument } from "@/lib/print-templates";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
+import { ActionButton } from "@/components/shared/action-button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PaginationFooter } from "@/components/shared/pagination";
-import { FilterSelect } from "@/components/shared/filter-select";
 import { InventoryCalendar } from "@/components/shared/inventory-calendar";
 import { PawnedItemDetailsModal } from "@/components/shared/pawned-item-details-modal";
 import { InventoryAuditModal } from "@/components/shared/inventory-audit-modal";
@@ -59,6 +60,10 @@ const pawnedStatusOptions = [
   { value: "Expired", label: "Expired" },
 ];
 
+const toolbarLabelClass = "text-[10px] font-bold uppercase tracking-wider text-text-tertiary";
+const toolbarFieldClass = "h-10 w-56 rounded-md border border-border-main bg-surface-secondary px-4 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500";
+const toolbarSelectClass = "h-10 w-56 rounded-md border border-border-main bg-surface-secondary px-4 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500";
+
 const statusVariant: Record<string, "green" | "blue" | "red" | "orange"> = {
   Active: "green",
   Redeemed: "blue",
@@ -85,6 +90,14 @@ const deleteIcon = (
   </svg>
 );
 
+const printerIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9V2h12v7" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </svg>
+);
+
 const expireIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -92,16 +105,16 @@ const expireIcon = (
 );
 
 function RenewalDetails({ renewals }: { renewals: Renewal[] }) {
-  if (renewals.length === 0) return <span className="text-text-muted text-[10px]">No renewals yet</span>;
+  if (renewals.length === 0) return <span className="text-text-muted text-[10px] dark:text-zinc-400">No renewals yet</span>;
   return (
-    <div className="space-y-1.5">
+    <div className="flex flex-col items-center gap-1.5">
       {renewals.map((r, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
+        <div key={i} className="flex items-center justify-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30">
             Renew {i + 1}
           </span>
-          <span className="text-[10px] text-text-tertiary">{r.date}</span>
-          <span className="text-[10px] font-bold text-text-secondary">{formatPeso(r.amount.toLocaleString())}</span>
+          <span className="text-[10px] text-text-tertiary dark:text-zinc-400">{r.date}</span>
+          <span className="text-[10px] font-bold text-text-secondary dark:text-zinc-300">{formatPeso(r.amount.toLocaleString())}</span>
         </div>
       ))}
     </div>
@@ -220,9 +233,48 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
   const [editingItem, setEditingItem] = useState<PawnedItem | null>(null);
   const [isQrScanOpen, setIsQrScanOpen] = useState(false);
   const [confirmIntent, setConfirmIntent] = useState<null | { type: "expire" | "delete"; itemId: string }>(null);
-  const [qrSize, setQrSize] = useState<"small" | "large">("small");
+  const [isPrintQrMenuOpen, setIsPrintQrMenuOpen] = useState(false);
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => todayString);
 
-  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery, selectedBranch.id]);
+  const handlePrintQr = useCallback((size: "small" | "large") => {
+    const sizeCm = size === "small" ? "2cm" : "3cm";
+    const fontSize = size === "small" ? "8px" : "10px";
+
+    const cardsHtml = pawnedItems
+      .map((item) => {
+        let qrUrl = "";
+        const itemQr = item.qrCode || item.qr_code;
+
+        if (itemQr?.startsWith("http") || itemQr?.startsWith("data:")) {
+          qrUrl = itemQr;
+        } else {
+          const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+          const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(item.itemId)}`;
+          const encoded = encodeURIComponent(publicViewUrl);
+          qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=250x250&color=065f46&bgcolor=f0fdf4&margin=2`;
+        }
+
+        return `
+        <div style="display:inline-flex; flex-direction:column; align-items:center; margin:3mm; vertical-align:top;">
+          <img src="${qrUrl}" style="width:${sizeCm}; height:${sizeCm}; display:block;" alt="" />
+          <p style="font-size:${fontSize}; font-weight:800; margin-top:1mm; color:#18181b;">${escapeHtml(item.itemId)}</p>
+        </div>
+      `;
+      })
+      .join("");
+
+    printHtmlDocument(
+      buildQrSheetDocument({
+        sheetTitle: "Pawned inventory — QR labels",
+        cardsHtml,
+      }),
+      { printDelayMs: 650 },
+    );
+  }, [pawnedItems]);
+
+  useEffect(() => { setCurrentPage(1); }, [category, status, searchQuery, selectedBranch.id, selectedDate]);
 
   useEffect(() => {
     async function fetchData() {
@@ -232,6 +284,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
         if (category !== "all") params.set("category", category);
         if (status !== "all") params.set("status", status);
         if (searchQuery) params.set("search", searchQuery);
+        if (selectedDate) params.set("date", selectedDate);
         if (!isAllBranches) params.set("branch", selectedBranch.id);
         params.set("page", String(currentPage));
         params.set("limit", String(itemsPerPage));
@@ -247,7 +300,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
       }
     }
     fetchData();
-  }, [category, status, searchQuery, currentPage, selectedBranch.id, isAllBranches]);
+  }, [category, status, searchQuery, selectedDate, currentPage, selectedBranch.id, isAllBranches]);
 
   const handleSaveRemarks = useCallback(async (itemId: string, remarks: string) => {
     try {
@@ -269,181 +322,239 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
   return (
     <div className="space-y-3 pb-4 text-text-primary -mt-2">
       <div>
-        <p className="text-sm text-emerald-900/60 dark:text-zinc-400">
+        <p className="text-sm text-emerald-900/60 dark:text-zinc-300">
           Comprehensive list of all active, redeemed, and expired pawn contracts across your branch.
         </p>
       </div>
-      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border-main bg-surface-secondary/85 p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface-secondary/85 p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
+      <div className={viewOnly ? "flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border-main bg-surface p-5 shadow-lg shadow-black/20 backdrop-blur-sm" : "flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-main bg-surface p-4 shadow-lg shadow-black/20 backdrop-blur-sm"}>
         <div className="flex flex-wrap items-end gap-3">
-          <FilterSelect label="Category" options={categoryOptions} value={category} onChange={setCategory} />
-          <FilterSelect label="Status" options={pawnedStatusOptions} value={status} onChange={setStatus} />
           <div className="flex flex-col gap-1">
-            <label className={viewOnly ? "text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500" : "text-[10px] font-bold uppercase tracking-wide text-zinc-500"}>Search</label>
+            <label className={toolbarLabelClass}>Search</label>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search items..."
-              className={viewOnly ? "h-10 w-56 rounded-md border border-zinc-300 px-4 text-sm outline-none transition-colors focus:border-emerald-500" : "h-9 w-44 rounded-md border border-zinc-300 px-3 text-xs outline-none transition-colors focus:border-emerald-500"}
+              className={viewOnly ? "h-10 w-56 rounded-md border border-border-main bg-surface-secondary px-4 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500" : toolbarFieldClass}
             />
+          </div>
+          {viewMode !== "calendar" && (
+            <div className="flex flex-col gap-1">
+              <label className={toolbarLabelClass}>Date</label>
+              <div className="relative flex items-center">
+                <input
+                  type="date"
+                  value={selectedDate || ""}
+                  max={todayString}
+                  onChange={(e) => setSelectedDate(e.target.value || null)}
+                  className={viewOnly ? "h-10 rounded-md border border-border-main bg-surface-secondary px-4 text-sm text-text-primary outline-none transition-colors focus:border-emerald-500 pr-8" : `${toolbarFieldClass} pr-8`}
+                />
+                {selectedDate && (
+                  <button type="button" onClick={() => setSelectedDate(null)} className="absolute right-2 text-text-muted hover:text-text-primary">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Category</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={toolbarSelectClass}>
+              {categoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={toolbarLabelClass}>Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={toolbarSelectClass}>
+              {pawnedStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {!viewOnly && (
-            <button onClick={() => setIsQrScanOpen(true)} className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-              </svg>
-              QR Scan
-            </button>
-          )}
-          <div className="flex overflow-hidden rounded-md border border-border-main bg-surface-secondary dark:border-slate-700 dark:bg-slate-900">
-            <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
-              List
-            </button>
-            <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
-              Calendar
-            </button>
-          </div>
-          {userRole === "super_admin" && (
-            <div className="flex items-center gap-1.5">
-              <select 
-                value={qrSize} 
-                onChange={(e) => setQrSize(e.target.value as "small" | "large")}
-                className="h-8 rounded border border-emerald-200 bg-white px-2 text-[10px] font-bold uppercase text-emerald-800 outline-none transition-colors focus:border-emerald-500"
-              >
-                <option value="small">Small</option>
-                <option value="large">Large</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => {
-                  const sizeCm = qrSize === "small" ? "2cm" : "3cm";
-                  const fontSize = qrSize === "small" ? "8px" : "10px";
-                  
-                  const qrHtml = pawnedItems.map(item => {
-                    let qrUrl = "";
-                    const itemQr = item.qrCode || item.qr_code;
-                    if (itemQr?.startsWith('http') || itemQr?.startsWith('data:')) {
-                      qrUrl = itemQr;
-                    } else {
-                      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-                      const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(item.itemId)}`;
-                      const encoded = encodeURIComponent(publicViewUrl);
-                      qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=250x250&color=065f46&bgcolor=f0fdf4&margin=2`;
-                    }
-                    
-                    return `
-                      <div style="display:inline-flex; flex-direction:column; align-items:center; margin:3mm; vertical-align:top;">
-                        <img src="${qrUrl}" style="width:${sizeCm}; height:${sizeCm}; display:block;" />
-                        <p style="font-family:sans-serif; font-size:${fontSize}; font-weight:bold; margin-top:1mm; color:#333;">${item.itemId}</p>
-                      </div>
-                    `;
-                  }).join('');
-
-                  const iframe = document.createElement('iframe');
-                  iframe.style.display = 'none';
-                  document.body.appendChild(iframe);
-                  
-                  const html = `<!DOCTYPE html>
-                    <html>
-                    <head>
-                    <meta charset="utf-8">
-                    <style>
-                      * { margin: 0; padding: 0; }
-                      @page { size: A4; margin: 5mm; }
-                      body { display: flex; flex-wrap: wrap; padding: 5mm; }
-                    </style>
-                    </head>
-                    <body>
-                    ${qrHtml}
-                    </body>
-                    </html>`;
-
-                  iframe.contentDocument?.open();
-                  iframe.contentDocument?.write(html);
-                  iframe.contentDocument?.close();
-
-                  iframe.onload = () => {
-                    setTimeout(() => {
-                      iframe.contentWindow?.focus();
-                      iframe.contentWindow?.print();
-                      setTimeout(() => document.body.removeChild(iframe), 1000);
-                    }, 500);
-                  };
-                }}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded border border-emerald-700 shadow-md whitespace-nowrap transition-colors"
-              >
-                PRINT QR
-              </button>
-            </div>
+        <div className="flex items-center gap-3">
+          {viewOnly ? (
+            <>
+              <div className="relative">
+                <ActionButton
+                  variant="primary"
+                  className="border-emerald-700 bg-emerald-700 text-amber-400"
+                  onClick={() => setIsPrintQrMenuOpen((prev) => !prev)}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {printerIcon}
+                    Print QR
+                  </span>
+                </ActionButton>
+                {isPrintQrMenuOpen && (
+                  <div className="absolute left-0 top-full z-20 mt-2 w-32 overflow-hidden rounded-md border border-border-main bg-surface shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintQrMenuOpen(false);
+                        handlePrintQr("small");
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                    >
+                      Small
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintQrMenuOpen(false);
+                        handlePrintQr("large");
+                      }}
+                      className="w-full border-t border-border-subtle px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                    >
+                      Large
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex overflow-hidden rounded-md border border-border-main bg-surface">
+                <button onClick={() => setViewMode("list")} className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>
+                  List
+                </button>
+                <button onClick={() => setViewMode("calendar")} className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}>
+                  Calendar
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {!viewOnly && (
+                <button onClick={() => setIsQrScanOpen(true)} className="flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                  </svg>
+                  QR Scan
+                </button>
+              )}
+              <div className="flex overflow-hidden rounded-md border border-border-main bg-surface-secondary dark:border-slate-700 dark:bg-slate-900">
+                <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "list" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
+                  List
+                </button>
+                <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 ${viewOnly ? "text-sm font-semibold" : "text-xs font-medium"} transition-colors ${viewMode === "calendar" ? "bg-emerald-700 text-white shadow-sm" : "bg-transparent text-text-secondary hover:bg-surface-hover dark:text-slate-300 dark:hover:bg-slate-800"}`}>
+                  Calendar
+                </button>
+              </div>
+              {userRole === "super_admin" && (
+                <div className="relative">
+                  <ActionButton variant="outline" className="!border-emerald-700 !bg-surface !text-emerald-700 hover:!opacity-80" onClick={() => setIsPrintQrMenuOpen((prev) => !prev)}>
+                    <span className="flex items-center gap-1.5">
+                      {printerIcon}
+                      Print QR
+                    </span>
+                  </ActionButton>
+                  {isPrintQrMenuOpen && (
+                    <div className="absolute right-0 top-full z-20 mt-2 w-32 overflow-hidden rounded-md border border-border-main bg-surface shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPrintQrMenuOpen(false);
+                          handlePrintQr("small");
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                      >
+                        Small
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPrintQrMenuOpen(false);
+                          handlePrintQr("large");
+                        }}
+                        className="w-full border-t border-border-subtle px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+                      >
+                        Large
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
 
-      {viewMode === "list" && (
-        <div className={viewOnly ? "overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300" : "overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm"}>
+      {viewMode === "calendar" && (
+        <div className="mb-4">
+          <InventoryCalendar items={pawnedItems} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+        </div>
+      )}
+
+      <div className={viewOnly ? "overflow-hidden rounded-lg border border-border-main bg-surface transition-colors duration-300" : "overflow-hidden rounded-lg border border-border-main bg-surface shadow-sm"}>
           <div className="overflow-x-auto">
             <table className={viewOnly ? "min-w-[1320px] w-full text-sm" : "w-full text-sm"}>
               <thead>
-                <tr className={viewOnly ? "bg-emerald-900 text-amber-400" : "bg-gradient-to-r from-emerald-950 to-emerald-900 text-white"}>
+                <tr className="bg-emerald-900 text-amber-400 dark:bg-emerald-950 dark:text-amber-300">
                   {["ID", "Item Name", "Category", "Branch", "Pawn Date", "Status", "Renewals", "Remarks", isAdminOrSuperAdmin ? "QR" : null, "Actions"]
                     .filter((h): h is string => h !== null)
                     .map((h) => (
-                      <th key={h} className={viewOnly ? `whitespace-nowrap px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] ${h === "Actions" || h === "QR" ? "text-center" : "text-left"}` : `whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${h === "Actions" || h === "QR" ? "text-center" : "text-left"}`}>{h}</th>
+                      <th key={h} className={`whitespace-nowrap px-3 py-2 sm:px-4 sm:py-3 text-xs font-bold uppercase tracking-wide dark:text-inherit ${h === "Renewals" || h === "Actions" || h === "QR" ? "text-center" : "text-left"}`}>{h}</th>
                     ))}
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center text-sm text-zinc-400">
+                  <tr className="bg-surface">
+                    <td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">
                       <div className="flex items-center justify-center">
                         <LoadingSpinnerLabel text="Loading pawned items..." className="text-base font-medium text-text-tertiary" />
                       </div>
                     </td>
                   </tr>
                 ) : pawnedItems.length === 0 ? (
-                  <tr><td colSpan={9} className="py-8 text-center text-sm text-zinc-400">No pawned items found</td></tr>
+                  <tr>
+                    <td colSpan={9} className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 bg-surface">
+                      {viewMode === "calendar" && selectedDate ? "No items on this day" : "No pawned items found"}
+                    </td>
+                  </tr>
                 ) : (
                   pawnedItems.map((item, idx) => (
                     <Fragment key={item.id}>
-                      <tr onClick={viewOnly ? () => setSelectedItemId(item.id) : undefined} className={`border-t border-border-subtle transition-colors ${viewOnly ? "cursor-pointer bg-surface-secondary hover:bg-emerald-surface/60" : `${idx % 2 === 0 ? "bg-surface" : "bg-surface-secondary/40"} hover:bg-surface-hover`}`}>
-                        <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm font-bold text-emerald-700" : "whitespace-nowrap px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400"}>{item.itemId}</td>
-                        <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-secondary" : "whitespace-nowrap px-3 py-2 text-xs text-text-secondary"}>{item.itemName}</td>
-                        <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-tertiary" : "whitespace-nowrap px-3 py-2 text-xs text-text-tertiary"}>{item.category}</td>
-                        <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-tertiary" : "whitespace-nowrap px-3 py-2 text-xs text-text-tertiary"}>{item.branch}</td>
-                        <td className={viewOnly ? "whitespace-nowrap px-5 py-4 text-sm text-text-tertiary" : "whitespace-nowrap px-3 py-2 text-xs text-text-tertiary"}>{item.pawnDate}</td>
-                        <td className="whitespace-nowrap px-3 py-2"><StatusBadge label={item.status} variant={statusVariant[item.status] || "green"} /></td>
-                        <td className="px-3 py-2">
-                          <button onClick={(event) => { event.stopPropagation(); setExpandedRow(expandedRow === item.itemId ? null : item.itemId); }} className={viewOnly ? "text-sm font-bold text-emerald-700 hover:underline" : "text-[10px] font-bold text-emerald-700 hover:underline"}>
+                      <tr onClick={viewOnly ? () => setSelectedItemId(item.id) : undefined} className="border-t border-border-subtle bg-surface-secondary transition-colors hover:bg-emerald-surface/60">
+                        <td className="whitespace-nowrap px-3 py-2 sm:px-4 sm:py-3 text-sm font-bold text-emerald-700 dark:text-emerald-400">{item.itemId}</td>
+                        <td className="whitespace-nowrap px-3 py-2 sm:px-4 sm:py-3 text-sm text-text-secondary dark:text-zinc-300">{item.itemName}</td>
+                        <td className="whitespace-nowrap px-3 py-2 sm:px-4 sm:py-3 text-sm text-text-tertiary dark:text-zinc-400">{item.category}</td>
+                        <td className="whitespace-nowrap px-3 py-2 sm:px-4 sm:py-3 text-sm text-text-tertiary dark:text-zinc-400">{item.branch}</td>
+                        <td className="whitespace-nowrap px-3 py-2 sm:px-4 sm:py-3 text-sm text-text-tertiary dark:text-zinc-400">{item.pawnDate}</td>
+                        <td className="whitespace-nowrap px-3 py-2 sm:px-4 sm:py-3"><StatusBadge label={item.status} variant={statusVariant[item.status] || "green"} /></td>
+                        <td className="px-3 py-2 sm:px-4 sm:py-3 text-center">
+                          <button onClick={(event) => { event.stopPropagation(); setExpandedRow(expandedRow === item.itemId ? null : item.itemId); }} className={viewOnly ? "mx-auto inline-flex text-sm font-bold text-emerald-700 hover:underline dark:text-emerald-400" : "mx-auto inline-flex text-xs font-bold text-emerald-700 hover:underline dark:text-emerald-400"}>
                             {item.renewalCount}x ▾
                           </button>
                         </td>
-                        <td className={viewOnly ? "px-5 py-4 text-sm text-text-tertiary max-w-[180px] truncate" : "px-3 py-2 text-xs text-text-tertiary max-w-[120px] truncate"} title={item.remarks}>{item.remarks || "—"}</td>
+                        <td className={viewOnly ? "px-3 py-2 sm:px-4 sm:py-3 text-sm text-text-tertiary max-w-[180px] truncate dark:text-zinc-400" : "px-3 py-2 sm:px-4 sm:py-3 text-sm text-text-tertiary max-w-[180px] truncate dark:text-zinc-400"} title={item.remarks}>{item.remarks || "—"}</td>
                         {isAdminOrSuperAdmin && (
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-3 py-2 sm:px-4 sm:py-3 text-center">
                             {(item.qrCode || item.qr_code) ? (
                               <div className="flex justify-center">
                                 <img
                                   src={item.qrCode || item.qr_code}
                                   alt={`${item.itemName} QR`}
-                                  className="h-8 w-8 rounded border border-border-main bg-white p-0.5 object-contain"
+                                  className="h-8 w-8 rounded border border-border-main bg-surface p-0.5 object-contain"
                                 />
                               </div>
                             ) : (
-                              <span className="text-text-muted">-</span>
+                              <span className="text-text-muted dark:text-zinc-500">-</span>
                             )}
                           </td>
                         )}
-                        <td className="px-3 py-2 whitespace-nowrap text-center">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button 
                               onClick={(event) => { event.stopPropagation(); setSelectedItemId(item.id); }} 
                               title="View Details"
-                              className="inline-flex items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-700 transition-colors hover:bg-emerald-100"
+                              className="inline-flex items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
                             >
                               {eyeIcon}
                             </button>
@@ -452,7 +563,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
                                 <button 
                                   onClick={(event) => { event.stopPropagation(); setEditingItem(item); }} 
                                   title="Edit Item"
-                                  className="inline-flex items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 text-blue-700 transition-colors hover:bg-blue-100"
+                                  className="inline-flex items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-500/20 dark:bg-blue-500/5 dark:text-blue-400 dark:hover:bg-blue-500/10"
                                 >
                                   {editIcon}
                                 </button>
@@ -464,7 +575,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
                                       e.stopPropagation();
                                       setConfirmIntent({ type: "expire", itemId: item.id });
                                     }}
-                                    className="inline-flex items-center justify-center rounded-lg border border-orange-500/30 bg-orange-500/10 p-2 text-orange-600 transition-colors hover:bg-orange-100"
+                                    className="inline-flex items-center justify-center rounded-lg border border-orange-500/30 bg-orange-500/10 p-2 text-orange-600 transition-colors hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/5 dark:text-orange-400 dark:hover:bg-orange-500/10"
                                   >
                                     {expireIcon}
                                   </button>
@@ -476,7 +587,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
                                     e.stopPropagation();
                                     setConfirmIntent({ type: "delete", itemId: item.id });
                                   }}
-                                  className="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-50 p-2 text-red-700 transition-colors hover:bg-red-100"
+                                  className="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-50 p-2 text-red-700 transition-colors hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-400 dark:hover:bg-red-500/10"
                                 >
                                   {deleteIcon}
                                 </button>
@@ -486,8 +597,8 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
                         </td>
                       </tr>
                       {expandedRow === item.itemId && (
-                        <tr key={`${item.itemId}-exp`} className="bg-amber-50/50">
-                          <td colSpan={isAdminOrSuperAdmin ? 10 : 9} className="px-6 py-3 border-t border-amber-100">
+                        <tr className="bg-amber-50/50 dark:bg-amber-900/20">
+                          <td colSpan={isAdminOrSuperAdmin ? 10 : 9} className="px-6 py-3 border-t border-amber-100 text-center dark:border-amber-800/30">
                             <RenewalDetails renewals={item.renewals} />
                           </td>
                         </tr>
@@ -499,14 +610,9 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
             </table>
           </div>
         </div>
-      )}
-
-      {viewMode === "calendar" && (
-        <InventoryCalendar items={pawnedItems} />
-      )}
 
       {viewOnly ? (
-        <div className="overflow-hidden rounded-2xl border border-border-main bg-surface-secondary/50 shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-border-main bg-surface-secondary/50 dark:bg-zinc-800/50 shadow-sm">
           <PaginationFooter
             currentPage={currentPage}
             totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}
@@ -516,7 +622,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
           />
         </div>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-3xl border border-border-main bg-surface shadow-lg shadow-black/20">
+        <div className="mt-4 overflow-hidden rounded-lg border border-border-main bg-surface dark:bg-zinc-900 shadow-lg shadow-black/20">
           <PaginationFooter
             currentPage={currentPage}
             totalPages={Math.max(1, Math.ceil(totalItems / itemsPerPage))}
