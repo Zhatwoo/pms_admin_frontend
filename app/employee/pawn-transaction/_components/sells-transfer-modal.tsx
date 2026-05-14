@@ -229,10 +229,10 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess }: S
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
           
           {/* Left Side: Inventory & Selection Details */}
-          <div className="w-[60%] border-r border-emerald-50 dark:border-border p-8 flex flex-col gap-8 bg-emerald-50/30 dark:bg-surface-secondary dark:bg-surface-secondary overflow-y-auto">
+          <div className="w-full xl:w-[60%] border-r border-emerald-50 dark:border-border p-4 sm:p-6 xl:p-8 flex flex-col gap-8 bg-emerald-50/30 dark:bg-surface-secondary dark:bg-surface-secondary overflow-y-auto">
             
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -246,7 +246,7 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess }: S
                     placeholder="Search Unit ID / Serial..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-64 bg-white dark:bg-surface border border-emerald-100 dark:border-border-subtle rounded-xl px-4 py-2 text-xs font-bold focus:ring-4 ring-emerald-500/10 outline-none transition-all"
+                    className="w-full max-w-xs bg-white dark:bg-surface border border-emerald-100 dark:border-border-subtle rounded-xl px-4 py-2 text-xs font-bold focus:ring-4 ring-emerald-500/10 outline-none transition-all"
                   />
                   <div className="absolute right-3 top-2 text-emerald-200">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -305,7 +305,7 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess }: S
             </div>
 
             {/* Selection Specifics */}
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
                <div className="space-y-6">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-4 bg-emerald-400 rounded-full" />
@@ -388,7 +388,7 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess }: S
           </div>
 
            {/* Right Side: Information Panel */}
-          <div className="flex-1 p-8 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 xl:p-8 overflow-y-auto">
             {form.sellTransfer === "Sales" ? (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-2">
@@ -404,7 +404,7 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess }: S
                 </div>
 
                 <div className="grid gap-6">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <Input label="First Name" name="firstName" value={form.firstName} onChange={handleChange} />
                     <Input label="Middle Name" name="middleName" value={form.middleName} onChange={handleChange} />
                     <Input label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} />

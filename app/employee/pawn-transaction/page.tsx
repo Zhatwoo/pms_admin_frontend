@@ -900,7 +900,7 @@ export default function EmployeePawnTransactionsPage() {
         </p>
       </div>
 
-      <div className="print-hide">
+      <div className="print-hide flex flex-col gap-4">
       <TransactionActions
         activeFilter={activeFilter}
         onFilterChange={(f) => setActiveFilter(f)}
@@ -1027,7 +1027,7 @@ export default function EmployeePawnTransactionsPage() {
         title={`Transactions for ${formatSelectedDateLabel(selectedDate)}`}
       />
 
-      <div className="mt-4">
+      <div>
         <PaginationFooter
           currentPage={currentPage}
           totalPages={totalPages}

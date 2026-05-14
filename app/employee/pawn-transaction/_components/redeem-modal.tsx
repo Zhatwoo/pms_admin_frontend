@@ -227,9 +227,9 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+        <div className="flex-1 overflow-hidden flex flex-col xl:flex-row">
           {/* Left Side: Search & Selection */}
-          <div className="w-full lg:w-[400px] border-r border-emerald-50 dark:border-border bg-emerald-50/30 dark:bg-surface-secondary flex flex-col shrink-0">
+          <div className="w-full xl:w-[400px] border-r border-emerald-50 dark:border-border bg-emerald-50/30 dark:bg-surface-secondary flex flex-col shrink-0">
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3 mb-2">
                 <Search className="w-5 h-5 text-emerald-600/40" />
@@ -300,7 +300,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
           {/* Right Side: Details & Computation */}
           <div className="flex-1 bg-white dark:bg-surface overflow-y-auto scrollbar-hide">
             {selectedItem ? (
-              <div className="p-8 lg:p-12 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="p-4 sm:p-6 xl:p-12 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-1 mb-8">
                   <p className="text-xs font-black text-emerald-600 uppercase tracking-[2px]">Redemption Preview</p>
                   <h2 className="text-4xl font-black text-emerald-950 dark:text-white dark:text-white tracking-tighter leading-none">
@@ -311,7 +311,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-10">
                   <DetailSection title="Loan & Item Details" icon={Smartphone}>
                     <DetailRow label="Principal Amount" value={formatPeso(Number(selectedItem.amount))} />
                     <DetailRow 
@@ -351,7 +351,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
                 {/* Computation Summary */}
                 <div className="mb-10 p-6 rounded-3xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 relative overflow-hidden group">
                   <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-100/50 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-                  <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="relative z-10 flex flex-col xl:flex-row items-center justify-between gap-6">
                     <div className="space-y-2">
                       <p className="text-[10px] font-black text-emerald-900/40 dark:text-emerald-400 uppercase tracking-widest">Computation Summary</p>
                       <div className="flex items-center gap-3">
@@ -379,7 +379,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
                 <div className="p-8 rounded-3xl bg-emerald-900 text-white relative overflow-hidden shadow-2xl shadow-emerald-900/20">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-800/50 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50" />
                   
-                  <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+                  <div className="relative z-10 flex flex-col xl:flex-row items-center gap-10">
                     <div className="flex-1 space-y-8">
                       <div className="flex items-center gap-2">
                         <ShieldCheck className="w-8 h-8 text-emerald-400" />
@@ -417,7 +417,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess }
                       )}
                     </div>
 
-                    <div className="w-full md:w-[320px] bg-white dark:bg-surface/5 p-6 rounded-2xl border border-white/10 backdrop-blur-md flex flex-col gap-6">
+                    <div className="w-full xl:w-[320px] bg-white dark:bg-surface/5 p-6 rounded-2xl border border-white/10 backdrop-blur-md flex flex-col gap-6">
                       <div className="space-y-4">
                         <div className="flex justify-between items-end border-b border-white/10 pb-4">
                           <p className="text-[10px] font-black text-emerald-400/60 uppercase tracking-widest">Net Cash Received</p>
