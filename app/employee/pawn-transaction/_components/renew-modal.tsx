@@ -346,9 +346,9 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
           </div>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden flex-col xl:flex-row">
           {/* Left Sidebar: Active Items */}
-          <div className="w-full lg:w-[350px] border-r border-emerald-50 dark:border-border bg-emerald-50/30 dark:bg-surface-secondary flex flex-col shrink-0">
+          <div className="w-full xl:w-[350px] border-r border-emerald-50 dark:border-border bg-emerald-50/30 dark:bg-surface-secondary flex flex-col shrink-0">
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3 mb-2">
                 <Search className="w-5 h-5 text-emerald-600/40" />
@@ -410,7 +410,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
           </div>
 
           {/* Main Info Area */}
-          <div className="flex-1 p-8 flex flex-col lg:flex-row gap-8 bg-emerald-50/20 dark:bg-surface-secondary overflow-y-auto scrollbar-hide">
+          <div className="flex-1 p-4 sm:p-6 xl:p-8 flex flex-col xl:flex-row gap-8 bg-emerald-50/20 dark:bg-surface-secondary overflow-y-auto scrollbar-hide">
             {/* Left Column: Specs */}
             <div className="flex-1 space-y-5 flex flex-col">
               <SectionHeader title="Loan & Item Identity" icon={Info} />
@@ -449,7 +449,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
           </div>
 
           {/* Right Action Panel */}
-          <div className="w-[340px] bg-emerald-900 p-6 flex flex-col gap-4 shrink-0 overflow-hidden">
+          <div className="w-full xl:w-[340px] bg-emerald-900 p-6 flex flex-col gap-4 shrink-0 overflow-hidden">
              <div className="space-y-3">
                 <SectionHeader title="Transaction Type" icon={Tag} isDark />
                 
