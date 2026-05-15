@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { formatPeso } from "@/lib/currency";
+import { toast } from "sonner";
 
 interface DailyBalanceConfirmationProps {
   isOpen: boolean;
@@ -77,6 +78,9 @@ export function DailyBalanceConfirmation({
     setIsSubmitting(true);
     try {
       await onConfirm(rawValue);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save balance. Please try again.";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
