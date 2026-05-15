@@ -23,12 +23,14 @@ interface BusinessSessionExpectedApi {
 export function OpeningChecklistWrapper() {
   const { currentStep, isComplete, completeCashOnHand } = useOpeningChecklist();
   const [expectedCash, setExpectedCash] = useState("0");
+  const [isLoadingExpectedAmount, setIsLoadingExpectedAmount] = useState(true);
 
   // Expected cash: business-session suggestion first (matches toolbar), then latest-balance.
   useEffect(() => {
     if (currentStep !== "CASH_ON_HAND" || isComplete) return;
 
     let cancelled = false;
+    setIsLoadingExpectedAmount(true);
     (async () => {
       let resolved: number | null = null;
 
@@ -79,6 +81,7 @@ export function OpeningChecklistWrapper() {
 
       if (!cancelled) {
         setExpectedCash(String(resolved ?? 0));
+        setIsLoadingExpectedAmount(false);
       }
     })();
 
@@ -99,6 +102,7 @@ export function OpeningChecklistWrapper() {
         currentCash={expectedCash}
         onConfirm={completeCashOnHand}
         onClose={() => {}} // Disabled close for mandatory workflow
+        isLoadingExpectedAmount={isLoadingExpectedAmount}
       />
     </>
   );
