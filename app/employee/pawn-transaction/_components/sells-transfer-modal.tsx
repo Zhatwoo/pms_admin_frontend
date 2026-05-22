@@ -585,7 +585,17 @@ export function SellsTransferModal({ isOpen, onClose, branchName, onSuccess, ini
               <div className="h-10 w-px bg-zinc-100 dark:bg-surface-hover hidden sm:block" />
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="w-40">
-                  <Input label="Password" name="password" value={form.password} onChange={handleChange} type="password" size="sm" bg="bg-slate-50" placeholder="••••••••" />
+                  <div className="space-y-1.5 w-full">
+                    <label className="text-[10px] font-bold text-emerald-900/40 dark:text-emerald-400 uppercase tracking-tighter ml-1">Password</label>
+                    <input
+                      name="password"
+                      value={form.password}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      type="password"
+                      className="w-full rounded-xl border-2 border-emerald-300 bg-white px-4 py-2 text-xs font-black text-emerald-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none placeholder:text-zinc-300"
+                    />
+                  </div>
                 </div>
               </div>
           </div>
