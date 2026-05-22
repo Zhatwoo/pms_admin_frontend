@@ -463,7 +463,6 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
           )}
         </div>
       </div>
-    </div>
   );
 }
 
