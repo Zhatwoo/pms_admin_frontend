@@ -197,9 +197,8 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
         <div className="flex items-center gap-2">
           {canEdit && (
             <ActionButton
-              variant="outline"
+              variant="success"
               onClick={() => setAddModalOpen(true)}
-              className="border-emerald-700 bg-surface-secondary text-white shadow-sm hover:bg-emerald-700 hover:text-white dark:bg-zinc-900 dark:text-white"
             >
               <span className="flex items-center gap-1.5">
                 {plusIcon}
@@ -258,7 +257,7 @@ export default function ItemsForSalePage({ viewOnly = false }: { viewOnly?: bool
                     { printDelayMs: 650 },
                   );
                 }}
-                className="border-emerald-700 bg-surface-secondary text-emerald-700 shadow-sm hover:bg-emerald-50/10 dark:bg-zinc-900 dark:text-emerald-400"
+                className="border-emerald-600 bg-surface-secondary text-[#0f172a] shadow-sm hover:bg-emerald-50 hover:text-[#0f172a] dark:text-white dark:hover:bg-emerald-700 dark:hover:text-white"
               >
                 <span className="flex items-center gap-1.5">
                   {printerIcon}

@@ -294,9 +294,8 @@ export default function ItemsForSalePage() {
         <div className="flex items-center gap-3">
           {user?.role === "super_admin" && (
             <ActionButton
-              variant="outline"
+              variant="success"
               onClick={() => setIsAddModalOpen(true)}
-              className="border-emerald-700 bg-surface-secondary text-white shadow-sm hover:bg-emerald-700 hover:text-white dark:bg-zinc-900 dark:text-white"
             >
               <span className="flex items-center gap-1.5">
                 {plusIcon}
