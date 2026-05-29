@@ -240,7 +240,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
           </div>
         </div>
 
-        <div className={`flex-1 ${compactTablet ? "overflow-y-auto xl:hidden md:max-xl:block" : "overflow-hidden"} flex flex-col xl:flex-row`}>
+        <div className={`flex-1 ${compactTablet ? "overflow-y-auto" : "overflow-hidden"} flex flex-col xl:flex-row`}>
           {/* Left Side: Search & Selection */}
           <div className={`w-full xl:w-[400px] border-r border-emerald-50 dark:border-border bg-emerald-50/30 dark:bg-surface-secondary flex flex-col shrink-0 ${compactTablet ? "md:max-xl:w-full md:max-xl:border-r-0 md:max-xl:border-b md:max-xl:min-h-0 md:max-xl:max-h-none" : ""}`}>
             <div className={`space-y-4 ${compactTablet ? "p-4 md:max-xl:p-4" : "p-6"}`}>
@@ -311,7 +311,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
           </div>
 
           {/* Right Side: Details & Computation */}
-          <div className={`flex-1 bg-white dark:bg-surface overflow-y-auto scrollbar-hide ${compactTablet ? "hidden md:max-xl:hidden" : ""}`}>
+          <div className={`flex-1 bg-white dark:bg-surface overflow-y-auto scrollbar-hide ${compactTablet ? "md:max-xl:block md:max-xl:border-t md:max-xl:border-emerald-50" : ""}`}>
             {selectedItem ? (
               <div className={`p-4 sm:p-6 xl:p-12 animate-in fade-in slide-in-from-right-4 duration-300 ${compactTablet ? "md:max-xl:p-4 md:max-xl:pb-5" : ""}`}>
                 <div className="space-y-1 mb-8">

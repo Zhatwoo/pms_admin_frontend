@@ -435,6 +435,7 @@ export default function EmployeePawnTransactionsPage() {
   const { selectedBranch, branches, canSwitchBranch } = useBranch();
   const { user } = useAuth();
   const { refreshOpeningChecklistFromServer } = useOpeningChecklist();
+  const [isCompactTablet, setIsCompactTablet] = useState(false);
 
   useEffect(() => {
     async function syncInterestRates() {
@@ -450,6 +451,21 @@ export default function EmployeePawnTransactionsPage() {
     syncInterestRates();
   }, []);
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(min-width: 768px) and (max-width: 1023px)");
+    const updateCompactTablet = () => setIsCompactTablet(mediaQuery.matches);
+
+    updateCompactTablet();
+    mediaQuery.addEventListener("change", updateCompactTablet);
+
+    return () => mediaQuery.removeEventListener("change", updateCompactTablet);
+  }, []);
+
   const [branchAdminName, setBranchAdminName] = useState("");
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [hideRenewSidebar, setHideRenewSidebar] = useState(false);
@@ -1268,7 +1284,7 @@ export default function EmployeePawnTransactionsPage() {
         branchId={resolvedBranchIdForModals}
         initialSearchCode={searchParams.get("action") === "renew" ? searchParams.get("ticketNo") || undefined : undefined}
         hideSidebar={hideRenewSidebar}
-        compactTablet
+        compactTablet={isCompactTablet}
       />
 
       <NewPawnModal
@@ -1289,7 +1305,7 @@ export default function EmployeePawnTransactionsPage() {
         onSuccess={handleTransactionSuccess}
         branchId={resolvedBranchIdForModals}
         branchName={selectedBranch.name}
-        compactTablet
+        compactTablet={isCompactTablet}
       />
 
       {/* Buy Back Modal will handle Expired/For-Sale items */}
@@ -1306,7 +1322,7 @@ export default function EmployeePawnTransactionsPage() {
         onClose={() => setIsSalesTransferModalOpen(false)}
         onSuccess={handleTransactionSuccess}
         branchName={selectedBranch.name}
-        compactTablet
+        compactTablet={isCompactTablet}
       />
 
       <ReserveLayawayModal
