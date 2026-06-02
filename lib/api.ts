@@ -43,6 +43,8 @@ export class ApiError extends Error {
 }
 
 class ApiClient {
+  private pendingGets = new Map<string, Promise<unknown>>();
+
   private isAuthRefreshGraceActive() {
     if (typeof window === "undefined") return false;
 
@@ -390,7 +392,27 @@ class ApiClient {
   }
 
   get<T>(path: string, options?: ApiRequestInit) {
-    return this.fetch<T>(path, { ...options, method: "GET" });
+    const key = JSON.stringify({
+      path,
+      headers: options?.headers ?? null,
+      cache: options?.cache ?? null,
+      credentials: options?.credentials ?? null,
+      suppressAuthExpired: options?.suppressAuthExpired ?? false,
+    });
+
+    const existing = this.pendingGets.get(key) as Promise<T> | undefined;
+    if (existing) {
+      return existing;
+    }
+
+    const request = this.fetch<T>(path, { ...options, method: "GET" });
+    this.pendingGets.set(key, request as Promise<unknown>);
+
+    return request.finally(() => {
+      if (this.pendingGets.get(key) === request) {
+        this.pendingGets.delete(key);
+      }
+    });
   }
 
   delete<T>(path: string, options?: ApiRequestInit) {
