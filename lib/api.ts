@@ -43,8 +43,19 @@ export class ApiError extends Error {
 }
 
 class ApiClient {
+  private pendingGets = new Map<string, Promise<unknown>>();
+
+  private isAuthRefreshGraceActive() {
+    if (typeof window === "undefined") return false;
+
+    const rawUntil = window.sessionStorage.getItem("pms_auth_refresh_grace_until");
+    const until = rawUntil ? Number(rawUntil) : 0;
+    return Number.isFinite(until) && Date.now() < until;
+  }
+
   private notifySessionExpired(message: string, path: string) {
     if (typeof window === "undefined") return;
+    if (this.isAuthRefreshGraceActive()) return;
 
     window.dispatchEvent(
       new CustomEvent("pms:auth-expired", {
@@ -132,7 +143,7 @@ class ApiClient {
               await new Promise(resolve => setTimeout(resolve, delay));
               continue;
             }
-          } catch (e) {
+          } catch {
             // ignore clone read error
           }
         }
@@ -169,7 +180,12 @@ class ApiClient {
         suppressLogging,
       );
 
-      if (res.status === 401 && !isPublicPath && !suppressAuthExpired) {
+      if (
+        res.status === 401 &&
+        !isPublicPath &&
+        !suppressAuthExpired &&
+        !this.isAuthRefreshGraceActive()
+      ) {
         console.warn(`[API] 401 Unauthorized for ${path}.`);
         this.notifySessionExpired(message, path);
       }
@@ -376,7 +392,27 @@ class ApiClient {
   }
 
   get<T>(path: string, options?: ApiRequestInit) {
-    return this.fetch<T>(path, { ...options, method: "GET" });
+    const key = JSON.stringify({
+      path,
+      headers: options?.headers ?? null,
+      cache: options?.cache ?? null,
+      credentials: options?.credentials ?? null,
+      suppressAuthExpired: options?.suppressAuthExpired ?? false,
+    });
+
+    const existing = this.pendingGets.get(key) as Promise<T> | undefined;
+    if (existing) {
+      return existing;
+    }
+
+    const request = this.fetch<T>(path, { ...options, method: "GET" });
+    this.pendingGets.set(key, request as Promise<unknown>);
+
+    return request.finally(() => {
+      if (this.pendingGets.get(key) === request) {
+        this.pendingGets.delete(key);
+      }
+    });
   }
 
   delete<T>(path: string, options?: ApiRequestInit) {
