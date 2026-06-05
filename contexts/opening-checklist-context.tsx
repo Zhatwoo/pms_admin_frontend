@@ -35,6 +35,10 @@ interface OpeningChecklistContextValue {
   isComplete: boolean;
   /** False until the first daily-opening status fetch finishes for employees. */
   isOpeningChecklistReady: boolean;
+  /** Hides opening modals while filing a starting-cash mismatch incident report. */
+  openingChecklistModalHidden: boolean;
+  hideOpeningChecklistModal: () => void;
+  resetOpeningChecklistModalHidden: () => void;
   completeCashOnHand: (amount: string) => Promise<void>;
   completeInventoryAudit: () => Promise<void>;
   resetChecklist: () => void;
@@ -56,6 +60,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
   const [currentStep, setCurrentStep] = useState<ChecklistStep>("CASH_ON_HAND");
   const [isComplete, setIsComplete] = useState(false);
   const [isOpeningChecklistReady, setIsOpeningChecklistReady] = useState(false);
+  const [openingChecklistModalHidden, setOpeningChecklistModalHidden] = useState(false);
   const hasLoadedBranchDayRef = useRef<string | null>(null);
   const lastSyncedOpeningDateRef = useRef<string | null>(null);
   const isLoadingOpeningRef = useRef(false);
@@ -189,6 +194,24 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
     };
   }, [user, loadDailyOpeningForEmployee]);
 
+  const refreshOpeningChecklistFromServer = useCallback(async () => {
+    if (!user || !isOpeningChecklistRole(user.role) || !user.branchId) {
+      return;
+    }
+    hasLoadedBranchDayRef.current = null;
+    lastVisibilitySyncAtRef.current = 0;
+    openingLoadStartedAtByKey.delete(`${user.branchId}:${getPhCalendarDateString()}`);
+    await loadDailyOpeningForEmployee({ preserveShell: true });
+  }, [user, loadDailyOpeningForEmployee]);
+
+  const hideOpeningChecklistModal = useCallback(() => {
+    setOpeningChecklistModalHidden(true);
+  }, []);
+
+  const resetOpeningChecklistModalHidden = useCallback(() => {
+    setOpeningChecklistModalHidden(false);
+  }, []);
+
   const completeCashOnHand = useCallback(async (amount: string) => {
     try {
       await api.post("/branch-finance/daily-balance", {
@@ -231,8 +254,9 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
           businessDate,
         });
 
-        toast.error("Starting cash mismatch. Please file an incident ticket.");
-        router.replace(`/employee/incident-tickets?${params.toString()}`);
+        setOpeningChecklistModalHidden(true);
+        toast.error("Starting cash mismatch. Please file an incident report.");
+        router.replace(`/employee/incident-report?${params.toString()}`);
         return;
       }
 
@@ -259,6 +283,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
   const resetChecklist = useCallback(() => {
     setCurrentStep("CASH_ON_HAND");
     setIsComplete(false);
+    setOpeningChecklistModalHidden(false);
     hasLoadedBranchDayRef.current = null;
     lastSyncedOpeningDateRef.current = null;
   }, []);
@@ -268,22 +293,15 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
     setIsComplete(false);
   }, []);
 
-  const refreshOpeningChecklistFromServer = useCallback(async () => {
-    if (!user || !isOpeningChecklistRole(user.role) || !user.branchId) {
-      return;
-    }
-    hasLoadedBranchDayRef.current = null;
-    lastVisibilitySyncAtRef.current = 0;
-    openingLoadStartedAtByKey.delete(`${user.branchId}:${getPhCalendarDateString()}`);
-    await loadDailyOpeningForEmployee({ preserveShell: true });
-  }, [user, loadDailyOpeningForEmployee]);
-
   return (
     <OpeningChecklistContext.Provider
       value={{
         currentStep,
         isComplete,
         isOpeningChecklistReady,
+        openingChecklistModalHidden,
+        hideOpeningChecklistModal,
+        resetOpeningChecklistModalHidden,
         completeCashOnHand,
         completeInventoryAudit,
         resetChecklist,

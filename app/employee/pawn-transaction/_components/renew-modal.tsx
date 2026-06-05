@@ -284,7 +284,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 md:p-6 text-zinc-900 dark:text-white">
       <div className="fixed inset-0 bg-emerald-950/40 backdrop-blur-md transition-opacity no-print" onClick={onClose} />
-      <div className={`relative z-10 flex h-[calc(100dvh-1rem)] w-full min-h-0 flex-col overflow-hidden rounded-3xl bg-white shadow-2xl shadow-emerald-900/20 animate-in fade-in zoom-in-95 duration-300 dark:bg-background sm:h-[calc(100dvh-2rem)] ${compactTablet ? "md:h-[calc(100dvh-4rem)] md:max-w-6xl lg:h-[88vh] xl:max-w-7xl" : "md:h-[calc(100dvh-3rem)] lg:h-[90vh]"}`}>
+      <div className={`relative z-10 flex h-[calc(100dvh-1rem)] w-[92vw] max-w-[1200px] min-h-0 flex-col overflow-hidden rounded-3xl bg-white shadow-2xl shadow-emerald-900/20 animate-in fade-in zoom-in-95 duration-300 dark:bg-background sm:h-[calc(100dvh-2rem)] ${compactTablet ? "md:h-[calc(100dvh-4rem)] md:max-w-6xl lg:h-[88vh] xl:max-w-7xl" : "md:h-[calc(100dvh-3rem)] lg:h-[90vh]"}`}>
         
         {/* Top Floating Header */}
         <div className={`relative z-10 shrink-0 bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800 px-4 py-4 text-white sm:px-5 ${compactTablet ? "md:px-5 md:py-4" : "md:px-6 md:py-5"}`}>
@@ -346,9 +346,9 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
         </div>
 
           {compactTablet && (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden xl:hidden md:max-xl:grid md:max-xl:grid-cols-[392px_minmax(0,1fr)]">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden xl:hidden md:max-xl:grid md:max-xl:grid-cols-[360px_minmax(0,1fr)]">
               {!hideSidebar && (
-                <aside className="flex w-full min-h-0 flex-col overflow-hidden border-r border-emerald-100 bg-emerald-50/10 dark:border-white/5 dark:bg-black/20 md:max-xl:w-[392px]">
+                <aside className="flex w-full min-h-0 flex-col overflow-hidden border-r border-emerald-100 bg-emerald-50/10 dark:border-white/5 dark:bg-black/20 md:max-xl:w-[360px]">
                   <div className="space-y-3 p-4 md:p-4">
                     <div className="flex items-center gap-2.5">
                       <Search className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -399,18 +399,18 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
                 </aside>
               )}
 
-              <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-emerald-50/20 dark:bg-surface-secondary">
+              <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-emerald-50/20 dark:bg-surface-secondary">
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 md:max-xl:p-4 scrollbar-hide">
                   <div className="rounded-2xl border border-emerald-100 bg-white/85 p-4 shadow-lg shadow-emerald-900/5 backdrop-blur-sm dark:border-white/5 dark:bg-black/20">
                     <SectionHeader title="Loan & Item Identity" icon={Info} />
-                    <div className="mt-4 grid gap-3 md:max-xl:grid-cols-2">
+                    <div className="mt-4 grid min-w-0 gap-3 md:max-xl:grid-cols-2">
                       <TabletMetricCard label="Customer Name" value={selectedItem?.name} className="md:max-xl:col-span-2" />
                       <TabletMetricCard label="Unit Code" value={selectedItem?.unitCode} />
                       <TabletMetricCard label="Unit Name" value={selectedItem?.unit} />
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:max-xl:grid-cols-2">
+                  <div className="mt-4 grid min-w-0 gap-3 md:max-xl:grid-cols-2">
                     <TabletMetricCard
                       label="Principal Amount"
                       value={selectedItem ? `₱ ${selectedItem.amount.toLocaleString()}` : "---"}
@@ -423,7 +423,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
                     />
                   </div>
 
-                  <details className="mt-4 rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-sm shadow-emerald-900/5 dark:border-white/5 dark:bg-black/20">
+                  <details className="mt-4 min-w-0 rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-sm shadow-emerald-900/5 dark:border-white/5 dark:bg-black/20">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.22em] text-emerald-900/55 dark:text-emerald-400">
                       <span>View More Details</span>
                       <span className="text-emerald-500">+</span>
@@ -653,8 +653,8 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
 
         {/* Footer Actions */}
         <div className={`shrink-0 border-t border-emerald-50 bg-white p-4 dark:bg-surface sm:p-6 ${compactTablet ? "lg:p-6" : "lg:p-8"}`}>
-          <div className={`flex flex-col gap-4 ${compactTablet ? "lg:flex-row lg:items-center lg:justify-between lg:gap-6" : "lg:flex-row lg:items-center lg:justify-between lg:gap-8"}`}>
-            <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4 ${compactTablet ? "lg:gap-6" : "lg:gap-8"}`}>
+          <div className={`flex flex-col gap-4 ${compactTablet ? "md:flex-row md:items-center md:justify-between md:gap-6" : "lg:flex-row lg:items-center lg:justify-between lg:gap-8"}`}>
+            <div className={`flex flex-col gap-4 ${compactTablet ? "md:flex-row md:items-center md:gap-5" : "sm:flex-row sm:items-center sm:gap-4 lg:gap-8"}`}>
               <button
                 onClick={onClose}
                 className="px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
@@ -662,25 +662,23 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
                 Cancel Process
               </button>
 
-              <div className="hidden h-10 w-px bg-zinc-100 dark:bg-surface-hover sm:block" />
+              <div className="hidden h-10 w-px bg-zinc-100 dark:bg-surface-hover md:block" />
 
-              <div className={`flex w-full flex-col gap-3 sm:flex-row ${compactTablet ? "sm:gap-4" : "sm:gap-6"}`}>
-                <div className={`w-full sm:w-40 ${compactTablet ? "md:w-36" : ""}`}>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-900/40 dark:text-emerald-400">Password</label>
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      className="h-10 rounded-lg border border-emerald-100 bg-slate-50 px-3 text-sm text-text-primary outline-none transition-all placeholder:text-text-muted focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-border-subtle dark:bg-surface-secondary"
-                      value={adminForm.password}
-                      onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                    />
-                  </div>
+              <div className={`w-full ${compactTablet ? "md:w-36" : "sm:w-40"}`}>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-900/40 dark:text-emerald-400">Password</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="h-10 rounded-lg border border-emerald-100 bg-slate-50 px-3 text-sm text-text-primary outline-none transition-all placeholder:text-text-muted focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-border-subtle dark:bg-surface-secondary"
+                    value={adminForm.password}
+                    onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                  />
                 </div>
               </div>
             </div>
 
-            <div className={`flex w-full items-center justify-between gap-4 border-t border-emerald-50 pt-4 lg:w-auto lg:justify-start lg:border-t-0 lg:pt-0 ${compactTablet ? "lg:gap-5" : "lg:gap-6"}`}>
+            <div className={`flex w-full items-center justify-between gap-4 border-t border-emerald-50 pt-4 md:w-auto md:border-t-0 md:pt-0 ${compactTablet ? "md:gap-5" : "lg:gap-6"}`}>
               <div className="text-right">
                 <p className="mb-1 text-[9px] font-black uppercase leading-none tracking-[0.2em] text-emerald-900/40 dark:text-emerald-400">
                   TOTAL PAYMENT
@@ -693,7 +691,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
               <button
                 disabled={isLoading || !selectedItem}
                 onClick={handleProceed}
-                className={`flex items-center justify-center gap-3 rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider transition-all active:scale-[0.98] sm:px-10 ${compactTablet ? "lg:px-10 lg:py-4" : "lg:px-12 lg:py-5"} ${isLoading || !selectedItem ? 'cursor-not-allowed bg-zinc-100 text-zinc-300 dark:bg-surface-hover' : 'bg-emerald-600 text-white shadow-xl shadow-emerald-600/30 hover:bg-emerald-700'}`}
+                className={`flex items-center justify-center gap-3 rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider transition-all active:scale-[0.98] sm:px-10 ${compactTablet ? "md:px-10 md:py-4" : "lg:px-12 lg:py-5"} ${isLoading || !selectedItem ? 'cursor-not-allowed bg-zinc-100 text-zinc-300 dark:bg-surface-hover' : 'bg-emerald-600 text-white shadow-xl shadow-emerald-600/30 hover:bg-emerald-700'}`}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -765,11 +763,11 @@ function StaticDetailRow({ label, value }: { label: string, value: string | numb
 
 function TabletMetricCard({ label, value, className = "", accent = false }: { label: string; value: string | number | undefined; className?: string; accent?: boolean }) {
   return (
-    <div className={`rounded-2xl border border-emerald-100 bg-white/85 p-4 shadow-sm shadow-emerald-900/5 dark:border-white/5 dark:bg-black/20 ${className}`}>
+    <div className={`min-w-0 rounded-2xl border border-emerald-100 bg-white/85 p-4 shadow-sm shadow-emerald-900/5 dark:border-white/5 dark:bg-black/20 ${className}`}>
       <p className="text-[9px] font-black uppercase tracking-[0.22em] text-emerald-900/40 dark:text-emerald-400">
         {label}
       </p>
-      <p className={`mt-2 leading-tight ${accent ? "text-lg font-black text-emerald-950 dark:text-white md:max-xl:text-xl" : "text-[13px] font-semibold text-text-primary dark:text-white/80 md:max-xl:text-[14px]"}`}>
+      <p className={`mt-2 truncate leading-tight ${accent ? "text-lg font-black text-emerald-950 dark:text-white md:max-xl:text-xl" : "text-[13px] font-semibold text-text-primary dark:text-white/80 md:max-xl:text-[14px]"}`}>
         {value || "---"}
       </p>
     </div>
@@ -778,11 +776,11 @@ function TabletMetricCard({ label, value, className = "", accent = false }: { la
 
 function TabletDetailRow({ label, value }: { label: string; value: string | number | undefined }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100/60 bg-white px-3 py-2.5 dark:border-white/5 dark:bg-white/5">
-      <span className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-900/45 dark:text-white/55">
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-emerald-100/60 bg-white px-3 py-2.5 dark:border-white/5 dark:bg-white/5">
+      <span className="min-w-0 truncate text-[9px] font-black uppercase tracking-[0.18em] text-emerald-900/45 dark:text-white/55">
         {label}
       </span>
-      <span className="max-w-[55%] truncate text-[12px] font-bold text-emerald-950 dark:text-white">
+      <span className="min-w-0 max-w-[52%] shrink-0 truncate text-right text-[12px] font-bold text-emerald-950 dark:text-white">
         {value || "---"}
       </span>
     </div>
