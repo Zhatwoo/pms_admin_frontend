@@ -23,6 +23,7 @@ type DailyOpeningApiStatus = {
   openingDate: string;
   status: "none" | "pending" | "completed";
   checklistStep: ChecklistStep;
+  modulesAllowed: boolean;
   startingCash?: number;
 };
 
@@ -32,7 +33,10 @@ function isOpeningChecklistRole(role?: string | null) {
 
 interface OpeningChecklistContextValue {
   currentStep: ChecklistStep;
+  /** UI modals hidden when today's checklist step is COMPLETED. */
   isComplete: boolean;
+  /** Matches backend OpeningChecklistGuard — gates module pages and API-heavy views. */
+  modulesAllowed: boolean;
   /** False until the first daily-opening status fetch finishes for employees. */
   isOpeningChecklistReady: boolean;
   /** Hides opening modals while filing a starting-cash mismatch incident report. */
@@ -59,6 +63,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<ChecklistStep>("CASH_ON_HAND");
   const [isComplete, setIsComplete] = useState(false);
+  const [modulesAllowed, setModulesAllowed] = useState(false);
   const [isOpeningChecklistReady, setIsOpeningChecklistReady] = useState(false);
   const [openingChecklistModalHidden, setOpeningChecklistModalHidden] = useState(false);
   const hasLoadedBranchDayRef = useRef<string | null>(null);
@@ -68,8 +73,14 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
 
   const applyServerStatus = useCallback((data: DailyOpeningApiStatus) => {
     lastSyncedOpeningDateRef.current = data.openingDate;
-    setCurrentStep(data.checklistStep);
-    setIsComplete(data.checklistStep === "COMPLETED");
+    const allowed = Boolean(data.modulesAllowed);
+    const step =
+      !allowed && data.checklistStep === "COMPLETED"
+        ? "CASH_ON_HAND"
+        : data.checklistStep;
+    setCurrentStep(step);
+    setIsComplete(step === "COMPLETED" && allowed);
+    setModulesAllowed(allowed);
   }, []);
 
   const loadDailyOpeningForEmployee = useCallback(
@@ -87,6 +98,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
           console.error("[Checklist] Failed to load daily opening status:", err);
           setCurrentStep("CASH_ON_HAND");
           setIsComplete(false);
+          setModulesAllowed(false);
         }).finally(() => {
           setIsOpeningChecklistReady(true);
         });
@@ -115,6 +127,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
         console.error("[Checklist] Failed to load daily opening status:", err);
         setCurrentStep("CASH_ON_HAND");
         setIsComplete(false);
+        setModulesAllowed(false);
         hasLoadedBranchDayRef.current = key;
       } finally {
         openingLoadPromiseByKey.delete(key);
@@ -127,6 +140,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
   useEffect(() => {
     if (!user || !isOpeningChecklistRole(user.role)) {
       setIsComplete(true);
+      setModulesAllowed(true);
       setIsOpeningChecklistReady(true);
       hasLoadedBranchDayRef.current = null;
       lastSyncedOpeningDateRef.current = null;
@@ -135,6 +149,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
 
     if (!user.branchId) {
       setIsComplete(true);
+      setModulesAllowed(true);
       setIsOpeningChecklistReady(true);
       return;
     }
@@ -225,8 +240,6 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
         error.message.includes("Starting balance was already submitted")
       ) {
         await refreshOpeningChecklistFromServer();
-        setCurrentStep("COMPLETED");
-        setIsComplete(true);
         return;
       }
 
@@ -271,18 +284,21 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
     } catch {
       setCurrentStep("INVENTORY_AUDIT");
       setIsComplete(false);
+      setModulesAllowed(true);
     }
-  }, [applyServerStatus, router]);
+  }, [applyServerStatus, refreshOpeningChecklistFromServer, router]);
 
   const completeInventoryAudit = useCallback(async () => {
     await api.post("/branch-finance/daily-opening/complete", {});
     setCurrentStep("COMPLETED");
     setIsComplete(true);
+    setModulesAllowed(true);
   }, []);
 
   const resetChecklist = useCallback(() => {
     setCurrentStep("CASH_ON_HAND");
     setIsComplete(false);
+    setModulesAllowed(false);
     setOpeningChecklistModalHidden(false);
     hasLoadedBranchDayRef.current = null;
     lastSyncedOpeningDateRef.current = null;
@@ -298,6 +314,7 @@ export function OpeningChecklistProvider({ children }: { children: React.ReactNo
       value={{
         currentStep,
         isComplete,
+        modulesAllowed,
         isOpeningChecklistReady,
         openingChecklistModalHidden,
         hideOpeningChecklistModal,

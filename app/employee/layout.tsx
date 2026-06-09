@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AppLayout } from "@/components/ui/app-layout";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 import { getNavForRole } from "@/lib/constants";
 import { getDefaultRouteForRole } from "@/lib/auth";
 import { useOpeningChecklist } from "@/contexts/opening-checklist-context";
+import { OpeningChecklistGatePlaceholder } from "@/components/shared/opening-checklist-gate-placeholder";
 
 function EmployeeLayoutInner({
   children,
@@ -16,8 +17,12 @@ function EmployeeLayoutInner({
 }) {
   const { user, logout, isLoading: isAuthLoading, isSessionExpiryActive } = useAuth();
   const { selectedBranch } = useBranch();
-  const { isOpeningChecklistReady } = useOpeningChecklist();
+  const { modulesAllowed, isOpeningChecklistReady } = useOpeningChecklist();
+  const pathname = usePathname();
   const router = useRouter();
+
+  const allowModuleContent =
+    modulesAllowed || Boolean(pathname?.includes("/incident-report"));
 
   const isLoading = isAuthLoading;
 
@@ -71,8 +76,9 @@ function EmployeeLayoutInner({
       onLogout={logout}
       branchName={selectedBranch.name}
       hideBranchSelector={true}
+      isRestricted={!allowModuleContent}
     >
-      {children}
+      {allowModuleContent ? children : <OpeningChecklistGatePlaceholder />}
     </AppLayout>
   );
 }

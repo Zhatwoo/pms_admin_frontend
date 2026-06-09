@@ -15,6 +15,11 @@ interface BusinessSessionGateApi {
   pendingStartingSession: {
     suggestedStartingBalance: number;
   } | null;
+  latestBalance?: {
+    startingBalance: number;
+    endingBalance: number;
+    date: string | null;
+  };
 }
 
 type DailyOpeningStatusApi = {
@@ -30,6 +35,7 @@ export function OpeningChecklistWrapper() {
   const {
     currentStep,
     isComplete,
+    modulesAllowed,
     openingChecklistModalHidden,
     hideOpeningChecklistModal,
     resetOpeningChecklistModalHidden,
@@ -68,12 +74,6 @@ export function OpeningChecklistWrapper() {
         ]);
         if (cancelled) return;
 
-        if (bizSession.operationalCashAllowed === true) {
-          await refreshOpeningChecklistFromServer();
-          setIsLoadingExpectedAmount(false);
-          return;
-        }
-
         let resolved: number | null = null;
         if (
           opening?.expectedStartingCash != null &&
@@ -81,14 +81,34 @@ export function OpeningChecklistWrapper() {
         ) {
           resolved = Number(opening.expectedStartingCash);
         } else if (bizSession?.pendingStartingSession != null) {
-          resolved = Number(
-            bizSession.pendingStartingSession.suggestedStartingBalance ?? 0,
+          const pending = Number(
+            bizSession.pendingStartingSession.suggestedStartingBalance ?? NaN,
           );
+          if (Number.isFinite(pending)) {
+            resolved = pending;
+          }
+        }
+
+        if (
+          (resolved == null || resolved <= 0) &&
+          bizSession?.latestBalance != null
+        ) {
+          const fromLatest = Math.max(
+            Number(bizSession.latestBalance.startingBalance ?? 0),
+            Number(bizSession.latestBalance.endingBalance ?? 0),
+          );
+          if (Number.isFinite(fromLatest) && fromLatest > 0) {
+            resolved = fromLatest;
+          }
         }
 
         if (!cancelled) {
           setExpectedCash(String(resolved ?? 0));
           setIsLoadingExpectedAmount(false);
+        }
+
+        if (bizSession.operationalCashAllowed === true) {
+          await refreshOpeningChecklistFromServer();
         }
       } catch (e) {
         console.warn(
@@ -172,7 +192,7 @@ export function OpeningChecklistWrapper() {
     }
   };
 
-  if (isComplete) return null;
+  if (modulesAllowed && isComplete) return null;
 
   return (
     <>
