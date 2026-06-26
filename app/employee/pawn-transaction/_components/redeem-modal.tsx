@@ -275,7 +275,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
         onSuccess();
       }
       onClose();
-      toast.success("Item redeemed successfully!");
+      toast.success("Item bought back successfully!");
     } catch (err: any) {
       const msg = err.message || "Failed to process transaction.";
       setError(msg);
@@ -362,7 +362,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
                     <Package className="w-6 h-6 text-emerald-200" />
                   </div>
                   <p className="text-sm font-bold text-emerald-900/60">No active pawns found</p>
-                  <p className="text-[10px] text-emerald-900/30 uppercase mt-1 tracking-tighter">Only Active items can be Redeemed</p>
+                  <p className="text-[10px] text-emerald-900/30 uppercase mt-1 tracking-tighter">Only Active items can be Bought Back</p>
                 </div>
               ) : (
                 pawnedItems.map((item) => (
