@@ -320,7 +320,7 @@ function TransactionsCalendar({
 }
 
 export default function PawnTransactionsPage() {
-  const { selectedBranch, branches, isAllBranches } = useBranch();
+  const { selectedBranch, branches, isAllBranches, canSwitchBranch } = useBranch();
 
   const searchParams = useSearchParams();
   const highlightTransactionNo = searchParams.get("transactionNo");
@@ -784,8 +784,9 @@ export default function PawnTransactionsPage() {
 
         <BranchDaySessionToolbar
           branchId={isAllBranches ? null : selectedBranch.id}
+          hideActions={canSwitchBranch}
         />
-        <TransactionStats data={stats} />
+        <TransactionStats data={stats} isLoading={isLoading} selectedDate={selectedDate} />
       </div>
 
       <div className="print-hide">
@@ -813,6 +814,7 @@ export default function PawnTransactionsPage() {
           }}
           onExportCSV={handleExportCSV}
           onPrintReport={handlePrintReport}
+          maxDate={todayString}
         />
       </div>
 
