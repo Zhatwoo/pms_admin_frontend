@@ -81,9 +81,9 @@ const columns = [
   { key: "customer", label: "Customer" },
   { key: "date", label: "Date" },
   { key: "time", label: "Time" },
-  { key: "buyBack", label: "Buy Back", align: "right" as const },
+  { key: "buyBack", label: "Buy Out", align: "right" as const },
   { key: "percentage", label: "%", align: "center" as const },
-  { key: "buyOut", label: "Buy Out", align: "right" as const },
+  { key: "buyOut", label: "Buy Back", align: "right" as const },
   { key: "sold", label: "Sold", align: "right" as const },
   { key: "cashIn", label: "Cash In", align: "right" as const },
   { key: "cashOut", label: "Cash Out", align: "right" as const },
@@ -233,15 +233,19 @@ export function TransactionTable({
           </thead>
           <tbody>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={`skeleton-${i}`} className="animate-pulse border-t border-border-subtle bg-surface-secondary">
-                  {visibleColumns.map((col) => (
-                    <td key={col.key} className="px-3 py-4">
-                      <div className="h-4 w-full rounded-md bg-zinc-200/60 dark:bg-zinc-800/60" />
-                    </td>
-                  ))}
-                </tr>
-              ))
+              <tr>
+                <td
+                  colSpan={visibleColumns.length}
+                  className="py-12 text-center text-base font-medium text-text-tertiary"
+                >
+                  <div className="flex items-center justify-center">
+                    <LoadingSpinnerLabel 
+                      text="Loading pawn transactions..." 
+                      className="text-base font-medium text-text-tertiary" 
+                    />
+                  </div>
+                </td>
+              </tr>
             ) : data.length === 0 ? (
               <tr>
                 <td

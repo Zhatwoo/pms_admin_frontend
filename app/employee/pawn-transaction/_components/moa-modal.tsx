@@ -393,29 +393,16 @@ export function MoaModal({
         });
       });
       const assetsReady = Promise.all([
-        ...stylesheetPromises,
         ...imagePromises,
-        iframeDoc.fonts?.ready ?? Promise.resolve(),
+        document.fonts?.ready ?? Promise.resolve(),
       ]);
       await Promise.race([
         assetsReady,
         new Promise<void>((resolve) => setTimeout(resolve, 2000)),
       ]);
 
-      const printWindow = iframe.contentWindow;
-      const doPrint = () => {
-        try {
-          printWindow?.focus();
-          printWindow?.print();
-        } finally {
-          setTimeout(() => {
-            try { document.body.removeChild(iframe); } catch {}
-          }, 800);
-        }
-      };
-
       requestAnimationFrame(() => {
-        requestAnimationFrame(doPrint);
+        requestAnimationFrame(() => window.print());
       });
     } catch (err) {
       console.error("Print failed:", err);
@@ -435,11 +422,14 @@ export function MoaModal({
 
   useEffect(() => {
     if (isOpen) {
+      document.documentElement.classList.add("printing-moa-active");
       document.body.classList.add("printing-moa-active");
     } else {
+      document.documentElement.classList.remove("printing-moa-active");
       document.body.classList.remove("printing-moa-active");
     }
     return () => {
+      document.documentElement.classList.remove("printing-moa-active");
       document.body.classList.remove("printing-moa-active");
     };
   }, [isOpen]);
