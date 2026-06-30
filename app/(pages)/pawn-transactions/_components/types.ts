@@ -2,7 +2,7 @@ export type PurposeType =
   | "Start"
   | "End"
   | "Pawn"
-  | "Redeem"
+  | "Buy Back"
   | "Renew"
   | "Reappraise"
   | "Buy Back"
@@ -61,6 +61,7 @@ export interface TransactionRow {
   relatedPawnedItemId?: string | null;
   relatedSaleItemId?: string | null;
   idPhoto?: string;
+  buyback_proof?: string | null;
 }
 
 export interface TransactionStatsData {
@@ -76,9 +77,8 @@ export const PURPOSE_OPTIONS: PurposeType[] = [
   "Start",
   "End",
   "Pawn",
-  "Redeem",
-  "Renew",
   "Buy Back",
+  "Renew",
   "Buy Out",
   "Sold Item",
   "Reserve / Layaway",

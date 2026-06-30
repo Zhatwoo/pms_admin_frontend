@@ -73,6 +73,7 @@ export interface TransactionRow {
   relatedSaleItemId?: string | null;
   details?: string;
   idPhoto?: string;
+  buyback_proof?: string | null;
 }
 
 const columns = [

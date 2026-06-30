@@ -550,6 +550,15 @@ export function NewPawnModal({
     return form.category.trim();
   };
 
+  const getResolvedCondition = () => {
+    if (form.condition === "Others") {
+      const specify = form.conditionSpecify.trim();
+      return specify ? `Others - ${specify}` : "";
+    }
+
+    return form.condition.trim();
+  };
+
   const resolvedCategory = useMemo(() => getResolvedCategory(), [
     form.category,
     form.categorySpecify,
