@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { formatPeso } from '@/lib/currency';
 import { useSearchParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import { ALL_BRANCHES_OPTION, useBranch } from "@/contexts/branch-context";
+import { useBranch } from "@/contexts/branch-context";
 import { calculateGadgetInterest } from "@/lib/interest";
 import { getPhCalendarDateString } from "@/lib/branch-calendar-date";
 import { operationalCashTotalsForPawnEnding, operationalCashTotals } from "@/lib/ledger-operational-totals";
@@ -37,7 +37,8 @@ type ApiPurpose =
   | "Sale"
   | "Pawn"
   | "Fund Transfer"
-  | "Cash Transfer";
+  | "Cash Transfer"
+  | "Transfer Item";
 
 interface ApiTransaction {
   id?: string;
@@ -58,6 +59,8 @@ interface ApiTransaction {
   pawn_amount?: number | string | null;
   storage_fee?: number | string | null;
   qr_code?: string | null;
+  id_photo?: string | null;
+  buyback_proof?: string | null;
   related_pawned_item_id?: string | null;
   related_sale_item_id?: string | null;
   pawned_item?: {
@@ -185,6 +188,8 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
     remarks: transaction.pawned_item?.remarks ?? undefined,
     relatedPawnedItemId: transaction.related_pawned_item_id ?? undefined,
     relatedSaleItemId: transaction.related_sale_item_id ?? undefined,
+    idPhoto: transaction.id_photo ?? undefined,
+    buyback_proof: transaction.buyback_proof ?? undefined,
   };
 }
 
@@ -320,8 +325,8 @@ function TransactionsCalendar({
 }
 
 export default function PawnTransactionsPage() {
-  const { selectedBranch, branches, isAllBranches } = useBranch();
-  const requiresBranchSelection = selectedBranch.id === ALL_BRANCHES_OPTION.id;
+  const { selectedBranch, branches, isAllBranches, canSwitchBranch } = useBranch();
+
   const searchParams = useSearchParams();
   const highlightTransactionNo = searchParams.get("transactionNo");
   const shouldHighlight = searchParams.get("highlightTransaction") === "true";
@@ -364,21 +369,14 @@ export default function PawnTransactionsPage() {
     branchName: string;
     branchAddress?: string;
     branchPhone?: string;
+    processedBy?: string;
   } | null>(null);
 
   useEffect(() => {
     let active = true;
 
     async function fetchTransactions() {
-      if (requiresBranchSelection) {
-        if (active) {
-          setTransactions([]);
-          setAllTransactions([]);
-          setStats(EMPTY_STATS);
-          setIsLoading(false);
-        }
-        return;
-      }
+
 
       setIsLoading(true);
 
@@ -479,18 +477,13 @@ export default function PawnTransactionsPage() {
     return () => {
       active = false;
     };
-  }, [requiresBranchSelection, selectedBranch.id, selectedDate, isAllBranches]);
+  }, [selectedBranch.id, selectedDate, isAllBranches]);
 
   useEffect(() => {
     let active = true;
 
     async function fetchCalendarTransactions() {
-      if (requiresBranchSelection) {
-        if (active) {
-          setAllTransactions([]);
-        }
-        return;
-      }
+
 
       try {
         const branchParam = isAllBranches
@@ -515,7 +508,7 @@ export default function PawnTransactionsPage() {
     return () => {
       active = false;
     };
-  }, [requiresBranchSelection, selectedBranch.id, isAllBranches]);
+  }, [selectedBranch.id, isAllBranches]);
 
   useEffect(() => {
     if (viewMode === "list") {
@@ -674,6 +667,7 @@ export default function PawnTransactionsPage() {
         branchName: branchInfo?.name || transaction.branch,
         branchAddress: branchInfo?.location || "",
         branchPhone: branchInfo?.phone || "",
+        processedBy: transaction.createdByName || "AUTHORIZED PERSONNEL",
       });
       setIsMoaReprintOpen(true);
     },
@@ -793,16 +787,13 @@ export default function PawnTransactionsPage() {
           </p>
         </div>
 
-        {requiresBranchSelection ? (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-            Select a branch to view pawn transactions.
-          </div>
-        ) : null}
+
 
         <BranchDaySessionToolbar
-          branchId={requiresBranchSelection || isAllBranches ? null : selectedBranch.id}
+          branchId={isAllBranches ? null : selectedBranch.id}
+          hideActions={canSwitchBranch}
         />
-        <TransactionStats data={stats} />
+        <TransactionStats data={stats} isLoading={isLoading} selectedDate={selectedDate} />
       </div>
 
       <div className="print-hide">
@@ -830,10 +821,11 @@ export default function PawnTransactionsPage() {
           }}
           onExportCSV={handleExportCSV}
           onPrintReport={handlePrintReport}
+          maxDate={todayString}
         />
       </div>
 
-      {!requiresBranchSelection && viewMode === "calendar" && (
+      {viewMode === "calendar" && (
         <div className="print-hide">
           <TransactionsCalendar
             calendarData={calendarData}
@@ -853,7 +845,6 @@ export default function PawnTransactionsPage() {
         </div>
       )}
 
-      {!requiresBranchSelection ? (
       <div className="print-hide">
         <TransactionTable
           isLoading={isLoading}
@@ -865,9 +856,8 @@ export default function PawnTransactionsPage() {
           isToday={selectedDate === new Date().toISOString().split("T")[0]}
         />
       </div>
-      ) : null}
 
-      {!requiresBranchSelection && totalPages > 1 ? (
+      {totalPages > 1 ? (
         <div className="print-hide">
           <PaginationFooter
             currentPage={currentPage}

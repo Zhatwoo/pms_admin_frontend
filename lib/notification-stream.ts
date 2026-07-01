@@ -1,8 +1,10 @@
 import {
+  isBranchDayEndedApiNotification,
   isBranchTransferApiNotification,
   isExpirationAlertApiNotification,
   isFundTransferApiNotification,
   isIncidentReportApiNotification,
+  isInventoryTransferApiNotification,
   isPawnTransactionApiNotification,
   isPasswordRequestApiNotification,
   type ApiNotification,
@@ -122,8 +124,20 @@ export function subscribeToBranchTransferNotifications(
   return subscribeToNotifications(onChange, isBranchTransferApiNotification);
 }
 
+export function subscribeToInventoryTransferNotifications(
+  onChange: NotificationChangeHandler,
+) {
+  return subscribeToNotifications(onChange, isInventoryTransferApiNotification);
+}
+
 export function subscribeToPasswordRequestNotifications(
   onChange: NotificationChangeHandler,
 ) {
   return subscribeToNotifications(onChange, isPasswordRequestApiNotification, 15_000);
+}
+
+export function subscribeToBranchDayEndedNotifications(
+  onChange: NotificationChangeHandler,
+) {
+  return subscribeToNotifications(onChange, isBranchDayEndedApiNotification, 15_000);
 }

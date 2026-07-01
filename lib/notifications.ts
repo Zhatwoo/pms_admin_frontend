@@ -148,12 +148,39 @@ export function isBranchTransferApiNotification(
   );
 }
 
+export function isInventoryTransferNotification(
+  notification: Pick<HeaderNotification, "notificationType" | "entityType">,
+): boolean {
+  return (
+    notification.notificationType === "INVENTORY_ITEM_TRANSFER" ||
+    notification.entityType === "inventory_transfer"
+  );
+}
+
+export function isInventoryTransferApiNotification(
+  notification: Pick<ApiNotification, "notification_type" | "entity_type">,
+): boolean {
+  return (
+    notification.notification_type === "INVENTORY_ITEM_TRANSFER" ||
+    notification.entity_type === "inventory_transfer"
+  );
+}
+
 export function isPasswordRequestApiNotification(
   notification: Pick<ApiNotification, "notification_type" | "entity_type">,
 ): boolean {
   return (
     notification.notification_type === "PASSWORD_CHANGE_REQUEST" ||
     notification.entity_type === "password_request"
+  );
+}
+
+export function isBranchDayEndedApiNotification(
+  notification: Pick<ApiNotification, "notification_type" | "entity_type">,
+): boolean {
+  return (
+    notification.notification_type === "BRANCH_DAY_ENDED" ||
+    notification.entity_type === "branch_day_end"
   );
 }
 

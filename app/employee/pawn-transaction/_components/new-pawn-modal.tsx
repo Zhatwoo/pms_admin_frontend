@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { api, ApiError } from "@/lib/api";
@@ -11,7 +11,8 @@ import { MoaModal } from "./moa-modal";
 import { QRReplacementRequestModal } from "@/components/shared/qr-replacement-request-modal";
 import { useAuth } from "@/contexts/auth-context";
 import { PhilippineAddressFields } from "@/components/shared/philippine-address-fields";
-import { formatDateToYMD } from "@/lib/time";
+import { formatDateToYMD, getTransactionDateTimeFields } from "@/lib/time";
+import { calculatePeriodicStorageFee } from "@/lib/interest";
 
 const NO_ID_VALUE = "No ID / None";
 const SINGLE_IMAGE_ID_TYPES = new Set(["NBI Clearance", "Police Clearance"]);
@@ -121,12 +122,12 @@ function createEmptyForm() {
     serialNumber: "",
     itemsIncluded: "",
     condition: "",
+    conditionSpecify: "",
     memory: "",
+    memoryUnit: "GB",
     remarks: "",
     amount: "",
     purchasedDate: getTodayDate(),
-    storageFee: false,
-    storageFeeAmount: "",
     parkingFeeAmount: "",
     customMoaValues: {} as Record<string, string>,
     profilePhoto: null as string | null,
@@ -226,6 +227,9 @@ export function NewPawnModal({
         setCategoriesList(filtered.map(c => c.name));
         setDefaultMoaFieldConfig(moaTemplate);
         setCategoryMoaFieldConfigs(moaTemplate.category_templates ?? {});
+        if (rates && Array.isArray(rates) && typeof window !== "undefined") {
+          localStorage.setItem("interest_rates", JSON.stringify(rates));
+        }
       } catch (err) {
         console.error("Error loading categories inside new-pawn-modal:", err);
       }
@@ -308,34 +312,6 @@ export function NewPawnModal({
       fetchNextCode();
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen || !branchId || branchId === "__all__") {
-      return;
-    }
-
-    let isActive = true;
-
-    const fetchNextSerialNumber = async () => {
-      try {
-        const { serialNumber } = await api.get<{ serialNumber: string }>("/pawn-tickets/next-serial-number");
-        if (isActive && serialNumber) {
-          setForm((prev) => ({ ...prev, serialNumber }));
-        }
-      } catch (error) {
-        console.error("Failed to fetch next serial number:", error);
-        if (isActive) {
-          setForm((prev) => ({ ...prev, serialNumber: "PENDING-SN-xxxxx" }));
-        }
-      }
-    };
-
-    void fetchNextSerialNumber();
-
-    return () => {
-      isActive = false;
-    };
-  }, [branchId, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !branchId || branchId === "__all__") {
@@ -427,6 +403,15 @@ export function NewPawnModal({
       return;
     }
 
+    if (name === "condition") {
+      setForm((prev) => ({
+        ...prev,
+        condition: value,
+        conditionSpecify: value === "Others" ? prev.conditionSpecify : "",
+      }));
+      return;
+    }
+
     if (type === "number" || name === "contactNo") {
       // Prevent non-numeric characters
       // For contactNo, we strip everything except digits.
@@ -475,7 +460,6 @@ export function NewPawnModal({
     setForm((prev) => ({
       ...createEmptyForm(),
       unitCode: prev.unitCode,
-      serialNumber: prev.serialNumber,
       purchasedDate: getTodayDate(),
     }));
     setQrUrl(null);
@@ -566,11 +550,34 @@ export function NewPawnModal({
     return form.category.trim();
   };
 
+  const getResolvedCondition = () => {
+    if (form.condition === "Others") {
+      const specify = form.conditionSpecify.trim();
+      return specify ? `Others - ${specify}` : "";
+    }
+
+    return form.condition.trim();
+  };
+
+  const resolvedCategory = useMemo(() => getResolvedCategory(), [
+    form.category,
+    form.categorySpecify,
+  ]);
+  const principalAmount = Number(form.amount) || 0;
+  const parkingFeeAmount = Number(form.parkingFeeAmount) || 0;
+  const computedStorageFee = useMemo(
+    () => calculatePeriodicStorageFee(principalAmount, resolvedCategory || undefined),
+    [principalAmount, resolvedCategory],
+  );
+  const computedNetProceeds = useMemo(
+    () => Math.max(0, principalAmount - parkingFeeAmount),
+    [principalAmount, parkingFeeAmount],
+  );
+
   const handleGenerateQR = () => {
     // Required fields for QR generation
     const resolvedCategory = getResolvedCategory();
     const unitCodeReady = form.unitCode && !form.unitCode.startsWith("PENDING");
-    const serialNumberReady = form.serialNumber && !form.serialNumber.startsWith("PENDING");
     const requiredFields = {
       firstName: "First Name",
       lastName: "Last Name",
@@ -580,6 +587,7 @@ export function NewPawnModal({
       contactNo: "Contact Number",
       idPresented: "ID Type",
       unitName: "Unit Name",
+      serialNumber: "Serial Number",
       amount: "Loan Amount",
       purchasedDate: "Purchased Date"
     };
@@ -639,11 +647,6 @@ export function NewPawnModal({
       return;
     }
 
-    if (!serialNumberReady) {
-      setErrorMessage("Serial number is still generating. Please wait and try again.");
-      return;
-    }
-
     setErrorMessage(null);
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     const publicViewUrl = `${baseUrl}/view-ticket/${encodeURIComponent(form.unitCode)}`;
@@ -665,7 +668,6 @@ export function NewPawnModal({
 
     const resolvedCategory = getResolvedCategory();
     const unitCodeReady = form.unitCode && !form.unitCode.startsWith("PENDING");
-    const serialNumberReady = form.serialNumber && !form.serialNumber.startsWith("PENDING");
 
     // 1. Check all required fields - Customer
     const requiredFields = {
@@ -676,6 +678,7 @@ export function NewPawnModal({
       contactNo: "Contact Number",
       idPresented: "ID Type",
       unitName: "Unit Name",
+      serialNumber: "Serial Number",
       amount: "Loan Amount",
       purchasedDate: "Purchased Date"
     };
@@ -717,11 +720,6 @@ export function NewPawnModal({
 
     if (!unitCodeReady) {
       setErrorMessage("Unit code is still generating. Please wait and try again.");
-      return;
-    }
-
-    if (!serialNumberReady) {
-      setErrorMessage("Serial number is still generating. Please wait and try again.");
       return;
     }
 
@@ -780,7 +778,7 @@ export function NewPawnModal({
     setErrorMessage(null);
 
     const amountValue = Number(form.amount || 0);
-    const storageAmount = form.storageFee ? Number(form.storageFeeAmount || 0) : 0;
+    const storageAmount = 0;
     const extraMoaValues = [
       ...(showFinancialField("parkingFee") && form.parkingFeeAmount
         ? [{ label: "Parking fee", value: form.parkingFeeAmount }]
@@ -805,6 +803,7 @@ export function NewPawnModal({
     const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" ").trim();
     const verificationMode = getVerificationMode(form.idPresented);
     const resolvedCategory = getResolvedCategory();
+    const resolvedCondition = getResolvedCondition();
 
     if (verificationMode === "no-id" && !form.profilePhoto) {
       setIsSaving(false);
@@ -845,7 +844,7 @@ export function NewPawnModal({
       return;
     }
 
-    const loanForCashCheck = Number(form.amount || 0);
+    const loanForCashCheck = computedNetProceeds;
     if (
       branchCashAvailable !== null &&
       !branchCashLoading &&
@@ -861,6 +860,7 @@ export function NewPawnModal({
     }
 
     try {
+      const transactionTimestamp = getTransactionDateTimeFields();
       const response = await api.post<CreatedPawnTicketResponse>('/pawn-tickets', {
         branchId,
         branchName,
@@ -881,8 +881,8 @@ export function NewPawnModal({
           category: resolvedCategory,
           serialNumber: form.serialNumber.trim(),
           itemsIncluded: form.itemsIncluded.trim(),
-          condition: form.condition,
-          memoryStorage: form.memory.trim(),
+          condition: resolvedCondition,
+          memoryStorage: form.memory.trim() ? `${form.memory.trim()} ${form.memoryUnit}` : "",
           remarks: persistedRemarks,
           amount: amountValue,
           purchasedDate: form.purchasedDate,
@@ -896,8 +896,8 @@ export function NewPawnModal({
           pawnAmount: amountValue,
           storageFee: storageAmount,
           returnAmount: 0,
-          transactionDate: formatDateToYMD(),
-          transactionTime: new Date().toTimeString().slice(0, 8),
+          transactionDate: transactionTimestamp.transaction_date,
+          transactionTime: transactionTimestamp.transaction_time,
           details: [form.itemsIncluded.trim(), form.idPresented, `Processed by: ${loggedInUserName || 'Employee'}`].filter(Boolean).join(' | '),
         },
       });
@@ -1366,7 +1366,7 @@ export function NewPawnModal({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {showUnitField("serialNo") && (
-                      <Input label={activeMoaLabels.serialNo || "Serial Number"} name="serialNumber" value={form.serialNumber} onChange={handleChange} bg="bg-zinc-200" readOnly={true} />
+                      <Input label={activeMoaLabels.serialNo || "Serial Number"} name="serialNumber" value={form.serialNumber} onChange={handleChange} bg="bg-zinc-100 dark:bg-surface-hover" placeholder="Serial number" />
                     )}
                     {showUnitField("itemsIncluded") && (
                       <Input label={activeMoaLabels.itemsIncluded || "Items Included"} name="itemsIncluded" value={form.itemsIncluded} onChange={handleChange} bg="bg-zinc-100 dark:bg-surface-hover" />
@@ -1377,26 +1377,38 @@ export function NewPawnModal({
                     {showUnitField("condition") && (
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest md:tracking-wide ml-1">{activeMoaLabels.condition || "Condition"}</label>
-                      <select
-                        name="condition"
-                        value={form.condition}
-                        onChange={handleChange}
-                        className="w-full rounded-xl border border-zinc-200 dark:border-border bg-zinc-100 dark:bg-surface-hover px-4 py-3 text-sm font-bold text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer [&:-webkit-autofill]:[transition:background-color_5000s_ease-in-out_0s]"
-                      >
-                        <option value="">Select Condition</option>
-                        <optgroup label="Working">
-                          <option value="Brand New">Brand New (Sealed)</option>
-                          <option value="Like New">Like New (No scratches)</option>
-                          <option value="Good">Good (Minor wear)</option>
-                          <option value="Fair">Fair (Visible scratches)</option>
-                          <option value="Poor">Poor (Heavy wear/dents)</option>
-                        </optgroup>
-                        <optgroup label="Issues">
-                          <option value="For Repair">For Repair</option>
-                          <option value="Incomplete">Incomplete (Missing parts)</option>
-                          <option value="Defective">Defective / Not working</option>
-                        </optgroup>
-                      </select>
+                      <div className="flex gap-2">
+                        <select
+                          name="condition"
+                          value={form.condition}
+                          onChange={handleChange}
+                          className={`${form.condition === "Others" ? "w-1/2" : "w-full"} rounded-xl border border-zinc-200 dark:border-border bg-zinc-100 dark:bg-surface-hover px-4 py-3 text-sm font-bold text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer [&:-webkit-autofill]:[transition:background-color_5000s_ease-in-out_0s]`}
+                        >
+                          <option value="">Select Condition</option>
+                          <optgroup label="Working">
+                            <option value="Brand New">Brand New (Sealed)</option>
+                            <option value="Like New">Like New (No scratches)</option>
+                            <option value="Good">Good (Minor wear)</option>
+                            <option value="Fair">Fair (Visible scratches)</option>
+                            <option value="Poor">Poor (Heavy wear/dents)</option>
+                          </optgroup>
+                          <optgroup label="Issues">
+                            <option value="For Repair">For Repair</option>
+                            <option value="Incomplete">Incomplete (Missing parts)</option>
+                            <option value="Defective">Defective / Not working</option>
+                          </optgroup>
+                          <option value="Others" className="font-bold">Others (Please specify)</option>
+                        </select>
+                        {form.condition === "Others" && (
+                          <input
+                            name="conditionSpecify"
+                            value={form.conditionSpecify}
+                            onChange={handleChange}
+                            placeholder="Specify condition"
+                            className="w-1/2 rounded-xl border border-zinc-200 dark:border-border bg-zinc-100 dark:bg-surface-hover px-4 py-3 text-sm font-bold text-zinc-900 dark:text-white outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                          />
+                        )}
+                      </div>
                     </div>
                     )}
                     {showUnitField("memory") && (
@@ -1416,7 +1428,17 @@ export function NewPawnModal({
                           pattern="[0-9]*"
                           className="w-full bg-transparent px-4 py-3 text-xs font-black text-emerald-950 dark:text-white outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-medium [&:-webkit-autofill]:[transition:background-color_5000s_ease-in-out_0s]"
                         />
-                        <span className="pr-4 text-zinc-400 font-bold text-xs">GB</span>
+                        <select
+                          name="memoryUnit"
+                          value={form.memoryUnit}
+                          onChange={handleChange}
+                          className="mr-2 rounded-lg border border-zinc-200 dark:border-border bg-white/70 dark:bg-surface px-2 py-1.5 text-xs font-bold text-zinc-500 dark:text-zinc-300 outline-none transition-colors focus:border-emerald-500"
+                          aria-label="Memory unit"
+                        >
+                          <option value="MB">MB</option>
+                          <option value="GB">GB</option>
+                          <option value="TB">TB</option>
+                        </select>
                       </div>
                     </div>
                     )}
@@ -1461,11 +1483,7 @@ export function NewPawnModal({
                       <Input
                         label={activeMoaLabels.netProceeds || "Net Proceeds"}
                         name="netProceeds"
-                        value={String(
-                          (Number(form.amount) || 0)
-                          + (form.storageFee ? Number(form.storageFeeAmount) || 0 : 0)
-                          + (Number(form.parkingFeeAmount) || 0),
-                        )}
+                        value={String(computedNetProceeds)}
                         onChange={() => undefined}
                         type="number"
                         bg="bg-zinc-200"
@@ -1477,26 +1495,17 @@ export function NewPawnModal({
 
                   {showFinancialField("storageFee") && (
                   <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-50 border border-emerald-100 dark:border-border-subtle mt-2">
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex items-center cursor-pointer">
-                        <input
-                          id="storageFeeModal"
-                          name="storageFee"
-                          type="checkbox"
-                          checked={form.storageFee}
-                          onChange={handleChange}
-                          className="w-6 h-6 rounded-lg accent-emerald-600 cursor-pointer"
-                        />
-                      </div>
-                  <label htmlFor="storageFeeModal" className="text-xs md:text-sm font-black text-emerald-900 uppercase tracking-tight md:tracking-wide cursor-pointer">
-                    {activeMoaLabels.storageFee || "Apply Storage Fee"}
-                  </label>
+                    <div>
+                      <p className="text-xs md:text-sm font-black text-emerald-900 uppercase tracking-tight md:tracking-wide">
+                        {activeMoaLabels.storageFee || "Storage Fee"}
+                      </p>
+                      <p className="mt-0.5 text-[10px] font-semibold text-emerald-700/80">
+                        Auto-computed from principal (every 10 days · MOA only)
+                      </p>
                     </div>
-                    {form.storageFee && (
-                      <div className="w-24 md:w-32">
-                        <Input label="" name="storageFeeAmount" value={form.storageFeeAmount} onChange={handleChange} type="number" placeholder="0.00" prefix="₱" size="sm" />
-                      </div>
-                    )}
+                    <p className="text-sm md:text-base font-black text-emerald-900">
+                      {formatPeso(computedStorageFee)}
+                    </p>
                   </div>
                   )}
                 </div>
@@ -1629,7 +1638,7 @@ export function NewPawnModal({
         onClose={() => setIsMoaOpen(false)}
         onConfirm={handleConfirmMoa}
         confirmDisabled={(() => {
-          const loan = Number(form.amount || 0);
+          const loan = computedNetProceeds;
           return (
             branchCashAvailable !== null &&
             !branchCashLoading &&
@@ -1638,7 +1647,7 @@ export function NewPawnModal({
           );
         })()}
         confirmDisabledReason={(() => {
-          const loan = Number(form.amount || 0);
+          const loan = computedNetProceeds;
           if (
             branchCashAvailable === null ||
             branchCashLoading ||
@@ -1647,7 +1656,7 @@ export function NewPawnModal({
           ) {
             return undefined;
           }
-          return `Recorded branch cash is ${formatPeso(branchCashAvailable)}. This loan needs ${formatPeso(loan)} in vault cash — reduce the loan or add cash before confirming.`;
+          return `Recorded branch cash is ${formatPeso(branchCashAvailable)}. This payout needs ${formatPeso(loan)} in vault cash — reduce the loan or add cash before confirming.`;
         })()}
         data={{
           ...form,
@@ -1658,7 +1667,7 @@ export function NewPawnModal({
             form.city,
             form.region,
           ].filter(Boolean).join(", "),
-          storageFee: form.storageFeeAmount,
+          storageFee: String(computedStorageFee),
           parkingFee: form.parkingFeeAmount,
           customMoaValues: form.customMoaValues,
           idPresented: form.idPresented || "",

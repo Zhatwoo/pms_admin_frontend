@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { formatDateToYMD } from "@/lib/time";
+import { getTransactionDateTimeFields } from "@/lib/time";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
 
@@ -195,9 +195,8 @@ export function ReserveLayawayModal({ isOpen, onClose, onSuccess, branchId, bran
       };
 
       await api.post("/transactions", {
+        ...getTransactionDateTimeFields(),
         purpose: "Reserve / Layaway",
-        transaction_date: formatDateToYMD(),
-        transaction_time: new Date().toTimeString().slice(0, 8),
         branch_id: branchId,
         branch: branchName,
         cash_in: downpaymentValue,

@@ -1,4 +1,4 @@
-import { StatCard } from "@/components/shared/stat-card";
+import { StatCard, ThreeDotLoader } from "@/components/shared/stat-card";
 import { formatPeso } from "@/lib/currency";
 
 const pawnedIcon = (
@@ -115,31 +115,35 @@ export interface TransactionStatsData {
 
 interface TransactionStatsProps {
   data?: TransactionStatsData;
+  isLoading?: boolean;
 }
 
-export function TransactionStats({ data }: TransactionStatsProps) {
+export function TransactionStats({ data, isLoading }: TransactionStatsProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:gap-6 xl:grid-cols-7 xl:gap-6">
+    <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4 2xl:grid-cols-7 xl:gap-6">
       <StatCard
         label="Pawn Today"
         value={data?.pawnedToday || 0}
         subtitle="Active contracts"
         icon={pawnedIcon}
         borderColor="bg-emerald-600"
+        loading={isLoading}
       />
       <StatCard
-        label="Redeem"
+        label="Buy Back"
         value={data?.redeemed || 0}
         subtitle="Claimed items"
         icon={redeemIcon}
         borderColor="bg-blue-500"
+        loading={isLoading}
       />
       <StatCard
-        label="Buy Back"
+        label="Buy Out"
         value={data?.buyBack || 0}
         subtitle="Repurchased units"
         icon={buyBackIcon}
         borderColor="bg-indigo-600"
+        loading={isLoading}
       />
       <StatCard
         label="Renewed"
@@ -147,6 +151,7 @@ export function TransactionStats({ data }: TransactionStatsProps) {
         subtitle="Extended terms"
         icon={renewedIcon}
         borderColor="bg-amber-500"
+        loading={isLoading}
       />
       <StatCard
         label="Transfer"
@@ -154,6 +159,7 @@ export function TransactionStats({ data }: TransactionStatsProps) {
         subtitle="Internal moves"
         icon={transferIcon}
         borderColor="bg-purple-500"
+        loading={isLoading}
       />
       <StatCard
         label="Sold Item"
@@ -161,6 +167,7 @@ export function TransactionStats({ data }: TransactionStatsProps) {
         subtitle="Units sold"
         icon={soldIcon}
         borderColor="bg-orange-500"
+        loading={isLoading}
       />
       
       <div className="flex flex-col justify-between overflow-hidden rounded-lg border border-border-main bg-surface p-3 shadow-sm transition-colors duration-300">
@@ -171,9 +178,9 @@ export function TransactionStats({ data }: TransactionStatsProps) {
             <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
               Starting balance
             </p>
-            <p className="mt-0.5 text-lg font-black text-text-primary leading-none">
-              {formatPeso(data?.startingBalance ?? 0)}
-            </p>
+            <div className="mt-0.5 text-lg font-black text-text-primary leading-none h-[22px] flex items-center">
+              {isLoading ? <ThreeDotLoader /> : formatPeso(data?.startingBalance ?? 0)}
+            </div>
           </div>
           <div className="flex h-8 w-8 xl:h-6 xl:w-6 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-text-tertiary">
             {balanceIcon}
@@ -187,9 +194,9 @@ export function TransactionStats({ data }: TransactionStatsProps) {
             <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
               Ending balance
             </p>
-            <p className="mt-0.5 text-lg font-black text-emerald-600 leading-none">
-              {formatPeso(data?.endingBalance ?? 0)}
-            </p>
+            <div className="mt-0.5 text-lg font-black text-emerald-600 leading-none h-[22px] flex items-center justify-end">
+              {isLoading ? <ThreeDotLoader /> : formatPeso(data?.endingBalance ?? 0)}
+            </div>
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@ import {
   type HeaderNotification,
   isBranchTransferNotification,
   isFundTransferNotification,
+  isInventoryTransferNotification,
   mapNotification,
   type NotificationTab,
 } from "@/lib/notifications";
@@ -29,9 +30,12 @@ interface HeaderProps {
   onMenuToggle?: () => void;
 }
 
+const MANILA_TZ = "Asia/Manila";
+
 function formatTimeOnly(): string {
   const now = new Date();
   return now.toLocaleString("en-US", {
+    timeZone: MANILA_TZ,
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
@@ -42,6 +46,7 @@ function formatTimeOnly(): string {
 function formatDateTime(): string {
   const now = new Date();
   return now.toLocaleString("en-US", {
+    timeZone: MANILA_TZ,
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
@@ -228,6 +233,14 @@ export function Header({
           if (isBranchTransferNotification(next)) {
             window.dispatchEvent(
               new CustomEvent("pms:branch-transfer-notification", {
+                detail: next,
+              }),
+            );
+          }
+
+          if (isInventoryTransferNotification(next)) {
+            window.dispatchEvent(
+              new CustomEvent("pms:inventory-transfer-notification", {
                 detail: next,
               }),
             );
@@ -475,13 +488,13 @@ export function Header({
             <MenuIcon />
           </button>
         )}
-        <h1 className="max-w-[9rem] whitespace-normal break-words text-xs font-bold leading-tight text-text-primary sm:max-w-[10rem] sm:text-sm md:max-w-[12rem] md:text-sm lg:max-w-none lg:text-base xl:text-lg">
+        <h1 className="max-w-[9rem] truncate text-xs font-bold leading-tight text-text-primary sm:max-w-[10rem] sm:text-sm md:max-w-[12rem] md:text-sm lg:max-w-none lg:text-base xl:text-lg">
           {title}
         </h1>
         {branchName && (
-          <div className="hidden lg:flex items-center gap-4">
-            <span className="h-6 w-px bg-border-main" />
-            <span className="text-base font-semibold" style={{color: 'var(--emerald-text)'}}>
+          <div className="hidden lg:flex items-center gap-4 min-w-0">
+            <span className="h-6 w-px bg-border-main shrink-0" />
+            <span className="text-base font-semibold truncate" style={{color: 'var(--emerald-text)'}}>
               {branchName}
             </span>
           </div>

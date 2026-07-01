@@ -3,9 +3,10 @@
 import { useState, useMemo, useEffect, useRef, type ChangeEvent } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { formatDateToYMD } from "@/lib/time";
+import { getTransactionDateTimeFields } from "@/lib/time";
 import { formatPeso } from "@/lib/currency";
 import { QrScanner } from "@/components/shared/qr-scanner";
+import { uploadBuybackProof } from "@/lib/fund-transfer-storage";
 
 /* ── Inline SVG Icons ── */
 
@@ -58,6 +59,19 @@ const dollarIcon = (
 const qrCodeIcon = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><path d="M14 14h3v3h-3z"/></svg>
 );
+const imageIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+    <polyline points="21 15 16 10 5 21"/>
+  </svg>
+);
+const trashIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+  </svg>
+);
 
 interface BuyBackModalProps {
   isOpen: boolean;
@@ -97,6 +111,12 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Proof upload state
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
+  const [proofUploadError, setProofUploadError] = useState<string | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -150,14 +170,55 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
     setSearchQuery(text.trim());
   };
 
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset errors
+    setProofUploadError(null);
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/heic', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setProofUploadError('Please select a valid image file (JPEG, PNG, WEBP, or HEIC)');
+      return;
+    }
+
+    // Validate file size (max 4MB)
+    const maxSize = 4 * 1024 * 1024; // 4MB in bytes
+    if (file.size > maxSize) {
+      setProofUploadError('Image file is too large. Maximum size is 4MB');
+      return;
+    }
+
+    // Set file and generate preview
+    setProofFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setProofPreviewUrl(previewUrl);
+  };
+
+  const handleRemoveFile = () => {
+    if (proofPreviewUrl) {
+      URL.revokeObjectURL(proofPreviewUrl);
+    }
+    setProofFile(null);
+    setProofPreviewUrl(null);
+    setProofUploadError(null);
+  };
+
   const handleConfirmBuyBack = async () => {
     if (isProcessingRef.current) return;
     if (!selectedItem) return;
     setError(null);
 
+    if (proofUploadError) {
+      setError(proofUploadError);
+      return;
+    }
+
     const price = Number(buyBackPrice);
     if (!buyBackPrice || isNaN(price) || price <= 0) {
-      setError("Please enter a valid Buy Back (Repurchase) price.");
+      setError("Please enter a valid Buy Out (Repurchase) price.");
       return;
     }
 
@@ -172,10 +233,34 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
       // 1. Verify Password
       await api.post("/auth/verify-password", { password: adminForm.password });
 
-      // 2. Create Sale Transaction
+      // 2. Upload Proof (if file is selected)
+      let proofUrl: string | undefined = undefined;
+      if (proofFile) {
+        try {
+          setIsUploadingProof(true);
+          proofUrl = await uploadBuybackProof({
+            file: proofFile,
+            transactionNo: selectedItem.itemId, // Use item ID as temp transaction identifier
+            branchId: branchId,
+          });
+          toast.success("Buyback proof uploaded successfully");
+        } catch (uploadErr: any) {
+          const uploadMsg = uploadErr.message || "Failed to upload proof image";
+          setProofUploadError(uploadMsg);
+          toast.error(uploadMsg);
+          setIsUploadingProof(false);
+          setIsConfirming(false);
+          isProcessingRef.current = false;
+          return; // Stop transaction if proof upload fails when file is selected
+        } finally {
+          setIsUploadingProof(false);
+        }
+      }
+
+      // 3. Create Sale Transaction
       await api.post("/transactions", {
+        ...getTransactionDateTimeFields(),
         purpose: "Buy Back",
-        transaction_date: formatDateToYMD(),
         branch_id: branchId,
         branch: branchName,
         cash_in: price,
@@ -184,7 +269,8 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
         unit_code: selectedItem.itemId,
         pawn_amount: selectedItem.amount,
         details: `Repurchased by ${selectedItem.customers?.full_name || 'Original Owner'} | Status before sale: ${selectedItem.status} | Processed by: ${adminForm.processedBy || 'Admin'}`,
-        related_pawned_item_id: selectedItem.id
+        related_pawned_item_id: selectedItem.id,
+        buyback_proof: proofUrl,
       });
 
       await api.patch(`/inventory/pawned/${selectedItem.id}`, { status: 'Redeemed' });
@@ -193,7 +279,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
         onSuccess();
       }
       onClose();
-      toast.success("Item bought back successfully!");
+      toast.success("Item bought out successfully!");
     } catch (err: any) {
       const msg = err.message || "Failed to process transaction.";
       setError(msg);
@@ -225,7 +311,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
                   {branchName} | Expired Inventory
                 </p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight text-white leading-none">
-                  Buy Back / Repurchase
+                  Buy Out / Repurchase
                 </h1>
               </div>
             </div>
@@ -233,7 +319,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
             <button 
               onClick={onClose} 
               className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/95 text-emerald-950 transition-colors hover:bg-white dark:bg-surface/10 dark:text-white dark:hover:bg-surface/20"
-              aria-label="Close Buy Back modal"
+              aria-label="Close Buy Out modal"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
@@ -323,7 +409,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
               <div className="p-8 lg:p-12 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex flex-wrap items-start justify-between gap-6 mb-10">
                   <div className="space-y-2">
-                    <p className="text-xs font-black text-emerald-600 uppercase tracking-[2px]">Expiration Buy Back</p>
+                    <p className="text-xs font-black text-emerald-600 uppercase tracking-[2px]">Expiration Buy Out</p>
                     <h2 className="text-4xl font-black text-zinc-950 dark:text-white tracking-tighter leading-none">
                       {selectedItem.itemName}
                     </h2>
@@ -352,7 +438,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
 
                   <DetailSection title="Repurchase Agreement" icon={dollarIcon}>
                     <div className="p-4 bg-zinc-50 dark:bg-surface-secondary rounded-xl space-y-4">
-                      <p className="text-[10px] font-black text-emerald-900/40 dark:text-emerald-400 uppercase tracking-widest">Agreed Buy Back Price</p>
+                      <p className="text-[10px] font-black text-emerald-900/40 dark:text-emerald-400 uppercase tracking-widest">Agreed Buy Out Price</p>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-zinc-400">₱</span>
                         <input 
@@ -402,6 +488,61 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
                         </div>
                       </div>
 
+                      {/* Buyback Proof Upload Section */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1">
+                          Buyback Proof (Optional)
+                        </label>
+                        {!proofFile ? (
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/heic"
+                              onChange={handleFileSelect}
+                              className="hidden"
+                              id="proof-upload"
+                            />
+                            <label
+                              htmlFor="proof-upload"
+                              className="flex items-center justify-center gap-2 w-full h-12 px-4 bg-emerald-800 border-2 border-emerald-700 rounded-xl cursor-pointer hover:bg-emerald-700 transition-all text-sm font-medium"
+                            >
+                              {imageIcon}
+                              <span>Select Image</span>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="relative w-full h-32 rounded-xl overflow-hidden bg-emerald-800 border-2 border-emerald-700">
+                              {proofPreviewUrl && (
+                                <img
+                                  src={proofPreviewUrl}
+                                  alt="Proof preview"
+                                  className="w-full h-full object-contain"
+                                />
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-medium text-emerald-300 truncate flex-1">
+                                {proofFile.name}
+                              </p>
+                              <button
+                                onClick={handleRemoveFile}
+                                className="flex items-center gap-1 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-all text-xs font-bold"
+                              >
+                                {trashIcon}
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {proofUploadError && (
+                          <p className="text-xs font-bold text-red-300 mt-1">{proofUploadError}</p>
+                        )}
+                        <p className="text-[9px] font-medium text-emerald-500/70 leading-tight">
+                          Upload photo evidence (receipt/agreement). Max 4MB. Supports JPEG, PNG, HEIC.
+                        </p>
+                      </div>
+
                       {error && (
                         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3">
                           <span className="text-red-500">{alertIcon(20)}</span>
@@ -420,17 +561,22 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
 
                       <button
                         onClick={handleConfirmBuyBack}
-                        disabled={isConfirming}
-                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-xl text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                        disabled={isConfirming || isUploadingProof}
+                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-xl text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:cursor-not-allowed"
                       >
-                        {isConfirming ? (
+                        {isUploadingProof ? (
+                          <div className="flex items-center gap-2">
+                            <span className="anim-loading h-5 w-5 border-white/30 border-t-white rounded-full" />
+                            <span>Uploading Proof...</span>
+                          </div>
+                        ) : isConfirming ? (
                           <div className="flex items-center gap-2">
                             <span className="anim-loading h-5 w-5 border-white/30 border-t-white rounded-full" />
                             <span>Processing...</span>
                           </div>
                         ) : (
                           <>
-                            Finalize Buy Back
+                            Finalize Buy Out
                             {arrowRightIcon}
                           </>
                         )}
@@ -446,7 +592,7 @@ export function BuyBackModal({ isOpen, onClose, branchId, branchName, onSuccess 
                 </div>
                 <h3 className="text-2xl font-black text-zinc-300 uppercase tracking-tight">Select Item to Repurchase</h3>
                 <p className="text-zinc-400 font-bold max-w-xs mt-2 leading-relaxed italic">
-                  &quot;Only items with Expired or For Sale status are eligible for a Buy Back arrangement.&quot;
+                  &quot;Only items with Expired or For Sale status are eligible for a Buy Out arrangement.&quot;
                 </p>
               </div>
             )}

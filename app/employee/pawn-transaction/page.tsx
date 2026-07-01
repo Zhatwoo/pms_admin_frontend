@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { TransactionActions, type FilterType, type ViewMode } from "./_components/transaction-actions";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { PaginationFooter } from "@/components/shared/pagination";
 import { TransactionStats } from "./_components/transaction-stats";
 import { TransactionTable, type TransactionRow, type PurposeType } from "./_components/transaction-table";
@@ -261,6 +261,7 @@ interface ApiTransaction {
   storage_fee?: number | string | null;
   qr_code?: string | null;
   id_photo?: string | null;
+  buyback_proof?: string | null;
   related_pawned_item_id?: string | null;
   related_sale_item_id?: string | null;
   pawned_item?: PawnedItemJoin | PawnedItemJoin[] | null;
@@ -430,28 +431,33 @@ function toTransactionRow(transaction: ApiTransaction): TransactionRow {
     relatedSaleItemId: transaction.related_sale_item_id ?? undefined,
     details: transaction.details ?? undefined,
     idPhoto: transaction.id_photo ?? undefined,
+    buyback_proof: transaction.buyback_proof ?? undefined,
   };
 }
 
 export default function EmployeePawnTransactionsPage() {
   const { selectedBranch, branches, canSwitchBranch } = useBranch();
   const { user } = useAuth();
-  const { refreshOpeningChecklistFromServer } = useOpeningChecklist();
+  const { refreshOpeningChecklistFromServer, modulesAllowed } = useOpeningChecklist();
   const [isCompactTablet, setIsCompactTablet] = useState(false);
 
   useEffect(() => {
+    if (!modulesAllowed) {
+      return;
+    }
+
     async function syncInterestRates() {
       try {
         const data = await api.get("/settings/interest_rates");
         if (data && Array.isArray(data)) {
           localStorage.setItem("interest_rates", JSON.stringify(data));
         }
-      } catch (error) {
+      } catch {
         // fail silently
       }
     }
     syncInterestRates();
-  }, []);
+  }, [modulesAllowed]);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -513,7 +519,7 @@ export default function EmployeePawnTransactionsPage() {
   const resolvedBranchIdForModals = branchIdForApi || selectedBranch.id;
 
   const fetchTransactions = useCallback(async () => {
-    if (!branchIdForApi) {
+    if (!branchIdForApi || !modulesAllowed) {
       return;
     }
 
@@ -526,12 +532,15 @@ export default function EmployeePawnTransactionsPage() {
         setAllTransactions((data.transactions || []).map(toTransactionRow));
       }
     } catch (error) {
+      if (error instanceof ApiError && error.isOpeningChecklistBlocked) {
+        return;
+      }
       console.error("Failed to load transactions:", error);
     }
-  }, [branchIdForApi]);
+  }, [branchIdForApi, modulesAllowed]);
 
   const fetchSelectedDateStats = useCallback(async () => {
-    if (!branchIdForApi) {
+    if (!branchIdForApi || !modulesAllowed) {
       setSelectedDateLedgerRows([]);
       return;
     }
@@ -634,13 +643,21 @@ export default function EmployeePawnTransactionsPage() {
         sessionOpenedAt: effectiveCutoffIso,
       });
     } catch (error) {
+      if (error instanceof ApiError && error.isOpeningChecklistBlocked) {
+        setSelectedDateLedgerRows([]);
+        setCurrentStats(normalizeStats());
+        return;
+      }
       console.error("Failed to load selected date transaction stats:", error);
       setCurrentStats(normalizeStats());
       setSelectedDateLedgerRows([]);
     }
-  }, [branchIdForApi, selectedDate]);
+  }, [branchIdForApi, selectedDate, modulesAllowed]);
 
   const fetchAllData = useCallback(async () => {
+    if (!modulesAllowed) {
+      return;
+    }
     setIsLoading(true);
     try {
       // Execute sequentially to respect Supabase pool limits (pool_size: 15)
@@ -649,27 +666,33 @@ export default function EmployeePawnTransactionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchTransactions, fetchSelectedDateStats]);
+  }, [fetchTransactions, fetchSelectedDateStats, modulesAllowed]);
 
   useEffect(() => {
+    if (!modulesAllowed) {
+      return;
+    }
     void fetchAllData();
-  }, [fetchAllData]);
+  }, [fetchAllData, modulesAllowed]);
 
   useEffect(() => {
+    if (!modulesAllowed) {
+      return;
+    }
     return subscribeToPawnTransactionNotifications(() => {
       void fetchAllData();
     });
-  }, [fetchAllData]);
+  }, [fetchAllData, modulesAllowed]);
 
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (!branchIdForApi) return;
+      if (!branchIdForApi || !modulesAllowed) return;
       void fetchSelectedDateStats();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchSelectedDateStats, branchIdForApi]);
+  }, [fetchSelectedDateStats, branchIdForApi, modulesAllowed]);
 
   const fetchTransactionsRef = useRef(fetchTransactions);
   useEffect(() => {
@@ -700,14 +723,14 @@ export default function EmployeePawnTransactionsPage() {
   );
 
   useEffect(() => {
-    if (!branchIdForApi || branchIdForApi === "__all__") return;
+    if (!branchIdForApi || branchIdForApi === "__all__" || !modulesAllowed) return;
 
     const interval = window.setInterval(
       () => void fetchTransactionsRef.current(),
       60_000,
     );
     return () => window.clearInterval(interval);
-  }, [branchIdForApi]);
+  }, [branchIdForApi, modulesAllowed]);
 
   const filteredTransactions = useMemo(() => {
     let result = selectedDateTransactions;
@@ -828,7 +851,7 @@ export default function EmployeePawnTransactionsPage() {
 
   const handleExportCSV = useCallback(() => {
     if (filteredTransactions.length === 0) return;
-    const headers = ["Transaction #", "Purpose", "Date", "Time", "Buy Back", "Buy Out", "Sold", "Cash In", "Cash Out", "Return", "Unit", "Unit Code", "Pawn", "Storage"];
+    const headers = ["Transaction #", "Purpose", "Date", "Time", "Buy Out", "Buy Back", "Sold", "Cash In", "Cash Out", "Return", "Unit", "Unit Code", "Pawn", "Storage"];
     const rows = filteredTransactions.map((r) =>
       [r.transactionNo, r.purpose, r.date, r.time, r.buyBack, r.buyOut, r.sold, r.cashIn, r.cashOut, r.returnVal, r.unit, r.unitCode, r.pawn, r.storage].join(",")
     );
@@ -1030,7 +1053,7 @@ export default function EmployeePawnTransactionsPage() {
                 <td className="border border-emerald-800/20 p-2 text-right font-bold">{currentStats.pawnedToday}</td>
               </tr>
               <tr>
-                <td className="border border-emerald-800/20 p-2">Buy Back</td>
+                <td className="border border-emerald-800/20 p-2">Buy Out</td>
                 <td className="border border-emerald-800/20 p-2 text-right font-bold">{currentStats.buyBack}</td>
               </tr>
               <tr>
@@ -1121,12 +1144,13 @@ export default function EmployeePawnTransactionsPage() {
         logoutAfterEndDay
         syncOpeningChecklist={refreshOpeningChecklistFromServer}
         onSessionChanged={() => {
+          if (!modulesAllowed) return;
           void fetchSelectedDateStats();
           void fetchTransactions();
         }}
       />
 
-      <TransactionStats data={currentStats} />
+      <TransactionStats data={currentStats} isLoading={isLoading} />
 
       <div className="rounded-xl border border-border-main bg-surface p-4 shadow-sm transition-colors duration-300">
         <div className="flex flex-wrap items-end gap-4">
@@ -1157,9 +1181,9 @@ export default function EmployeePawnTransactionsPage() {
           >
             <option value="All">All Purposes</option>
             <option value="Renew">Renew</option>
-            <option value="Sells / Transfer">Sells / Transfer</option>
-            <option value="Redeem">Redeem</option>
-            <option value="Buy Back">Buy Back</option>
+            <option value="Sells / Transfer">Sells</option>
+            <option value="Redeem">Buy Back</option>
+            <option value="Buy Back">Buy Out</option>
             <option value="Reserve / Layaway">Reserve / Layaway</option>
             <option value="Pawn">Pawn</option>
             <option value="Start">Start</option>
