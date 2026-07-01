@@ -8,9 +8,12 @@ import {
   MOA_LEGAL_PAGE,
   MOA_PRINT_CSS,
   MOA_WATERMARK_CSS,
+  MOA_CUT_GUIDE_CSS,
+  MOA_SLIP_HALVES_CSS,
   buildMoaSlipPrintHtml,
 } from "@/lib/print-templates";
 import { calculatePeriodicStorageFee } from "@/lib/interest";
+import { MoaCutGuide } from "@/components/shared/moa-cut-guide";
 
 interface MoaModalProps {
   isOpen: boolean;
@@ -557,9 +560,11 @@ export function MoaModal({
           <div id="moa-slip-printable" ref={printRef} className="max-w-full bg-white text-zinc-800 moa-paper-effect">
             
             {/* PAGE 1: SLIPS (Original & Customer Copy) */}
-            <div className={MOA_PAGE_CLASS} style={MOA_PAGE_STYLE}>
-              
+            <div className={`${MOA_PAGE_CLASS} moa-slip-sheet`} style={MOA_PAGE_STYLE}>
+              <div className="moa-slip-halves">
+
               {/* ORIGINAL COPY (Top Half) */}
+              <div className="moa-slip-half">
               <div className="space-y-2 relative moa-watermark pb-1">
                 {/* Centered shop header */}
                 <MoaBranchHeader
@@ -735,16 +740,14 @@ export function MoaModal({
                   </div>
                 </div>
               </div>
-
-              {/* Middle Cut Guide */}
-              <div className="relative my-4 flex items-center justify-center border-t border-dashed border-zinc-400 py-1 select-none pointer-events-none no-print">
-                <span className="absolute bg-white px-2 text-[8px] font-bold text-zinc-400 tracking-wider">
-                  ✂ - - - - - - - - - - - - - - - - - - - - - - - CUT HERE - - - - - - - - - - - - - - - - - - - - - - - ✂
-                </span>
               </div>
 
+              {/* Middle Cut Guide */}
+              <MoaCutGuide />
+
               {/* CUSTOMER COPY (Bottom Half) */}
-              <div className="space-y-2 pt-2 relative moa-watermark pb-1">
+              <div className="moa-slip-half">
+              <div className="space-y-2 relative moa-watermark pb-1">
                 {/* Centered shop header */}
                 <MoaBranchHeader
                   primary={headerPrimary}
@@ -919,12 +922,16 @@ export function MoaModal({
                   </div>
                 </div>
               </div>
+              </div>
+              </div>
             </div>
 
             {/* PAGE 2: TERMS AND CONDITIONS */}
-            <div className={MOA_PAGE_CLASS} style={MOA_PAGE_STYLE}>
+            <div className={`${MOA_PAGE_CLASS} moa-slip-sheet`} style={MOA_PAGE_STYLE}>
+              <div className="moa-slip-halves">
               
               {/* Top Copy (Original terms) */}
+              <div className="moa-slip-half">
               <div className="space-y-3 relative moa-watermark pb-2">
                 <h2 className="text-center font-bold uppercase text-[11px] select-text">
                   {labels?.termsHeading || "Terms and Conditions"}
@@ -980,16 +987,14 @@ export function MoaModal({
                   </div>
                 </div>
               </div>
-
-              {/* Middle Cut Guide */}
-              <div className="relative my-6 flex items-center justify-center border-t border-dashed border-zinc-400 py-1 select-none pointer-events-none no-print">
-                <span className="absolute bg-white px-2 text-[8px] font-bold text-zinc-400 tracking-wider">
-                  ✂ - - - - - - - - - - - - - - - - - - - - - - - CUT HERE - - - - - - - - - - - - - - - - - - - - - - - ✂
-                </span>
               </div>
 
+              {/* Middle Cut Guide */}
+              <MoaCutGuide />
+
               {/* Bottom Copy (Customer terms) */}
-              <div className="space-y-3 pt-2 relative moa-watermark pb-2">
+              <div className="moa-slip-half">
+              <div className="space-y-3 relative moa-watermark pb-2">
                 <h2 className="text-center font-bold uppercase text-[11px] select-text">
                   {labels?.termsHeading || "Terms and Conditions"}
                 </h2>
@@ -1043,6 +1048,8 @@ export function MoaModal({
                     <MoaNamedSignatureLine name={fullName} label={sellerSignatureLabel} />
                   </div>
                 </div>
+              </div>
+              </div>
               </div>
             </div>
           </div>
@@ -1119,6 +1126,8 @@ export function MoaModal({
         .moa-paper-effect .bg-white\/80 { background-color: rgba(255, 255, 255, 0.8) !important; }
 
         ${MOA_WATERMARK_CSS}
+        ${MOA_CUT_GUIDE_CSS}
+        ${MOA_SLIP_HALVES_CSS}
 
         @media print {
           ${MOA_PRINT_CSS}
