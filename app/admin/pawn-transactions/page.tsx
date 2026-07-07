@@ -1271,6 +1271,7 @@ export default function SuperAdminPawnTransactionsPage() {
           onConfirm={() => setIsMoaReprintOpen(false)}
           data={reprintData}
           isLoading={false}
+          mode="view"
           autoPrint={true}
         />
       )}

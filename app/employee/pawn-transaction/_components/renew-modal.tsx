@@ -9,6 +9,7 @@ import { formatDateToYMD, getTransactionDateTimeFields } from "@/lib/time";
 import { useAuth } from "@/contexts/auth-context";
 import { QrScanner } from "@/components/shared/qr-scanner";
 import { RenewalProofModal } from "@/components/shared/renewal-proof-modal";
+import { TransactionConfirmModal } from "@/components/shared/transaction-confirm-modal";
 
 /* ── Inline SVG Icon Components (replacing lucide-react) ── */
 function X({ className }: { className?: string }) {
@@ -109,6 +110,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -239,6 +241,16 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
     }
   };
 
+  const handleProceedRequest = () => {
+    if (!selectedItem) return;
+    if (!adminForm.password) {
+      setError("Authorization required.");
+      return;
+    }
+    setError(null);
+    setIsConfirmOpen(true);
+  };
+
   const handleProceed = async () => {
     if (isProcessingRef.current) return;
     if (!selectedItem) return;
@@ -252,11 +264,13 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
     try {
       await api.post("/auth/verify-password", { password: adminForm.password });
       if (!isReappraiseActive) {
+        setIsConfirmOpen(false);
         setIsProofModalOpen(true);
         setIsLoading(false);
         isProcessingRef.current = false;
       } else {
         await executeTransaction(null);
+        setIsConfirmOpen(false);
       }
     } catch (err: any) {
       const msg = err.message || "Failed to process transaction.";
@@ -264,6 +278,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
       toast.error(msg);
       setIsLoading(false);
       isProcessingRef.current = false;
+      setIsConfirmOpen(false);
     }
   };
 
@@ -284,6 +299,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
       setIsRenewActive(true);
       setIsReappraiseActive(false);
       setItemsRenewed(1);
+      setIsConfirmOpen(false);
     }
     if (isOpen) {
       fetchInventory();
@@ -702,7 +718,7 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
 
               <button
                 disabled={isLoading || !selectedItem}
-                onClick={handleProceed}
+                onClick={handleProceedRequest}
                 className={`flex items-center justify-center gap-3 rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider transition-all active:scale-[0.98] sm:px-10 ${compactTablet ? "md:px-8 md:py-4" : "lg:px-12 lg:py-5"} ${isLoading || !selectedItem ? 'cursor-not-allowed bg-zinc-100 text-zinc-300 dark:bg-surface-hover' : 'bg-emerald-600 text-white shadow-xl shadow-emerald-600/30 hover:bg-emerald-700'}`}
               >
                 {isLoading ? (
@@ -739,6 +755,27 @@ export function RenewModal({ isOpen, onClose, branchName, branchId, onSuccess, i
         onClose={() => setIsProofModalOpen(false)}
         onConfirm={executeTransaction}
         isLoading={isLoading}
+      />
+      <TransactionConfirmModal
+        isOpen={isConfirmOpen}
+        title={isReappraiseActive ? "Confirm reappraisal?" : "Confirm renewal?"}
+        message={
+          isReappraiseActive
+            ? "This will update the pawn principal and record a reappraisal transaction permanently."
+            : "This will record the renewal payment and update the pawn contract permanently."
+        }
+        details={selectedItem ? [
+          { label: "Customer", value: selectedItem.name },
+          { label: "Unit", value: selectedItem.unit },
+          { label: "Unit Code", value: selectedItem.unitCode },
+          { label: "Total Payment", value: `₱ ${totalToPay.toLocaleString()}` },
+        ] : []}
+        confirmLabel={isReappraiseActive ? "Yes, Process Reappraisal" : "Yes, Process Renewal"}
+        isLoading={isLoading}
+        onClose={() => {
+          if (!isLoading) setIsConfirmOpen(false);
+        }}
+        onConfirm={handleProceed}
       />
     </div>
   );
