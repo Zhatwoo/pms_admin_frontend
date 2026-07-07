@@ -8,6 +8,7 @@ import { getContractInterestRateGroup } from "@/lib/pawn-transaction-mapper";
 import { getTransactionDateTimeFields } from "@/lib/time";
 import { formatPeso } from "@/lib/currency";
 import { QrScanner } from "@/components/shared/qr-scanner";
+import { TransactionConfirmModal } from "@/components/shared/transaction-confirm-modal";
 import { useAuth } from "@/contexts/auth-context";
 
 /* ── Inline SVG Icon Components (replacing lucide-react) ── */
@@ -83,6 +84,7 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
   const [pawnedItems, setPawnedItems] = useState<PawnedSearchItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Proof of buy back — camera capture
   const [proofImage, setProofImage] = useState<string | null>(null);
@@ -244,6 +246,23 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
     );
   }, [selectedItem]);
 
+  const handleConfirmRedeemRequest = () => {
+    if (!selectedItem) return;
+    setError(null);
+
+    if (!adminForm.password) {
+      setError("Please enter password to verify.");
+      return;
+    }
+
+    if (!proofImage) {
+      setError("A proof of buy out photo is required before confirming.");
+      return;
+    }
+
+    setIsConfirmOpen(true);
+  };
+
   const handleConfirmRedeem = async () => {
     if (isProcessingRef.current) return;
     if (!selectedItem) return;
@@ -312,10 +331,12 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
       }
       onClose();
       toast.success("Item bought out successfully!");
+      setIsConfirmOpen(false);
     } catch (err: any) {
       const msg = err.message || "Failed to process transaction.";
       setError(msg);
       toast.error(msg);
+      setIsConfirmOpen(false);
     } finally {
       setIsConfirming(false);
       isProcessingRef.current = false;
@@ -735,8 +756,8 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
 
               <button
                 disabled={isConfirming || !selectedItem || !proofImage}
-                onClick={handleConfirmRedeem}
-                className={`shrink-0 flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 sm:px-6 sm:py-3 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.98] ${isConfirming || !selectedItem || !proofImage ? 'bg-zinc-100 dark:bg-surface-hover text-zinc-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30'}`}
+                onClick={handleConfirmRedeemRequest}
+                className={`flex items-center justify-center gap-3 rounded-2xl text-sm font-black uppercase tracking-wider transition-all active:scale-[0.98] ${compactTablet ? "px-8 py-4" : "px-12 py-5"} ${isConfirming || !selectedItem || !proofImage ? 'bg-zinc-100 dark:bg-surface-hover text-zinc-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/30'}`}
               >
                 {isConfirming ? (
                   <span className="anim-loading h-3.5 w-3.5 border-emerald-950/30 border-t-emerald-950 rounded-full" />
@@ -756,6 +777,23 @@ export function RedeemModal({ isOpen, onClose, branchId, branchName, onSuccess, 
         isOpen={isScannerOpen} 
         onScan={handleQrScan} 
         onClose={() => setIsScannerOpen(false)} 
+      />
+      <TransactionConfirmModal
+        isOpen={isConfirmOpen}
+        title="Confirm buy out?"
+        message="This will permanently settle the pawn, record the buy out transaction, and mark the item as redeemed."
+        details={selectedItem ? [
+          { label: "Customer", value: selectedItem.name },
+          { label: "Unit", value: selectedItem.unit },
+          { label: "Unit Code", value: selectedItem.unitCode },
+          { label: "Total Amount", value: `₱ ${interestCalc.totalAmount.toLocaleString()}` },
+        ] : []}
+        confirmLabel="Yes, Confirm Buy Out"
+        isLoading={isConfirming}
+        onClose={() => {
+          if (!isConfirming) setIsConfirmOpen(false);
+        }}
+        onConfirm={handleConfirmRedeem}
       />
 
       {/* Buy Back Proof Camera Modal */}

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { getTransactionDateTimeFields } from "@/lib/time";
 import { useAuth } from "@/contexts/auth-context";
 import { useBranch } from "@/contexts/branch-context";
+import { TransactionConfirmModal } from "@/components/shared/transaction-confirm-modal";
 
 function Tag({ className }: { className?: string }) {
   return (
@@ -79,6 +80,7 @@ export function ReserveLayawayModal({ isOpen, onClose, onSuccess, branchId, bran
   const [selectedItem, setSelectedItem] = useState<SaleItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     firstName: "",
@@ -151,6 +153,24 @@ export function ReserveLayawayModal({ isOpen, onClose, onSuccess, branchId, bran
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleConfirmRequest = () => {
+    if (!selectedItem) return;
+
+    setError(null);
+
+    if (!isFormValid) {
+      setError("Please complete the customer details and downpayment.");
+      return;
+    }
+
+    if (downpaymentValue <= 0 || Number.isNaN(downpaymentValue)) {
+      setError("Please enter a valid downpayment.");
+      return;
+    }
+
+    setIsConfirmOpen(true);
+  };
+
   const handleConfirm = async () => {
     if (!selectedItem) return;
 
@@ -216,10 +236,12 @@ export function ReserveLayawayModal({ isOpen, onClose, onSuccess, branchId, bran
       onSuccess?.();
       onClose();
       toast.success("Reserve / Layaway transaction recorded successfully!");
+      setIsConfirmOpen(false);
     } catch (confirmError: any) {
       const msg = confirmError?.message || "Failed to process reserve / layaway transaction.";
       setError(msg);
       toast.error(msg);
+      setIsConfirmOpen(false);
     } finally {
       setIsConfirming(false);
     }
@@ -468,7 +490,7 @@ export function ReserveLayawayModal({ isOpen, onClose, onSuccess, branchId, bran
                     Cancel
                   </button>
                   <button
-                    onClick={handleConfirm}
+                    onClick={handleConfirmRequest}
                     disabled={isConfirming || !selectedItem || !isFormValid}
                     className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
                   >
@@ -481,6 +503,24 @@ export function ReserveLayawayModal({ isOpen, onClose, onSuccess, branchId, bran
           </div>
         </div>
       </div>
+      <TransactionConfirmModal
+        isOpen={isConfirmOpen}
+        title="Create reserve / layaway?"
+        message="This will record the downpayment, hold the item, and create a reserve / layaway transaction permanently."
+        details={selectedItem ? [
+          { label: "Customer", value: `${form.firstName} ${form.lastName}`.trim() || "—" },
+          { label: "Item", value: selectedItem.itemName },
+          { label: "Item Code", value: selectedItem.itemId },
+          { label: "Downpayment", value: formatCurrency(downpaymentValue) },
+          { label: "Remaining Balance", value: formatCurrency(remainingBalance) },
+        ] : []}
+        confirmLabel="Yes, Create Reserve / Layaway"
+        isLoading={isConfirming}
+        onClose={() => {
+          if (!isConfirming) setIsConfirmOpen(false);
+        }}
+        onConfirm={handleConfirm}
+      />
     </div>
   );
 }
