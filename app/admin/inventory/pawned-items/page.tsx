@@ -928,6 +928,7 @@ export default function PawnedItemsPage({ viewOnly = false }: { viewOnly?: boole
           onConfirm={() => setIsMoaModalOpen(false)}
           data={moaReprintData}
           isLoading={moaLoading}
+          mode="view"
         />
       )}
     </div>

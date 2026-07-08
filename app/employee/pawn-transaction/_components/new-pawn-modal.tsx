@@ -1645,6 +1645,7 @@ export function NewPawnModal({
         isOpen={isMoaOpen}
         onClose={() => setIsMoaOpen(false)}
         onConfirm={handleConfirmMoa}
+        mode="finalize"
         confirmDisabled={(() => {
           const loan = computedNetProceeds;
           return (
