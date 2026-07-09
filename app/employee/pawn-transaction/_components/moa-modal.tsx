@@ -84,6 +84,7 @@ type MoaExtensionRow = {
   date?: string;
   storage?: string;
   period?: string;
+  periodValue?: string;
   extend?: string;
   sign?: string;
 };

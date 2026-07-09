@@ -95,7 +95,8 @@ export function BranchMap({ branchName, location }: BranchMapProps) {
   }
   
   // Success state - render static map preview with link
-  const mapQuery = encodeURIComponent(location);
+  const safeLocation = location ?? '';
+  const mapQuery = encodeURIComponent(safeLocation);
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
   
   // Google Maps Static API - generates a static map image
@@ -112,7 +113,7 @@ export function BranchMap({ branchName, location }: BranchMapProps) {
         rel="noopener noreferrer"
         className="h-40 w-full relative overflow-hidden bg-gradient-to-br from-brand-green to-brand-green/80 flex items-center justify-center group hover:from-brand-green/90 hover:to-brand-green/70 transition-all cursor-pointer"
         role="img"
-        aria-label={`Map showing ${branchName} at ${location}. Click to open in Google Maps.`}
+        aria-label={`Map showing ${branchName} at ${safeLocation}. Click to open in Google Maps.`}
       >
         <div className="flex flex-col items-center gap-2 text-white">
           <svg 
@@ -138,7 +139,7 @@ export function BranchMap({ branchName, location }: BranchMapProps) {
       rel="noopener noreferrer"
       className="h-40 w-full relative overflow-hidden block group cursor-pointer"
       role="img"
-      aria-label={`Map preview showing ${branchName} at ${location}. Click to open in Google Maps.`}
+      aria-label={`Map preview showing ${branchName} at ${safeLocation}. Click to open in Google Maps.`}
     >
       {/* Static map image */}
       <img
