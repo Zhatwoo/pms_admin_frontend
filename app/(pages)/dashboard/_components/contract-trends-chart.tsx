@@ -51,7 +51,6 @@ export function ContractTrendsChart({ data = [] }: ContractTrendsChartProps) {
             height="100%"
             minWidth={0}
             minHeight={0}
-            style={{ minWidth: 0, minHeight: 0 }}
           >
           <BarChart
             data={data}
