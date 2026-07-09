@@ -1176,7 +1176,7 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose, displayMode = 
                       }}
                       className="flex w-full items-center justify-between gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-3 text-left transition-all hover:border-emerald-200 hover:bg-emerald-50/40 active:scale-[0.99] cursor-pointer dark:border-zinc-700 dark:bg-zinc-800 dark:hover:border-emerald-600 dark:hover:bg-emerald-900/30"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-700">
                           {item.originalPhoto ? (
                             <Image
@@ -1198,15 +1198,14 @@ export function InventoryAuditModal({ isOpen, onConfirm, onClose, displayMode = 
                           )}
                         </div>
 
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-extrabold text-zinc-900 dark:text-zinc-100">{item.itemId}</p>
                           <p className="mt-1 truncate text-xs font-semibold text-zinc-500 dark:text-zinc-400">{item.itemName}</p>
                           <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">Serial: {item.serialNumber || "—"}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-black text-emerald-700">{scannedItems.length - index}</div>
+                      <div className="flex shrink-0 items-center">
                         <button
                           aria-label="View verified item"
                           onClick={(e) => { e.stopPropagation(); setSelectedVerifiedItem(item); }}
