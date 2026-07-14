@@ -92,6 +92,14 @@ export function PasswordChangeRequestCard() {
   const [reviewModal, setReviewModal] = useState<ReviewModalState | null>(null);
   const [reason, setReason] = useState("");
   const [reviewNote, setReviewNote] = useState("");
+  const [isDirectChangeModalOpen, setIsDirectChangeModalOpen] = useState(false);
+  const [directCurrentPassword, setDirectCurrentPassword] = useState("");
+  const [directNewPassword, setDirectNewPassword] = useState("");
+  const [directConfirmPassword, setDirectConfirmPassword] = useState("");
+  const [showDirectCurrentPassword, setShowDirectCurrentPassword] = useState(false);
+  const [showDirectNewPassword, setShowDirectNewPassword] = useState(false);
+  const [showDirectConfirmPassword, setShowDirectConfirmPassword] = useState(false);
+  const [isChangingDirect, setIsChangingDirect] = useState(false);
   const [activationCurrentPassword, setActivationCurrentPassword] = useState("");
   const [activationNewPassword, setActivationNewPassword] = useState("");
   const [activationConfirmPassword, setActivationConfirmPassword] = useState("");
@@ -109,6 +117,7 @@ export function PasswordChangeRequestCard() {
 
   const canRequest = user?.role === "employee" || user?.role === "admin";
   const canReview = user?.role === "admin" || user?.role === "super_admin";
+  const canChangeDirectly = user?.role === "super_admin";
   const approverLabel = useMemo(() => {
     if (user?.role === "employee") return "Branch Admin";
     if (user?.role === "admin") return "System Admin";
@@ -185,11 +194,82 @@ export function PasswordChangeRequestCard() {
   const openChangePassword = () => {
     setError(null);
     setSuccess(null);
+    if (canChangeDirectly) {
+      setIsDirectChangeModalOpen(true);
+      return;
+    }
     if (hasOneTimeAccess) {
       setIsActivationModalOpen(true);
       return;
     }
     setIsRequestModalOpen(true);
+  };
+
+  const submitDirectChange = async () => {
+    const trimmedCurrentPassword = directCurrentPassword.trim();
+    const trimmedNewPassword = directNewPassword.trim();
+    const trimmedConfirmPassword = directConfirmPassword.trim();
+    setError(null);
+    setSuccess(null);
+
+    if (trimmedCurrentPassword.length < 6) {
+      setError("Current password must be at least 6 characters.");
+      return;
+    }
+
+    if (trimmedNewPassword.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (trimmedNewPassword !== trimmedConfirmPassword) {
+      setError("New password confirmation does not match.");
+      return;
+    }
+
+    if (trimmedCurrentPassword === trimmedNewPassword) {
+      setError("New password must be different from the current password.");
+      return;
+    }
+
+    setIsChangingDirect(true);
+    const authRefreshGraceUntil = Date.now() + 12_000;
+    try {
+      window.sessionStorage.setItem(
+        "pms_auth_refresh_grace_until",
+        String(authRefreshGraceUntil),
+      );
+
+      const result = await api.post<{ message?: string }>(
+        "/auth/change-password",
+        {
+          currentPassword: trimmedCurrentPassword,
+          newPassword: trimmedNewPassword,
+        },
+        { suppressAuthExpired: true },
+      );
+      setDirectCurrentPassword("");
+      setDirectNewPassword("");
+      setDirectConfirmPassword("");
+      setShowDirectCurrentPassword(false);
+      setShowDirectNewPassword(false);
+      setShowDirectConfirmPassword(false);
+      setIsDirectChangeModalOpen(false);
+      setSuccess(result.message || "Password updated successfully.");
+      setIsPasswordSavedModalOpen(true);
+    } catch (err) {
+      setError(mapPasswordRequestError(err));
+    } finally {
+      setIsChangingDirect(false);
+      window.setTimeout(() => {
+        if (
+          window.sessionStorage.getItem("pms_auth_refresh_grace_until") ===
+          String(authRefreshGraceUntil)
+        ) {
+          window.sessionStorage.removeItem("pms_auth_refresh_grace_until");
+        }
+      }, 12_000);
+    }
   };
 
   const submitRequest = async () => {
@@ -336,11 +416,15 @@ export function PasswordChangeRequestCard() {
     <>
       <button
         onClick={openChangePassword}
-        disabled={!canRequest}
+        disabled={!canRequest && !canChangeDirectly}
         className="mt-2 w-full rounded-lg border border-amber-200 bg-amber-100 py-2 text-[9px] font-bold uppercase tracking-wider text-amber-900 transition-colors hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
       >
         Change Password
       </button>
+
+      {canChangeDirectly && success && (
+        <p className="mt-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">{success}</p>
+      )}
 
       {canRequest && (
         <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-900">
@@ -522,6 +606,69 @@ export function PasswordChangeRequestCard() {
                   className={`rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-60 ${reviewModal.decision === "approved" ? "bg-emerald-700 hover:bg-emerald-800" : "bg-red-600 hover:bg-red-700"}`}
                 >
                   {reviewingId ? "Saving..." : reviewModal.decision === "approved" ? "Approve" : "Reject"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDirectChangeModalOpen && canChangeDirectly && (
+        <div className="fixed inset-0 z-[85] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={() => setIsDirectChangeModalOpen(false)} />
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-border-main bg-surface shadow-2xl">
+            <div className="h-1.5 bg-emerald-500" />
+            <div className="p-6">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-500">
+                Super Admin
+              </p>
+              <h3 className="mt-2 text-xl font-black text-text-primary">Change Password</h3>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">
+                Enter your current password and your new password. This change takes effect immediately.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <PasswordField
+                  label="Current Password"
+                  value={directCurrentPassword}
+                  visible={showDirectCurrentPassword}
+                  onToggle={() => setShowDirectCurrentPassword((value) => !value)}
+                  onChange={setDirectCurrentPassword}
+                  placeholder="Enter current password"
+                />
+                <PasswordField
+                  label="New Password"
+                  value={directNewPassword}
+                  visible={showDirectNewPassword}
+                  onToggle={() => setShowDirectNewPassword((value) => !value)}
+                  onChange={setDirectNewPassword}
+                  placeholder="Enter new password"
+                />
+                <PasswordField
+                  label="Confirm New Password"
+                  value={directConfirmPassword}
+                  visible={showDirectConfirmPassword}
+                  onToggle={() => setShowDirectConfirmPassword((value) => !value)}
+                  onChange={setDirectConfirmPassword}
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              {error && <p className="mt-3 text-xs font-semibold text-red-600">{error}</p>}
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  onClick={() => setIsDirectChangeModalOpen(false)}
+                  disabled={isChangingDirect}
+                  className="rounded-lg border border-border-main px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-hover disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => void submitDirectChange()}
+                  disabled={isChangingDirect}
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
+                >
+                  {isChangingDirect ? "Saving..." : "Change Password"}
                 </button>
               </div>
             </div>
