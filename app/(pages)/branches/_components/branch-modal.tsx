@@ -1,0 +1,283 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { PHONE_REGEX, normalizePhoneNumber } from "@/lib/phone-number";
+
+interface BranchFormData {
+  id?: string;
+  branchId: string;
+  name: string;
+  location: string;
+  contactNumber: string;
+  status: string;
+}
+
+interface BranchModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: BranchFormData) => Promise<boolean> | boolean;
+  initialData?: BranchFormData | null;
+  mode: "create" | "edit";
+  nextBranchCode: string;
+}
+
+const statusOptions = ["Active", "Inactive", "Process", "Terminated"];
+
+export function BranchModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  initialData,
+  mode,
+  nextBranchCode,
+}: BranchModalProps) {
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [contactNumber, setContactNumber] = useState("+63");
+  const [status, setStatus] = useState("Active");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const generatedId = useMemo(
+    () =>
+      mode === "create" ? (nextBranchCode || "001") : initialData?.branchId || "",
+    [mode, nextBranchCode, initialData, isOpen]
+  );
+
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name);
+      setLocation(initialData.location);
+      setContactNumber(initialData.contactNumber || "+63");
+      setStatus(initialData.status);
+    } else {
+      setName("");
+      setLocation("");
+      setContactNumber("+63");
+      setStatus("Active");
+    }
+    setErrors({});
+  }, [initialData, isOpen]);
+
+  function updateContactNumber(value: string) {
+    const normalized = normalizePhoneNumber(value);
+    setContactNumber(normalized);
+
+    setErrors((current) => {
+      const nextErrors = { ...current };
+
+      if (!normalized || normalized === "+63") {
+        nextErrors.contactNumber = "Contact number is required";
+      } else if (!PHONE_REGEX.test(normalized)) {
+        nextErrors.contactNumber = "Use format +639XXXXXXXXX";
+      } else {
+        delete nextErrors.contactNumber;
+      }
+
+      return nextErrors;
+    });
+  }
+
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) newErrors.name = "Branch name is required";
+    if (!location.trim()) newErrors.location = "Location is required";
+    const trimmedContact = contactNumber.trim();
+    if (!trimmedContact || trimmedContact === "+63") {
+      newErrors.contactNumber = "Contact number is required";
+    } else if (!PHONE_REGEX.test(trimmedContact)) {
+      newErrors.contactNumber = "Use format +639XXXXXXXXX";
+    }
+    if (!status) newErrors.status = "Status is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    setIsSubmitting(true);
+    try {
+      const success = await onSubmit({
+        id: initialData?.id,
+        branchId: generatedId,
+        name: name.trim(),
+        location: location.trim(),
+        contactNumber: contactNumber.trim(),
+        status,
+      });
+
+      if (success) {
+        onClose();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-md animate-[fadeInUp_0.25s_ease-out] rounded-xl border border-border-main bg-surface shadow-2xl">
+        {/* Header */}
+        <div className="bg-emerald-900 px-6 py-5">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-400">
+            Branch Management
+          </p>
+          <div className="mt-2 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-white">
+                {mode === "create" ? "Create New Branch" : "Edit Branch"}
+              </h2>
+              <p className="mt-1 text-base text-emerald-50/80">
+                {mode === "create"
+                  ? "Add a new pawnshop branch location"
+                  : "Update branch information"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label="Close branch modal"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+          {/* Branch ID — auto-generated, read-only */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-text-secondary">
+              Branch ID
+            </label>
+            <input
+              type="text"
+              value={generatedId}
+              readOnly
+              disabled
+              className="cursor-not-allowed rounded-lg border border-border-subtle bg-surface-secondary px-3 py-2 text-sm font-semibold text-text-muted outline-none"
+            />
+            <span className="text-[10px] text-text-muted">Auto-generated and cannot be edited</span>
+          </div>
+
+          {/* Branch Name */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-text-secondary">
+              Branch Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. BGC Branch"
+              className={`rounded-lg border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-pawn-sidebar transition-colors duration-200 ${
+                errors.name ? "border-red-400" : "border-input-border"
+              }`}
+            />
+            {errors.name && (
+              <span className="text-[10px] text-red-500">{errors.name}</span>
+            )}
+          </div>
+
+          {/* Location */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-text-secondary">
+              Location <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Bonifacio Global City, Taguig"
+              className={`rounded-lg border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-pawn-sidebar transition-colors duration-200 ${
+                errors.location ? "border-red-400" : "border-input-border"
+              }`}
+            />
+            {errors.location && (
+              <span className="text-[10px] text-red-500">{errors.location}</span>
+            )}
+          </div>
+
+          {/* Contact Number */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-text-secondary">
+              Contact Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              value={contactNumber}
+              onChange={(e) => updateContactNumber(e.target.value)}
+              placeholder="+639XXXXXXXXX"
+              className={`rounded-lg border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-pawn-sidebar transition-colors duration-200 ${
+                errors.contactNumber ? "border-red-400" : "border-input-border"
+              }`}
+            />
+            {errors.contactNumber && (
+              <span className="text-[10px] text-red-500">{errors.contactNumber}</span>
+            )}
+          </div>
+
+          {/* Status */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-text-secondary">
+              Status <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className={`rounded-lg border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-pawn-sidebar transition-colors duration-200 ${
+                errors.status ? "border-red-400" : "border-input-border"
+              }`}
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            {errors.status && (
+              <span className="text-[10px] text-red-500">{errors.status}</span>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="rounded-lg border border-border-main bg-surface px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-hover"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-lg border border-emerald-700 bg-pawn-sidebar px-4 py-2 text-xs font-bold text-amber-400 transition-opacity hover:opacity-90"
+            >
+              {isSubmitting
+                ? "Saving..."
+                : mode === "create"
+                  ? "Create Branch"
+                  : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
