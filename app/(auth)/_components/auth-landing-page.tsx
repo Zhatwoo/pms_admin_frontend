@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { AnimatedGradient } from "@/components/shared/animated-gradient";
 import { api } from "@/lib/api";
 import { FeaturedSaleItems } from "./featured-sale-items";
+import { BRAND_CONFIG } from "@/lib/brand-config";
 
 // Lazy-load BranchMap component (Requirements: 12.1)
 const BranchMap = dynamic(
@@ -54,11 +55,11 @@ interface PublicBranch {
 const termsSections = [
   {
     title: "Website Information",
-    body: "The JCLB Buy Back Pawnshop website provides general information about our pawnshop services, branch operations, item selling, buy back services, and customer support. It is intended for customers and visitors who want to learn about our business.",
+    body: `The ${BRAND_CONFIG.companyName} website provides general information about our pawnshop services, branch operations, item selling, buy back services, and customer support. It is intended for customers and visitors who want to learn about our business.`,
   },
   {
     title: "No Online Transaction Guarantee",
-    body: "Information shown on the website does not guarantee approval of a pawn, sale, renewal, redemption, or any other transaction. Final service terms, item appraisal, pricing, fees, and acceptance are handled by authorized JCLB Buy Back Shop personnel.",
+    body: `Information shown on the website does not guarantee approval of a pawn, sale, renewal, redemption, or any other transaction. Final service terms, item appraisal, pricing, fees, and acceptance are handled by authorized ${BRAND_CONFIG.companyName} personnel.`,
   },
   {
     title: "Customer Responsibilities",
@@ -74,22 +75,22 @@ const termsSections = [
   },
   {
     title: "Internal Login",
-    body: "The login area is reserved for authorized JCLB Buy Back Shop employees and administrators. Customers do not need an account to read the public information on this landing page.",
+    body: `The login area is reserved for authorized ${BRAND_CONFIG.companyName} employees and administrators. Customers do not need an account to read the public information on this landing page.`,
   },
   {
     title: "Limitations",
-    body: "Website content is provided for general guidance only and should not replace official branch documents, signed agreements, receipts, or direct assistance from JCLB Buy Back Shop personnel.",
+    body: `Website content is provided for general guidance only and should not replace official branch documents, signed agreements, receipts, or direct assistance from ${BRAND_CONFIG.companyName} personnel.`,
   },
   {
     title: "Acceptance",
-    body: "By using this website, you agree to these terms and to any official policies, notices, and legal requirements that apply to JCLB Buy Back Shop services.",
+    body: `By using this website, you agree to these terms and to any official policies, notices, and legal requirements that apply to ${BRAND_CONFIG.companyName} services.`,
   },
 ];
 
 const privacySections = [
   {
     title: "Information We May Collect",
-    body: "When customers contact us or complete branch transactions, JCLB Buy Back Shop may collect information such as name, contact details, identification details, item descriptions, photos, transaction records, and service-related documents.",
+    body: `When customers contact us or complete branch transactions, ${BRAND_CONFIG.companyName} may collect information such as name, contact details, identification details, item descriptions, photos, transaction records, and service-related documents.`,
   },
   {
     title: "How We Use Information",
@@ -109,7 +110,7 @@ const privacySections = [
   },
   {
     title: "Customer Choices",
-    body: "Customers may contact JCLB Buy Back Shop to ask about their records, request corrections, or raise privacy concerns, subject to identity verification, record retention rules, and applicable law.",
+    body: `Customers may contact ${BRAND_CONFIG.companyName} to ask about their records, request corrections, or raise privacy concerns, subject to identity verification, record retention rules, and applicable law.`,
   },
   {
     title: "Website Visitors",
@@ -125,13 +126,13 @@ const legalModalContent = {
   privacy: {
     title: "Privacy Policy",
     ariaLabel: "Close privacy policy",
-    intro: "This policy explains how JCLB Buy Back Shop handles customer and visitor information for inquiries, branch transactions, item records, customer support, and required business documentation.",
+    intro: `This policy explains how ${BRAND_CONFIG.companyName} handles customer and visitor information for inquiries, branch transactions, item records, customer support, and required business documentation.`,
     sections: privacySections,
   },
   terms: {
     title: "Terms of Service",
     ariaLabel: "Close terms of service",
-    intro: "These terms explain general use of the JCLB Buy Back Shop website and public information for customers, visitors, and anyone learning about our pawnshop services.",
+    intro: `These terms explain general use of the ${BRAND_CONFIG.companyName} website and public information for customers, visitors, and anyone learning about our pawnshop services.`,
     sections: termsSections,
   },
 };
@@ -260,7 +261,7 @@ const reasons = [
   },
   {
     title: "Trusted by Hundreds",
-    desc: "Hundreds of satisfied sellers trust JCLB for their buy-back needs. Join our growing community today.",
+    desc: `Hundreds of satisfied sellers trust ${BRAND_CONFIG.shortCompanyName} for their buy-back needs. Join our growing community today.`,
   },
 ];
 
@@ -269,7 +270,7 @@ const allReviews = [
   { name: "Carlos R.", sold: "Sold a MacBook Pro", initials: "CR", quote: "Best buy-back shop I've tried. They gave me a fair price for my laptop and the whole process took less than a day. Highly recommend!" },
   { name: "Mindy Meeks", sold: "Sold a Samsung Galaxy", initials: "MM", quote: "Very professional and trustworthy. They explained everything clearly and I felt comfortable with the whole transaction. Will sell again!" },
   { name: "Taesan H.", sold: "Sold a MacBook Air", initials: "TH", quote: "No lowball offers like other shops. They gave me the great price for my laptop and paid on the spot." },
-  { name: "Joshua H.", sold: "Sold a PS5 Controller", initials: "JH", quote: "Legit and trustworthy! The offer was fair and they explained everything. Will definitely sell again with JCLB. Highly recommended!" },
+  { name: "Joshua H.", sold: "Sold a PS5 Controller", initials: "JH", quote: `Legit and trustworthy! The offer was fair and they explained everything. Will definitely sell again with ${BRAND_CONFIG.shortCompanyName}. Highly recommended!` },
   { name: "Maria L.", sold: "Sold an iPad Pro", initials: "ML", quote: "Quick and easy process. Got a great offer for my iPad and the payment was instant. Very satisfied with the service!" },
 ];
 
@@ -462,7 +463,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
             {/* Logo - Desktop only (lg and up) */}
             <Image 
               src="/logo.png" 
-              alt="JCLB" 
+              alt={BRAND_CONFIG.shortCompanyName} 
               width={48} 
               height={48} 
               className="hidden lg:block rounded-lg cursor-pointer" 
@@ -547,10 +548,10 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
             <aside className={`absolute left-0 top-0 flex h-dvh w-[330px] max-w-[82vw] flex-col overflow-hidden border-r border-brand-gold/30 bg-gradient-to-b from-brand-green to-brand-green/95 shadow-2xl shadow-black/50 transition-transform duration-500 ease-in-out ${tabletMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
                 <div className="flex items-center justify-between border-b border-brand-gold/20 bg-brand-green/50 backdrop-blur-sm px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <Image src="/logo.png" alt="JCLB" width={42} height={42} className="rounded-lg shadow-lg" />
+                    <Image src={BRAND_CONFIG.companyLogo} alt={BRAND_CONFIG.shortCompanyName} width={42} height={42} className="rounded-lg shadow-lg" />
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brand-gold drop-shadow-sm">JCLB PawnShop</p>
-                      <p className="text-[8px] font-semibold text-white/60 tracking-wider">Buy Back Shop</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brand-gold drop-shadow-sm">{BRAND_CONFIG.shortCompanyName} PawnShop</p>
+                      <p className="text-[8px] font-semibold text-white/60 tracking-wider">{BRAND_CONFIG.tagline}</p>
                     </div>
                   </div>
                   <button
@@ -595,7 +596,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
                 </div>
 
                 <div className="border-t border-brand-gold/20 bg-brand-green/30 backdrop-blur-sm p-4">
-                  <p className="text-center text-[10px] text-white/50 tracking-wide">© 2026 JCLB Buy Back Shop</p>
+                  <p className="text-center text-[10px] text-white/50 tracking-wide">© 2026 {BRAND_CONFIG.companyName}</p>
                 </div>
               </aside>
             </div>
@@ -615,10 +616,10 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
             <aside className={`absolute left-0 top-0 flex h-dvh w-[300px] max-w-[85vw] flex-col overflow-hidden border-r border-brand-gold/30 bg-gradient-to-b from-brand-green to-brand-green/95 shadow-2xl shadow-black/50 transition-transform duration-500 ease-in-out ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
               <div className="flex items-center justify-between border-b border-brand-gold/20 bg-brand-green/50 backdrop-blur-sm px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <Image src="/logo.png" alt="JCLB" width={42} height={42} className="rounded-lg shadow-lg" />
+                  <Image src={BRAND_CONFIG.companyLogo} alt={BRAND_CONFIG.shortCompanyName} width={42} height={42} className="rounded-lg shadow-lg" />
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brand-gold drop-shadow-sm">JCLB PawnShop</p>
-                    <p className="text-[8px] font-semibold text-white/60 tracking-wider">Buy Back Shop</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brand-gold drop-shadow-sm">{BRAND_CONFIG.shortCompanyName} PawnShop</p>
+                    <p className="text-[8px] font-semibold text-white/60 tracking-wider">{BRAND_CONFIG.tagline}</p>
                   </div>
                 </div>
                 <button
@@ -659,7 +660,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
               </div>
 
               <div className="border-t border-brand-gold/20 bg-brand-green/30 backdrop-blur-sm p-4">
-                <p className="text-center text-[10px] text-white/50 tracking-wide">© 2026 JCLB Buy Back Shop</p>
+                <p className="text-center text-[10px] text-white/50 tracking-wide">© 2026 {BRAND_CONFIG.companyName}</p>
               </div>
             </aside>
           </div>
@@ -739,7 +740,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
                 <p className="text-base leading-relaxed text-white">
                   We believe everyone deserves a fair price for their pre-loved items - no low-balling, no runarounds.
                 </p>
-                <p className="mt-4 text-xs text-brand-gold">- JCLB Buy Back Shop Team</p>
+                <p className="mt-4 text-xs text-brand-gold">- {BRAND_CONFIG.companyName} Team</p>
                 <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-gold px-4 py-1.5">
                   <span className="text-sm font-black text-brand-green">5.0</span>
                   <span className="text-[10px] font-bold text-brand-green">CUSTOMER RATING</span>
@@ -874,7 +875,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
             <p className="mt-3 text-base text-brand-green/60">
               {publicBranches.length > 0
                 ? `Visit us at any of our ${branchCountLabel.toLowerCase()}.`
-                : "Visit us at any available JCLB Buy Back Shop branch."}
+                : `Visit us at any available ${BRAND_CONFIG.companyName} branch.`}
             </p>
 
             {isLoadingBranches ? (
@@ -958,15 +959,15 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
               {/* Brand - Centered on mobile, left-aligned on desktop */}
               <div className="flex flex-col items-center text-center lg:items-start lg:text-left mb-6 lg:mb-0 lg:flex-1">
                 <div className="flex items-center gap-3 mb-3">
-                  <Image src="/logo.png" alt="JCLB" width={48} height={48} className="rounded-lg" />
+                  <Image src={BRAND_CONFIG.companyLogo} alt={BRAND_CONFIG.shortCompanyName} width={48} height={48} className="rounded-lg" />
                   <div>
-                    <p className="text-xs font-bold text-brand-gold uppercase tracking-widest">JCLB BUY BACK</p>
+                    <p className="text-xs font-bold text-brand-gold uppercase tracking-widest">{BRAND_CONFIG.shortCompanyName}</p>
                     <p className="text-xl font-black text-white leading-none">Pawnshop</p>
                   </div>
                 </div>
                 <p className="text-xs leading-relaxed text-white/50 lg:text-sm max-w-md">
                   Your trusted partner for buying back pre-loved gadgets and electronics. Fast, fair, and friendly - that&apos;s the{" "}
-                  <span className="text-brand-gold font-bold">JCLB promise.</span>
+                  <span className="text-brand-gold font-bold">{BRAND_CONFIG.shortCompanyName} promise.</span>
                 </p>
               </div>
 
@@ -975,8 +976,8 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
               <p className="mb-3 text-center lg:text-left text-[11px] font-black uppercase tracking-widest text-brand-gold lg:text-xs">CONTACT US</p>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-1 lg:gap-2">
                   {[
-                    { icon: "f", label: "Facebook", sub: "JCLB Buy Back Shop", color: "bg-blue-600" },
-                    { icon: "@", label: "Email Us", sub: "Compose with Gmail", color: "bg-red-500" },
+                    { icon: "f", label: "Facebook", sub: `${BRAND_CONFIG.shortCompanyName} Page`, color: "bg-blue-600" },
+                    { icon: "@", label: "Email Us", sub: BRAND_CONFIG.email, color: "bg-red-500" },
                     { icon: "pin", label: "Visit Us", sub: branchCountLabel, color: "bg-brand-green/70" },
                   ].map((c) => (
                     <button
@@ -984,7 +985,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
                       type="button"
                       onClick={() => {
                         if (c.label === "Facebook") {
-                          window.open("https://www.facebook.com/JclbBuyBackShop", "_blank", "noopener,noreferrer");
+                          window.open(`https://${BRAND_CONFIG.website}`, "_blank", "noopener,noreferrer");
                           return;
                         }
                         if (c.label === "Email Us") {
@@ -1018,7 +1019,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
             <div className="mt-6 grid grid-cols-1 items-center justify-center gap-5 border-t border-white/10 pt-5 pb-0 text-xs text-white/40">
               {/* Copyright */}
               <div className="text-center">
-                <span>&copy; 2026 JCLB Buy Back Shop. All rights reserved.</span>
+                <span>&copy; 2026 {BRAND_CONFIG.companyName}. All rights reserved.</span>
                 <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
                   <button
                     type="button"
@@ -1069,7 +1070,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
                 <div className="absolute right-[-28px] top-[-42px] h-36 w-36 rounded-full bg-white/5" />
                 <div className="absolute bottom-[-34px] left-[-18px] h-28 w-28 rounded-full bg-white/5" />
                 <div className="relative">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gold">JCLB Buy Back Pawnshop</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gold">{BRAND_CONFIG.companyName}</p>
                   <h3 id="landing-legal-modal-title" className="mt-2 text-2xl font-bold">{legalModalContent[legalModal].title}</h3>
                   <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/85">
                     {legalModalContent[legalModal].intro}
@@ -1140,7 +1141,7 @@ export function AuthLandingPage({ onLoginClick }: AuthLandingPageProps) {
                 <div className="absolute right-[-28px] top-[-42px] h-36 w-36 rounded-full bg-white/5" />
                 <div className="absolute bottom-[-34px] left-[-18px] h-28 w-28 rounded-full bg-white/5" />
                 <div className="relative">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gold">JCLB Buy Back Pawnshop</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gold">{BRAND_CONFIG.companyName}</p>
                   <h3 id="branch-list-modal-title" className="mt-2 text-2xl font-bold">Available Branches</h3>
                   <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/85">
                     Visit any active branch below for in-person appraisal, item drop-off, payment, renewal, redemption, or customer assistance.
