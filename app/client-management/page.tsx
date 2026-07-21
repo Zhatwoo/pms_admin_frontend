@@ -295,7 +295,7 @@ export default function ClientManagementOverview() {
             <QuickAction icon={<Plus size={16} />} label="Create Plan" href="/client-management/plans" />
             <QuickAction icon={<FileText size={16} />} label="Generate Invoice" href="/client-management/invoices" />
             <QuickAction icon={<Megaphone size={16} />} label="Send Announcement" href="/client-management/announcements" />
-            <QuickAction icon={<Download size={16} />} label="Export Report" href="/client-management/revenue" />
+            <QuickAction icon={<Download size={16} />} label="Export Report" href="/client-management/billing" />
           </div>
 
           {/* Platform Stats */}

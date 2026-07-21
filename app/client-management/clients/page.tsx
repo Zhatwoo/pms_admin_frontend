@@ -11,6 +11,7 @@ import { DataTable } from "../_components/common/data-table";
 import { StatusBadge } from "../_components/common/status-badge";
 import { PlanBadge } from "../_components/common/plan-badge";
 import { Drawer } from "../_components/common/drawer";
+import { Modal } from "../_components/common/modal";
 import { MOCK_CLIENTS } from "../_lib/mock-data";
 import { CLIENT_STATUS_LABELS, CLIENT_STATUS_COLORS } from "../_lib/constants";
 import { formatCurrency, formatStorage, formatRelativeTime, formatDate, getInitials, formatNumber } from "../_lib/utils";
@@ -26,6 +27,19 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [selectedClient, setSelectedClient] = useState<SaasClient | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleAddClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setIsAddModalOpen(false);
+      // In a real app, this would refresh the data
+    }, 1000);
+  };
 
   const filteredClients = useMemo(() => {
     return MOCK_CLIENTS.filter((client) => {
@@ -159,6 +173,7 @@ export default function ClientsPage() {
         actions={
           <button
             type="button"
+            onClick={() => setIsAddModalOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
             style={{ background: "var(--cm-accent)" }}
           >
@@ -244,6 +259,123 @@ export default function ClientsPage() {
       >
         {selectedClient && <ClientDetailContent client={selectedClient} />}
       </Drawer>
+
+      {/* Add Client Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => !isSubmitting && setIsAddModalOpen(false)}
+        title="Add New Client"
+        subtitle="Provision a new workspace for a pawnshop."
+      >
+        <form onSubmit={handleAddClient} className="space-y-4">
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--cm-text-secondary)" }}>
+                Company Name
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Acme Pawnshop"
+                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                style={{
+                  background: "var(--cm-input-bg)",
+                  borderColor: "var(--cm-input-border)",
+                  color: "var(--cm-text-primary)",
+                  "--tw-ring-color": "var(--cm-accent)",
+                } as React.CSSProperties}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium" style={{ color: "var(--cm-text-secondary)" }}>
+                  Owner Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="John Doe"
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                  style={{
+                    background: "var(--cm-input-bg)",
+                    borderColor: "var(--cm-input-border)",
+                    color: "var(--cm-text-primary)",
+                    "--tw-ring-color": "var(--cm-accent)",
+                  } as React.CSSProperties}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium" style={{ color: "var(--cm-text-secondary)" }}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="john@example.com"
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                  style={{
+                    background: "var(--cm-input-bg)",
+                    borderColor: "var(--cm-input-border)",
+                    color: "var(--cm-text-primary)",
+                    "--tw-ring-color": "var(--cm-accent)",
+                  } as React.CSSProperties}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--cm-text-secondary)" }}>
+                Subscription Plan
+              </label>
+              <select
+                required
+                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                style={{
+                  background: "var(--cm-input-bg)",
+                  borderColor: "var(--cm-input-border)",
+                  color: "var(--cm-text-primary)",
+                  "--tw-ring-color": "var(--cm-accent)",
+                } as React.CSSProperties}
+              >
+                <option value="starter">Starter</option>
+                <option value="professional">Professional</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2 border-t pt-4" style={{ borderColor: "var(--cm-border)" }}>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(false)}
+              disabled={isSubmitting}
+              className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
+              style={{
+                borderColor: "var(--cm-border)",
+                color: "var(--cm-text-secondary)",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex min-w-[100px] items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-70"
+              style={{ background: "var(--cm-accent)" }}
+            >
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Creating...
+                </span>
+              ) : (
+                "Create Client"
+              )}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -44,8 +44,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "Financial",
     items: [
-      { label: "Billing", href: "/client-management/billing", icon: <Receipt size={18} /> },
-      { label: "Revenue", href: "/client-management/revenue", icon: <TrendingUp size={18} /> },
+      { label: "Billing & Revenue", href: "/client-management/billing", icon: <Receipt size={18} /> },
       { label: "Transactions", href: "/client-management/transactions", icon: <ArrowLeftRight size={18} /> },
       { label: "Invoices", href: "/client-management/invoices", icon: <FileText size={18} /> },
     ],
@@ -54,15 +53,12 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Analytics",
     items: [
       { label: "Usage Analytics", href: "/client-management/analytics", icon: <BarChart3 size={18} /> },
-      { label: "Storage", href: "/client-management/analytics/storage", icon: <HardDrive size={18} /> },
-      { label: "API Usage", href: "/client-management/analytics/api-usage", icon: <Activity size={18} /> },
     ],
   },
   {
     title: "Operations",
     items: [
       { label: "Support Tickets", href: "/client-management/support", icon: <LifeBuoy size={18} /> },
-      { label: "Audit Logs", href: "/client-management/audit-logs", icon: <ClipboardList size={18} /> },
       { label: "Announcements", href: "/client-management/announcements", icon: <Megaphone size={18} /> },
     ],
   },
