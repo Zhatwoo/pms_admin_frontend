@@ -13,6 +13,7 @@ import {
   IncidentReportIcon,
   DeviceIcon,
 } from "@/lib/icons";
+import { Building2 } from "lucide-react";
 import { BRAND_CONFIG } from "./brand-config";
 
 export const APP_NAME = BRAND_CONFIG.companyName;
