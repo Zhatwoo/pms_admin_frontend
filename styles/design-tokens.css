@@ -1,0 +1,104 @@
+/* styles/design-tokens.css */
+:root {
+  --font-inter: "Inter", "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
+  --background: #ffffff;
+  --foreground: #171717;
+  --pawn-sidebar: #0f172a;
+  --pawn-sidebar-light: #1e293b;
+  --pawn-gold: #0ea5e9;
+  --pawn-gold-light: #38bdf8;
+  --pawn-content: #f8fafc;
+  --pawn-section: #64748b;
+
+  /* ── Brand colors ── */
+  --brand-green: #0f172a;
+  --brand-gold: #0ea5e9;
+
+  /* Semantic surface tokens */
+  --surface: #ffffff;
+  --surface-secondary: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --surface-raised: #ffffff;
+  --border: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --header-bg: #ffffff;
+  --badge-muted-bg: #f1f5f9;
+  --badge-muted-text: #475569;
+  --emerald-surface: #ecfdf5;
+  --emerald-border: #a7f3d0;
+  --emerald-text: #047857;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --pawn-sidebar: #020617;
+  --pawn-sidebar-light: #0f172a;
+  --pawn-gold: #0ea5e9;
+  --pawn-gold-light: #38bdf8;
+  --pawn-content: #020617;
+  --pawn-section: #334155;
+  
+  --surface: #0f172a;
+  --surface-secondary: #020617;
+  --surface-hover: #1e293b;
+  --surface-raised: #0f172a;
+  --border: #1e293b;
+  --border-subtle: #0f172a;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #020617;
+  --input-bg: #0f172a;
+  --input-border: #334155;
+  --header-bg: #020617;
+  --badge-muted-bg: #1e293b;
+  --badge-muted-text: #94a3b8;
+  --emerald-surface: #022c22;
+  --emerald-border: #064e3b;
+  --emerald-text: #10b981;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-pawn-sidebar: var(--pawn-sidebar);
+  --color-pawn-sidebar-light: var(--pawn-sidebar-light);
+  --color-pawn-gold: var(--pawn-gold);
+  --color-pawn-gold-light: var(--pawn-gold-light);
+  --color-pawn-content: var(--pawn-content);
+  --color-pawn-section: var(--pawn-section);
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-raised: var(--surface-raised);
+  --color-border-main: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --color-input-bg: var(--input-bg);
+  --color-input-border: var(--input-border);
+  --color-header-bg: var(--header-bg);
+  --color-badge-muted-bg: var(--badge-muted-bg);
+  --color-badge-muted-text: var(--badge-muted-text);
+  --color-emerald-surface: var(--emerald-surface);
+  --color-emerald-border: var(--emerald-border);
+  --color-emerald-text: var(--emerald-text);
+
+  --color-brand-green: var(--brand-green);
+  --color-brand-gold: var(--brand-gold);
+
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-inter);
+}
