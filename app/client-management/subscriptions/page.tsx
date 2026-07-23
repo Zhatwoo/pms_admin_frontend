@@ -14,10 +14,12 @@ import { MOCK_CLIENTS } from "../_lib/mock-data";
 import { SUBSCRIPTION_STATUS_LABELS, SUBSCRIPTION_STATUS_COLORS } from "../_lib/constants";
 import { formatCurrency, formatDate } from "../_lib/utils";
 import type { SaasClient } from "../_lib/types";
-import { Search } from "lucide-react";
+import { Search, Mail } from "lucide-react";
+import { SendReminderModal } from "../_components/common/send-reminder-modal";
 
 export default function SubscriptionsPage() {
   const [search, setSearch] = useState("");
+  const [reminderClient, setReminderClient] = useState<SaasClient | null>(null);
 
   const data = useMemo(() => {
     if (!search) return MOCK_CLIENTS;
@@ -95,6 +97,27 @@ export default function SubscriptionsPage() {
           </span>
         ),
       },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => {
+          const status = row.original.subscription.status;
+          if (status !== "past_due" && status !== "paused") return null;
+          return (
+            <div className="flex justify-end gap-1">
+              <button
+                type="button"
+                onClick={() => setReminderClient(row.original)}
+                className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                style={{ color: "var(--cm-danger)" }}
+                title="Send Reminder"
+              >
+                <Mail size={14} />
+              </button>
+            </div>
+          );
+        },
+      },
     ],
     []
   );
@@ -121,6 +144,20 @@ export default function SubscriptionsPage() {
       </div>
 
       <DataTable columns={columns} data={data} pageSize={10} />
+
+      {/* Send Reminder Modal */}
+      <SendReminderModal
+        isOpen={!!reminderClient}
+        onClose={() => setReminderClient(null)}
+        clientName={reminderClient?.companyName || ""}
+        clientEmail={reminderClient?.email || ""}
+        amountOwed={formatCurrency(
+          reminderClient?.subscription.billingCycle === "monthly"
+            ? (reminderClient?.subscription.plan.priceMonthly || 0)
+            : (reminderClient?.subscription.plan.priceYearly || 0)
+        )}
+        reason="failed_subscription"
+      />
     </div>
   );
 }

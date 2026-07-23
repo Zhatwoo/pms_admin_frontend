@@ -13,13 +13,15 @@ import { MOCK_INVOICES } from "../_lib/mock-data";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "../_lib/constants";
 import { formatCurrency, formatDate } from "../_lib/utils";
 import type { Invoice } from "../_lib/types";
-import { Search, Download, Plus } from "lucide-react";
+import { Search, Download, Plus, Mail } from "lucide-react";
 import { Modal } from "../_components/common/modal";
+import { SendReminderModal } from "../_components/common/send-reminder-modal";
 
 export default function InvoicesPage() {
   const [search, setSearch] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reminderInvoice, setReminderInvoice] = useState<Invoice | null>(null);
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,15 +99,28 @@ export default function InvoicesPage() {
       {
         id: "actions",
         header: "",
-        cell: () => (
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-            style={{ color: "var(--cm-text-muted)" }}
-            title="Download PDF"
-          >
-            <Download size={14} />
-          </button>
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            {row.original.status === "overdue" && (
+              <button
+                type="button"
+                onClick={() => setReminderInvoice(row.original)}
+                className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                style={{ color: "var(--cm-danger)" }}
+                title="Send Reminder"
+              >
+                <Mail size={14} />
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+              style={{ color: "var(--cm-text-muted)" }}
+              title="Download PDF"
+            >
+              <Download size={14} />
+            </button>
+          </div>
         ),
       },
     ],
@@ -268,6 +283,16 @@ export default function InvoicesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Send Reminder Modal */}
+      <SendReminderModal
+        isOpen={!!reminderInvoice}
+        onClose={() => setReminderInvoice(null)}
+        clientName={reminderInvoice?.clientName || ""}
+        clientEmail={`billing@${reminderInvoice?.clientName.toLowerCase().replace(/\s/g, "")}.com`}
+        amountOwed={formatCurrency(reminderInvoice?.total || 0)}
+        reason="overdue_invoice"
+      />
     </div>
   );
 }
