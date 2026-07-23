@@ -574,6 +574,8 @@ export function resolveHeaderFieldValue(
   return branch.email || "{{Email}}";
 }
 
+let clipboardElement: MoaDesignElement | null = null;
+
 export function MoaDesignCanvasLayer({
   enabled,
   paletteDragging = false,
@@ -601,8 +603,8 @@ export function MoaDesignCanvasLayer({
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<
     | { kind: "field"; headerId: string; fieldId: string; x: number; y: number }
-    | { kind: "text"; headerId: string; x: number; y: number }
-    | { kind: "header"; headerId: string; x: number; y: number }
+    | { kind: "element"; elementId: string; x: number; y: number; canvasX: number; canvasY: number }
+    | { kind: "canvas"; x: number; y: number; canvasX: number; canvasY: number }
     | null
   >(null);
   const dropActive = enabled && paletteDragging;
@@ -625,6 +627,74 @@ export function MoaDesignCanvasLayer({
 
   const updateElement = (id: string, patch: Partial<MoaDesignElement>) => {
     onChangeElements(elements.map((el) => (el.id === id ? { ...el, ...patch } : el)));
+  };
+
+  const deleteElement = (id: string) => {
+    onChangeElements(elements.filter((el) => el.id !== id));
+    if (selectedId === id) {
+      onSelect(null);
+    }
+  };
+
+  const duplicateElement = (id: string) => {
+    const source = elements.find((el) => el.id === id);
+    if (!source) return;
+    const newId = `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const nextElement: MoaDesignElement = {
+      ...source,
+      id: newId,
+      x: source.x + 16,
+      y: source.y + 16,
+      headerFields: source.headerFields.map((hf) => ({
+        ...hf,
+        id: `hf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      })),
+    };
+    onChangeElements([...elements, nextElement]);
+    onSelect(newId);
+  };
+
+  const copyElement = (id: string) => {
+    const source = elements.find((el) => el.id === id);
+    if (!source) return;
+    clipboardElement = {
+      ...source,
+      headerFields: source.headerFields.map((hf) => ({ ...hf })),
+    };
+  };
+
+  const cutElement = (id: string) => {
+    copyElement(id);
+    deleteElement(id);
+  };
+
+  const pasteElement = (canvasX: number, canvasY: number) => {
+    if (!clipboardElement) return;
+    const newId = `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const pasted: MoaDesignElement = {
+      ...clipboardElement,
+      id: newId,
+      x: Math.max(8, canvasX - clipboardElement.width / 2),
+      y: Math.max(8, canvasY - clipboardElement.height / 2),
+      headerFields: clipboardElement.headerFields.map((hf) => ({
+        ...hf,
+        id: `hf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      })),
+    };
+    onChangeElements([...elements, pasted]);
+    onSelect(newId);
+  };
+
+  const bringToFront = (id: string) => {
+    const target = elements.find((el) => el.id === id);
+    if (!target) return;
+    onChangeElements([...elements.filter((el) => el.id !== id), target]);
+  };
+
+  const sendToBack = (id: string) => {
+    const target = elements.find((el) => el.id === id);
+    if (!target) return;
+    onChangeElements([target, ...elements.filter((el) => el.id !== id)]);
   };
 
   const addHeaderField = (headerId: string, key: MoaHeaderFieldKey) => {
@@ -918,7 +988,7 @@ export function MoaDesignCanvasLayer({
     <div
       ref={layerRef}
       className={`absolute inset-0 z-30 ${dragOver ? "bg-emerald-50/25 ring-2 ring-inset ring-emerald-400" : ""}`}
-      style={{ pointerEvents: dropActive ? "auto" : "none" }}
+      style={{ pointerEvents: enabled ? "auto" : "none" }}
       onDragOver={
         dropActive
           ? (event) => {
@@ -930,6 +1000,30 @@ export function MoaDesignCanvasLayer({
       }
       onDragLeave={dropActive ? () => setDragOver(false) : undefined}
       onDrop={dropActive ? handlePaletteDrop : undefined}
+      onClick={(event) => {
+        if (!enabled) return;
+        if (event.target === layerRef.current) {
+          onSelect(null);
+        }
+      }}
+      onContextMenu={(event) => {
+        if (!enabled) return;
+        if (event.target !== layerRef.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const rect = layerRef.current?.getBoundingClientRect();
+        const canvasX = rect ? event.clientX - rect.left : 0;
+        const canvasY = rect ? event.clientY - rect.top : 0;
+
+        setContextMenu({
+          kind: "canvas",
+          x: event.clientX,
+          y: event.clientY,
+          canvasX,
+          canvasY,
+        });
+      }}
     >
       {enabled && elements.length === 0 && (
         <div className="pointer-events-none absolute inset-x-6 top-[40%] -translate-y-1/2 rounded-xl border border-dashed border-emerald-400/80 bg-white/90 px-4 py-6 text-center shadow-sm">
@@ -980,6 +1074,26 @@ export function MoaDesignCanvasLayer({
               setEditingTextId(element.id);
               onSelect(element.id);
             }}
+            onContextMenu={(event) => {
+              if (!enabled) return;
+              if (editingTextId === element.id) return;
+              event.preventDefault();
+              event.stopPropagation();
+              onSelect(element.id);
+
+              const rect = layerRef.current?.getBoundingClientRect();
+              const canvasX = rect ? event.clientX - rect.left : 0;
+              const canvasY = rect ? event.clientY - rect.top : 0;
+
+              setContextMenu({
+                kind: "element",
+                elementId: element.id,
+                x: event.clientX,
+                y: event.clientY,
+                canvasX,
+                canvasY,
+              });
+            }}
           >
             {isHeader ? (
               <div
@@ -992,11 +1106,18 @@ export function MoaDesignCanvasLayer({
                   event.preventDefault();
                   event.stopPropagation();
                   onSelect(element.id);
+
+                  const rect = layerRef.current?.getBoundingClientRect();
+                  const canvasX = rect ? event.clientX - rect.left : 0;
+                  const canvasY = rect ? event.clientY - rect.top : 0;
+
                   setContextMenu({
-                    kind: "header",
-                    headerId: element.id,
+                    kind: "element",
+                    elementId: element.id,
                     x: event.clientX,
                     y: event.clientY,
+                    canvasX,
+                    canvasY,
                   });
                 }}
               >
@@ -1070,11 +1191,18 @@ export function MoaDesignCanvasLayer({
                       event.preventDefault();
                       event.stopPropagation();
                       onSelect(element.id);
+
+                      const rect = layerRef.current?.getBoundingClientRect();
+                      const canvasX = rect ? event.clientX - rect.left : 0;
+                      const canvasY = rect ? event.clientY - rect.top : 0;
+
                       setContextMenu({
-                        kind: "text",
-                        headerId: element.id,
+                        kind: "element",
+                        elementId: element.id,
                         x: event.clientX,
                         y: event.clientY,
+                        canvasX,
+                        canvasY,
                       });
                     }}
                   >
@@ -1186,59 +1314,131 @@ export function MoaDesignCanvasLayer({
                   Remove field
                 </button>
               </>
-            ) : contextMenu.kind === "header" ? (
+            ) : contextMenu.kind === "element" ? (
               <>
+                {(() => {
+                  const targetEl = elements.find((el) => el.id === contextMenu.elementId);
+                  if (targetEl?.kind === "header") {
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50"
+                          onClick={() => {
+                            setEditingTextId(targetEl.id);
+                            setContextMenu(null);
+                          }}
+                        >
+                          {targetEl.text ? "Edit text" : "Add text"}
+                        </button>
+                        {targetEl.text ? (
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              updateElement(targetEl.id, { text: "" });
+                              setEditingTextId(null);
+                              setContextMenu(null);
+                            }}
+                          >
+                            Remove text
+                          </button>
+                        ) : null}
+                        <div className="my-1 border-t border-zinc-100" />
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
                 <button
                   type="button"
                   className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50"
                   onClick={() => {
-                    setEditingTextId(contextMenu.headerId);
+                    copyElement(contextMenu.elementId);
                     setContextMenu(null);
                   }}
                 >
-                  {elements.find((el) => el.id === contextMenu.headerId)?.text
-                    ? "Edit text"
-                    : "Add text"}
+                  Copy
                 </button>
-                {elements.find((el) => el.id === contextMenu.headerId)?.text ? (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50"
-                    onClick={() => {
-                      updateElement(contextMenu.headerId, { text: "" });
-                      setEditingTextId(null);
-                      setContextMenu(null);
-                    }}
-                  >
-                    Remove text
-                  </button>
-                ) : null}
-              </>
-            ) : (
-              <>
                 <button
                   type="button"
                   className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50"
                   onClick={() => {
-                    setEditingTextId(contextMenu.headerId);
+                    cutElement(contextMenu.elementId);
                     setContextMenu(null);
                   }}
                 >
-                  Edit text
+                  Cut
                 </button>
+                <button
+                  type="button"
+                  disabled={!clipboardElement}
+                  className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50 disabled:opacity-50 disabled:hover:bg-transparent"
+                  onClick={() => {
+                    pasteElement(contextMenu.canvasX, contextMenu.canvasY);
+                    setContextMenu(null);
+                  }}
+                >
+                  Paste
+                </button>
+                <button
+                  type="button"
+                  className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50"
+                  onClick={() => {
+                    duplicateElement(contextMenu.elementId);
+                    setContextMenu(null);
+                  }}
+                >
+                  Duplicate
+                </button>
+                <div className="my-1 border-t border-zinc-100" />
+                <button
+                  type="button"
+                  className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50"
+                  onClick={() => {
+                    bringToFront(contextMenu.elementId);
+                    setContextMenu(null);
+                  }}
+                >
+                  Bring front
+                </button>
+                <button
+                  type="button"
+                  className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50"
+                  onClick={() => {
+                    sendToBack(contextMenu.elementId);
+                    setContextMenu(null);
+                  }}
+                >
+                  Bring back
+                </button>
+                <div className="my-1 border-t border-zinc-100" />
                 <button
                   type="button"
                   className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50"
                   onClick={() => {
-                    updateElement(contextMenu.headerId, { text: "" });
-                    setEditingTextId(null);
+                    deleteElement(contextMenu.elementId);
                     setContextMenu(null);
                   }}
                 >
-                  Remove text
+                  Delete
                 </button>
               </>
-            )}
+            ) : contextMenu.kind === "canvas" ? (
+              <>
+                <button
+                  type="button"
+                  disabled={!clipboardElement}
+                  className="block w-full px-3 py-1.5 text-left text-[11px] font-semibold text-zinc-700 hover:bg-emerald-50 disabled:opacity-50 disabled:hover:bg-transparent"
+                  onClick={() => {
+                    pasteElement(contextMenu.canvasX, contextMenu.canvasY);
+                    setContextMenu(null);
+                  }}
+                >
+                  Paste
+                </button>
+              </>
+            ) : null}
           </div>,
           document.body,
         )}
