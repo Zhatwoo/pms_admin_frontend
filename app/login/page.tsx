@@ -82,7 +82,7 @@ function LoginForm({ isDark }: { isDark: boolean }) {
         <img
           src="/logo.png"
           alt="Quick Pawn"
-          className="h-16 w-auto sm:h-20"
+          className="h-40 w-auto sm:h-40"
         />
 
         <h1 className={`mt-4 text-2xl font-bold tracking-tight sm:text-3xl ${isDark ? "text-white" : "text-slate-900"}`}>
