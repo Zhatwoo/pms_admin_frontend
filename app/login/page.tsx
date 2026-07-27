@@ -104,8 +104,8 @@ function LoginForm({ isDark }: { isDark: boolean }) {
             type="button"
             onClick={fillSuperAdminCredentials}
             className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${isDark
-                ? "bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 hover:text-white"
-                : "bg-sky-600/10 text-sky-700 hover:bg-sky-600/20"
+              ? "bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 hover:text-white"
+              : "bg-sky-600/10 text-sky-700 hover:bg-sky-600/20"
               }`}
           >
             Auto-fill SuperAdmin
@@ -138,8 +138,8 @@ function LoginForm({ isDark }: { isDark: boolean }) {
               placeholder="admin@pawnshop.com"
               required
               className={`w-full rounded-xl border py-2.5 pl-10 pr-4 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 transition-colors ${isDark
-                  ? "border-slate-800 bg-slate-950/60 text-white focus:border-sky-500 focus:ring-sky-500"
-                  : "border-slate-300 bg-white text-slate-900 focus:border-sky-500 focus:ring-sky-500"
+                ? "border-slate-800 bg-slate-950/60 text-white focus:border-sky-500 focus:ring-sky-500"
+                : "border-slate-300 bg-white text-slate-900 focus:border-sky-500 focus:ring-sky-500"
                 }`}
             />
           </div>
@@ -160,8 +160,8 @@ function LoginForm({ isDark }: { isDark: boolean }) {
               placeholder="••••••••"
               required
               className={`w-full rounded-xl border py-2.5 pl-10 pr-10 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 transition-colors ${isDark
-                  ? "border-slate-800 bg-slate-950/60 text-white focus:border-sky-500 focus:ring-sky-500"
-                  : "border-slate-300 bg-white text-slate-900 focus:border-sky-500 focus:ring-sky-500"
+                ? "border-slate-800 bg-slate-950/60 text-white focus:border-sky-500 focus:ring-sky-500"
+                : "border-slate-300 bg-white text-slate-900 focus:border-sky-500 focus:ring-sky-500"
                 }`}
             />
             <button
@@ -205,18 +205,15 @@ export default function LoginPage() {
   const [isDark, setIsDark] = useState(true);
 
   return (
-    <div
-      className={`relative flex min-h-screen w-full items-center justify-center overflow-hidden px-4 font-sans antialiased transition-colors duration-300 ${isDark ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
-        }`}
-    >
+    <div className={`relative flex min-h-screen w-full items-center justify-center overflow-hidden px-4 font-sans antialiased transition-colors duration-300 ${isDark ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"}`}>
       {/* Theme Toggle Button */}
       <button
         type="button"
         onClick={() => setIsDark(!isDark)}
         aria-label="Toggle theme"
         className={`absolute right-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${isDark
-            ? "border-slate-700 bg-slate-900/80 text-slate-300 hover:bg-slate-800"
-            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+          ? "border-slate-700 bg-slate-900/80 text-slate-300 hover:bg-slate-800"
+          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
           }`}
       >
         {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -234,16 +231,16 @@ export default function LoginPage() {
       {/* Grid Overlay */}
       <div
         className={`absolute inset-0 pointer-events-none ${isDark
-            ? "bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)]"
-            : "bg-[linear-gradient(to_right,#cbd5e130_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e130_1px,transparent_1px)]"
+          ? "bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)]"
+          : "bg-[linear-gradient(to_right,#cbd5e130_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e130_1px,transparent_1px)]"
           } bg-[size:4rem_4rem]`}
       />
 
       {/* Login Card */}
       <div
         className={`relative z-10 w-full max-w-md rounded-2xl border p-8 shadow-2xl backdrop-blur-xl transition-all sm:p-10 ${isDark
-            ? "border-slate-800/80 bg-slate-900/80"
-            : "border-slate-200 bg-white/90"
+          ? "border-slate-800/80 bg-slate-900/80"
+          : "border-slate-200 bg-white/90"
           }`}
       >
         <Suspense
