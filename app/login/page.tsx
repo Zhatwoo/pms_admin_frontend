@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { BRAND_CONFIG } from "@/lib/brand-config";
 import { toast } from "sonner";
+import { QuickPawnLogo } from "@/components/ui/quickpawn-logo";
 import { Eye, EyeOff, Lock, Mail, ArrowRight, Sparkles, Sun, Moon } from "lucide-react";
 
 function LoginForm({ isDark }: { isDark: boolean }) {
@@ -79,16 +80,20 @@ function LoginForm({ isDark }: { isDark: boolean }) {
     <>
       {/* Header */}
       <div className="flex flex-col items-center text-center">
-        <img
-          src="/logo-blue.png"
-          alt="Quick Pawn"
-          className="h-40 w-auto sm:h-40"
-        />
+        <div className="py-2">
+          <QuickPawnLogo
+            variant="full"
+            showTagline={true}
+            primaryColor={isDark ? "#ffffff" : "#0f172a"}
+            accentColor="#0ea5e9"
+            className="h-24 w-auto max-w-[280px] sm:h-28"
+          />
+        </div>
 
-        <h1 className={`mt-4 text-2xl font-bold tracking-tight sm:text-3xl ${isDark ? "text-white" : "text-slate-900"}`}>
-          Admin Sign In
+        <h1 className={`mt-4 text-xl font-bold tracking-tight sm:text-2xl ${isDark ? "text-white" : "text-slate-900"}`}>
+          Admin Portal Sign In
         </h1>
-        <p className={`mt-2 text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+        <p className={`mt-1.5 text-xs sm:text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
           Access multi-tenant administration & SaaS operations
         </p>
       </div>
