@@ -80,7 +80,7 @@ function LoginForm({ isDark }: { isDark: boolean }) {
       {/* Header */}
       <div className="flex flex-col items-center text-center">
         <img
-          src="/logo.png"
+          src="/logo-blue.png"
           alt="Quick Pawn"
           className="h-40 w-auto sm:h-40"
         />
