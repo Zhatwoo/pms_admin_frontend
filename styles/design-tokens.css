@@ -46,6 +46,10 @@
   --pawn-content: #020617;
   --pawn-section: #334155;
   
+  /* ── Brand colors ── */
+  --brand-green: #ffffff;
+  --brand-gold: #0ea5e9;
+  
   --surface: #0f172a;
   --surface-secondary: #020617;
   --surface-hover: #1e293b;

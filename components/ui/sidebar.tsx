@@ -9,6 +9,7 @@ import { APP_SHORT_NAME, APP_TAGLINE } from "@/lib/constants";
 import { BRAND_CONFIG } from "@/lib/brand-config";
 import { getRoleLabel } from "@/lib/auth";
 import { LogoutIcon, MenuIcon, CloseIcon } from "@/lib/icons";
+import { QuickPawnLogo } from "./quickpawn-logo";
 import { LogoutModal } from "./logout-modal";
 
 interface SidebarProps {
@@ -266,88 +267,55 @@ export function Sidebar({
         {/* Brand header */}
         <div
           className={`overflow-hidden py-4 transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-            isCompact ? "px-0" : "px-4"
+            isCompact ? "px-1" : "px-4"
           }`}
         >
           <div
             className={`flex w-full items-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-              isCompact ? "justify-center" : "justify-start gap-3"
+              isCompact ? "justify-center" : "justify-between gap-2"
             }`}
           >
-            <button
-              onClick={() => {
-                if (isMobileOpen) {
-                  onMobileClose();
-                  return;
-                }
-                onToggle();
-              }}
-              aria-label={
-                isMobileOpen
-                  ? "Close sidebar"
-                  : isCompact
-                    ? "Expand sidebar"
-                    : "Collapse sidebar"
-              }
-              className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-lg transition hover:bg-pawn-sidebar-light"
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-3 overflow-hidden transition-opacity hover:opacity-90"
+              title="Dashboard"
             >
-              <span
-                className={`absolute inset-0 flex items-center justify-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-                  isCompact
-                    ? "translate-x-0 opacity-100"
-                    : "-translate-x-2 opacity-0"
-                }`}
+              <QuickPawnLogo
+                variant="mark"
+                primaryColor="#ffffff"
+                accentColor="#0ea5e9"
+                className="h-9 w-9 shrink-0"
+              />
+              {!isCompact && (
+                <div className="overflow-hidden whitespace-nowrap text-left transition-all">
+                  <p className="text-base font-bold leading-tight tracking-wide text-white">
+                    {APP_SHORT_NAME}
+                  </p>
+                  <p className="text-[10px] font-medium leading-tight tracking-wider text-white/60">
+                    {APP_TAGLINE}
+                  </p>
+                </div>
+              )}
+            </Link>
+
+            {!isCompact && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isMobileOpen) {
+                    onMobileClose();
+                    return;
+                  }
+                  onToggle();
+                }}
+                aria-label="Collapse sidebar"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-pawn-sidebar-light hover:text-white"
               >
                 <MenuIcon />
-              </span>
-              <span
-                className={`absolute inset-0 flex items-center justify-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-                  isCompact
-                    ? "translate-x-2 opacity-0"
-                    : "translate-x-0 opacity-100"
-                }`}
-              >
-                <Image
-                  src={BRAND_CONFIG.sidebarLogo}
-                  alt={`${BRAND_CONFIG.shortCompanyName} Logo`}
-                  width={48}
-                  height={48}
-                  className="h-12 w-12 object-contain"
-                />
-              </span>
-            </button>
-          <div
-            className={`overflow-hidden whitespace-nowrap text-left transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-              isCompact
-                ? "max-w-0 -translate-x-2 opacity-0"
-                : "max-w-[180px] translate-x-0 opacity-100"
-            }`}
-          >
-            <p className="text-lg font-bold leading-tight tracking-wide text-white">
-              {APP_SHORT_NAME}
-            </p>
-            <p className="text-xs font-medium leading-tight tracking-wider text-white/60">
-              {APP_TAGLINE}
-            </p>
+              </button>
+            )}
           </div>
-          {!isCompact && (
-            <button
-              type="button"
-              onClick={() => {
-                if (isMobileOpen) {
-                  onMobileClose();
-                  return;
-                }
-                onToggle();
-              }}
-              aria-label="Collapse sidebar"
-              className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] hover:bg-pawn-sidebar-light opacity-100"
-            >
-              {isMobileOpen ? <CloseIcon /> : <MenuIcon />}
-            </button>
-          )}
         </div>
-      </div>
 
         {/* Navigation */}
         <nav className={`scrollbar-hide flex-1 overflow-y-auto py-3 ${isCompact ? "px-2" : "px-3"}`}>
