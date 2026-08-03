@@ -196,6 +196,13 @@ class ApiClient {
       msg = rawMsg.trim();
     } else if (Array.isArray(rawMsg) && rawMsg.length > 0) {
       msg = rawMsg.map(String).join("; ");
+    } else if (typeof rawMsg === "object" && rawMsg !== null) {
+      const nestedMsg = (rawMsg as any).message;
+      if (typeof nestedMsg === "string" && nestedMsg.trim()) {
+        msg = nestedMsg.trim();
+      } else if (Array.isArray(nestedMsg) && nestedMsg.length > 0) {
+        msg = nestedMsg.map(String).join("; ");
+      }
     }
 
     if (!msg) {
