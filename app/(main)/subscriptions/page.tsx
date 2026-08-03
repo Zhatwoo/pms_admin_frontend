@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Modal } from "@/components/ui/modal";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
+import { Edit2, Trash2 } from "lucide-react";
 
 type SubscriptionStatus = "active" | "past_due" | "canceled" | "trialing";
 
@@ -40,6 +41,7 @@ export default function SubscriptionsPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [editPlanTarget, setEditPlanTarget] = useState<Plan | null>(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [editSubscription, setEditSubscription] = useState<Subscription | null>(null);
 
@@ -63,12 +65,23 @@ export default function SubscriptionsPage() {
     load();
   }, [load]);
 
+  const handleDeletePlan = async (plan: Plan) => {
+    if (!confirm(`Delete plan "${plan.name}"?`)) return;
+    try {
+      await api.delete(`/subscriptions/plans/${plan.id}`);
+      toast.success(`Plan "${plan.name}" deleted.`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete plan");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageHeader
-          title="Subscriptions"
-          description="Manage active tenant subscriptions and tier plans."
+          title="Subscriptions & Plans"
+          description="Manage active tenant subscriptions and monthly pricing tiers."
         />
         <div className="flex gap-2">
           <button
@@ -89,8 +102,26 @@ export default function SubscriptionsPage() {
       {plans.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {plans.map((plan) => (
-            <div key={plan.id} className="rounded-xl border border-border-main bg-surface p-5 shadow-sm">
-              <p className="text-sm font-semibold text-text-primary">{plan.name}</p>
+            <div key={plan.id} className="rounded-xl border border-border-main bg-surface p-5 shadow-sm relative group">
+              <div className="flex justify-between items-start">
+                <p className="text-sm font-semibold text-text-primary">{plan.name}</p>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => setEditPlanTarget(plan)}
+                    className="p-1 text-text-tertiary hover:text-text-primary"
+                    title="Edit Plan"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeletePlan(plan)}
+                    className="p-1 text-rose-400 hover:text-rose-600"
+                    title="Delete Plan"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
               <p className="mt-1 text-2xl font-bold text-text-primary">
                 ${Number(plan.priceMonthly).toLocaleString()}
                 <span className="text-sm font-normal text-text-tertiary">/mo</span>
@@ -159,6 +190,14 @@ export default function SubscriptionsPage() {
         onClose={() => setIsPlanModalOpen(false)}
         onCreated={load}
       />
+
+      {editPlanTarget && (
+        <EditPlanModal
+          plan={editPlanTarget}
+          onClose={() => setEditPlanTarget(null)}
+          onUpdated={load}
+        />
+      )}
 
       <AssignSubscriptionModal
         isOpen={isAssignModalOpen}
@@ -417,6 +456,91 @@ function UpdateSubscriptionModal({
             className="rounded-lg bg-brand-gold px-4 py-2 text-sm font-semibold text-zinc-900 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
           >
             {isSubmitting ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function EditPlanModal({
+  plan,
+  onClose,
+  onUpdated,
+}: {
+  plan: Plan | null;
+  onClose: () => void;
+  onUpdated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [priceMonthly, setPriceMonthly] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (plan) {
+      setName(plan.name);
+      setPriceMonthly(String(plan.priceMonthly));
+    }
+  }, [plan]);
+
+  if (!plan) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await api.put(`/subscriptions/plans/${plan.id}`, {
+        name,
+        priceMonthly: Number(priceMonthly),
+      });
+      toast.success(`Plan "${name}" updated.`);
+      onClose();
+      onUpdated();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update plan");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={!!plan} onClose={onClose} title={`Edit Plan: ${plan.name}`}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-text-secondary">Plan Name</label>
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+          />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-text-secondary">Monthly Price (USD)</label>
+          <input
+            required
+            type="number"
+            min="0"
+            step="0.01"
+            value={priceMonthly}
+            onChange={(e) => setPriceMonthly(e.target.value)}
+            className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+          />
+        </div>
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border-main bg-surface px-4 py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-surface-hover"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-lg bg-brand-gold px-4 py-2 text-sm font-semibold text-zinc-900 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+          >
+            {isSubmitting ? "Saving..." : "Save Plan"}
           </button>
         </div>
       </form>
