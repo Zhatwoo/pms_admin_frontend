@@ -26,11 +26,6 @@ const ADMIN_NAV: NavGroup[] = [
     items: [
       { label: "Clients", href: "/clients", icon: <CustomersIcon /> },
       {
-        label: "Tenants",
-        href: "/tenants",
-        icon: <BranchesIcon />,
-      },
-      {
         label: "Subscriptions",
         href: "/subscriptions",
         icon: <ReportsIcon />,
