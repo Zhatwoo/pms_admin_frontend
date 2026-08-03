@@ -10,6 +10,10 @@ interface PlatformSettings {
   supportEmail: string;
   enforce2FA: boolean;
   dataResidency: string;
+  taxRate?: number;
+  currencySymbol?: string;
+  invoiceHeaderNotes?: string;
+  defaultTrialDays?: number;
 }
 
 export default function SettingsPage() {
@@ -37,7 +41,7 @@ export default function SettingsPage() {
     try {
       const updated = await api.patch<PlatformSettings>("/settings", settings);
       setSettings(updated);
-      toast.success("Settings saved.");
+      toast.success("Platform settings saved successfully.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to save settings");
     } finally {
@@ -76,7 +80,7 @@ export default function SettingsPage() {
                 type="text"
                 value={settings.platformName}
                 onChange={(e) => setSettings({ ...settings, platformName: e.target.value })}
-                className="w-full max-w-md rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none transition-colors focus:border-pawn-gold focus:ring-1 focus:ring-pawn-gold"
+                className="w-full max-w-md rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
               />
             </div>
             <div className="grid gap-2">
@@ -85,7 +89,60 @@ export default function SettingsPage() {
                 type="email"
                 value={settings.supportEmail}
                 onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                className="w-full max-w-md rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none transition-colors focus:border-pawn-gold focus:ring-1 focus:ring-pawn-gold"
+                className="w-full max-w-md rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* BILLING & FINANCIAL SETTINGS */}
+        <div className="rounded-xl border border-border-main bg-surface shadow-sm">
+          <div className="border-b border-border-main p-6">
+            <h3 className="text-lg font-medium text-text-primary">Billing & Invoicing Configuration</h3>
+            <p className="mt-1 text-sm text-text-tertiary">Manage invoice taxes, currency, and default trial periods.</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-text-secondary">Default Tax Rate (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={settings.taxRate ?? 12}
+                  onChange={(e) => setSettings({ ...settings, taxRate: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-text-secondary">Currency Symbol</label>
+                <input
+                  type="text"
+                  value={settings.currencySymbol ?? "$"}
+                  onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
+                  className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2 max-w-md">
+              <label className="text-sm font-medium text-text-secondary">Default Trial Duration (Days)</label>
+              <input
+                type="number"
+                min="0"
+                value={settings.defaultTrialDays ?? 14}
+                onChange={(e) => setSettings({ ...settings, defaultTrialDays: Number(e.target.value) })}
+                className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+              />
+            </div>
+
+            <div className="grid gap-2 max-w-md">
+              <label className="text-sm font-medium text-text-secondary">Invoice Header Notes</label>
+              <textarea
+                rows={2}
+                value={settings.invoiceHeaderNotes ?? ""}
+                onChange={(e) => setSettings({ ...settings, invoiceHeaderNotes: e.target.value })}
+                className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
               />
             </div>
           </div>
@@ -147,3 +204,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
