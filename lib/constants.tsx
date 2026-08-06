@@ -37,14 +37,12 @@ const ADMIN_NAV: NavGroup[] = [
     items: [
       { label: "Billing", href: "/billing", icon: <ReportsIcon /> },
       { label: "Financial Reports", href: "/financial", icon: <ReportsIcon /> },
-      { label: "Analytics", href: "/analytics", icon: <ReportsIcon /> },
     ],
   },
   {
     section: "SYSTEM",
     items: [
-      { label: "Users", href: "/users", icon: <UserManagementIcon /> },
-      { label: "Roles & Permissions", href: "/roles", icon: <AuditLogIcon /> },
+      { label: "Admin Users", href: "/users", icon: <UserManagementIcon /> },
       { label: "Settings", href: "/settings", icon: <SettingsIcon /> },
       { label: "Audit Logs", href: "/audit-logs", icon: <AuditLogIcon /> },
     ],
