@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { AnalyticsCards, AnalyticsSummary } from "./components/analytics-cards";
 import { SubscriptionsTab, SubscriptionRow } from "./components/subscriptions-tab";
 import { PlansTab } from "./components/plans-tab";
 import { PlanBuilderModal, PlanDetailData } from "./components/plan-builder-modal";
@@ -14,9 +13,6 @@ import { ChangePlanModal } from "./components/change-plan-modal";
 
 export default function SubscriptionsPage() {
   const [activeTab, setActiveTab] = useState<"subscriptions" | "plans">("subscriptions");
-
-  // Analytics & Summary Data
-  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
 
   // Subscriptions Tab Data
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
@@ -39,16 +35,6 @@ export default function SubscriptionsPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedSubIdForDrawer, setSelectedSubIdForDrawer] = useState<string | null>(null);
   const [selectedSubIdForUpgrade, setSelectedSubIdForUpgrade] = useState<string | null>(null);
-
-  // Fetch Analytics Summary
-  const loadSummary = useCallback(async () => {
-    try {
-      const res = await api.get<AnalyticsSummary>("/subscriptions/analytics/summary");
-      setSummary(res);
-    } catch {
-      // ignore
-    }
-  }, []);
 
   // Fetch Subscriptions List
   const loadSubscriptions = useCallback(async () => {
@@ -86,10 +72,9 @@ export default function SubscriptionsPage() {
   }, []);
 
   const refreshAll = useCallback(() => {
-    loadSummary();
     loadSubscriptions();
     loadPlans();
-  }, [loadSummary, loadSubscriptions, loadPlans]);
+  }, [loadSubscriptions, loadPlans]);
 
   useEffect(() => {
     refreshAll();
@@ -102,9 +87,6 @@ export default function SubscriptionsPage() {
         title="Subscription & Plans Management"
         description="Track active subscribers, configure versioned plans, limits, features, and landing page pricing."
       />
-
-      {/* Analytics Summary Dashboard Cards */}
-      <AnalyticsCards summary={summary} />
 
       {/* Main Tabs Header */}
       <div className="border-b border-border-main bg-surface rounded-t-xl px-4 flex gap-6 text-sm font-bold">
