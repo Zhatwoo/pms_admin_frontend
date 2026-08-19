@@ -32,6 +32,7 @@ function NavItemComponent({
   pathname,
   isExpanded,
   onToggle,
+  onSidebarToggle,
 }: {
   item: NavItem;
   collapsed: boolean;
@@ -39,6 +40,7 @@ function NavItemComponent({
   pathname: string;
   isExpanded: boolean;
   onToggle: () => void;
+  onSidebarToggle?: () => void;
 }) {
   const hasSubItems = item.subItems && item.subItems.length > 0;
   const router = useRouter();
@@ -51,7 +53,10 @@ function NavItemComponent({
       <div className="space-y-1">
         <button
           onClick={() => {
-            if (!collapsed) {
+            if (collapsed) {
+              onSidebarToggle?.();
+              onToggle();
+            } else {
               if (!isExpanded && item.subItems && item.subItems.length > 0) {
                 router.push(item.subItems[0].href);
                 onNavigate?.();
@@ -267,7 +272,7 @@ export function Sidebar({
         {/* Brand header */}
         <div
           className={`overflow-hidden py-4 transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-            isCompact ? "px-1" : "px-4"
+            isCompact ? "px-0" : "px-4"
           }`}
         >
           <div
@@ -275,18 +280,55 @@ export function Sidebar({
               isCompact ? "justify-center" : "justify-between gap-2"
             }`}
           >
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 overflow-hidden transition-opacity hover:opacity-90"
-              title="Dashboard"
+            <button
+              type="button"
+              onClick={() => {
+                if (isMobileOpen) {
+                  onMobileClose();
+                  return;
+                }
+                onToggle();
+              }}
+              aria-label={
+                isMobileOpen
+                  ? "Close sidebar"
+                  : isCompact
+                  ? "Expand sidebar"
+                  : "Collapse sidebar"
+              }
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-pawn-sidebar-light hover:text-white"
             >
-              <QuickPawnLogo
-                variant="mark"
-                primaryColor="#ffffff"
-                accentColor="#0ea5e9"
-                className="h-9 w-9 shrink-0"
-              />
-              {!isCompact && (
+              <span
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
+                  isCompact
+                    ? "translate-x-0 opacity-100"
+                    : "-translate-x-2 opacity-0 pointer-events-none"
+                }`}
+              >
+                <MenuIcon />
+              </span>
+              <span
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-100 ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
+                  isCompact
+                    ? "translate-x-2 opacity-0 pointer-events-none"
+                    : "translate-x-0 opacity-100"
+                }`}
+              >
+                <QuickPawnLogo
+                  variant="mark"
+                  primaryColor="#ffffff"
+                  accentColor="#0ea5e9"
+                  className="h-8 w-8"
+                />
+              </span>
+            </button>
+
+            {!isCompact && (
+              <Link
+                href="/dashboard"
+                className="flex flex-1 items-center gap-3 overflow-hidden transition-opacity hover:opacity-90"
+                title="Dashboard"
+              >
                 <div className="overflow-hidden whitespace-nowrap text-left transition-all">
                   <p className="text-base font-bold leading-tight tracking-wide text-white">
                     {APP_SHORT_NAME}
@@ -295,8 +337,8 @@ export function Sidebar({
                     {APP_TAGLINE}
                   </p>
                 </div>
-              )}
-            </Link>
+              </Link>
+            )}
 
             {!isCompact && (
               <button
@@ -342,6 +384,7 @@ export function Sidebar({
                     pathname={pathname}
                     isExpanded={expandedKey === item.label}
                     onToggle={() => handleToggle(item.label)}
+                    onSidebarToggle={onToggle}
                   />
                 ))}
               </div>

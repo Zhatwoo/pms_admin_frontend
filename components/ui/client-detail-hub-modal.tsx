@@ -16,6 +16,10 @@ import {
   ExternalLink,
   CheckCircle2,
   Clock,
+  Mail,
+  RefreshCw,
+  Phone,
+  Smartphone,
 } from "lucide-react";
 
 export interface ClientDetails {
@@ -25,12 +29,16 @@ export interface ClientDetails {
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;
+  mobileNumber: string | null;
+  telephoneNumber: string | null;
   billingAddress: string | null;
+  welcomeEmailSentAt: string | null;
+  welcomeEmailCount: number;
   createdAt: string;
   tenant: {
     id: string;
     name: string;
-    subdomain: string;
+    subdomain: string | null;
     status: "active" | "suspended" | "pending";
     createdAt: string;
     _count: { branches: number; users: number; customers: number };
@@ -41,7 +49,14 @@ export interface ClientDetails {
       status: string;
       startedAt: string;
       endsAt: string | null;
-      plan: { id: string; name: string; priceMonthly: string };
+      planVersion?: {
+        branchLimit?: number;
+        userLimit?: number;
+        storageGb?: string | number;
+        monthlyPrice?: string | number;
+        plan?: { id: string; name: string; priceMonthly?: string };
+      };
+      plan?: { id: string; name: string; priceMonthly: string };
     }[];
     invoices: {
       id: string;
@@ -50,7 +65,7 @@ export interface ClientDetails {
       periodStart: string;
       periodEnd: string;
       createdAt: string;
-      subscription: { plan: { name: string } };
+      subscription?: { planVersion?: { plan?: { name: string } }; plan?: { name: string } };
     }[];
   };
 }
@@ -96,6 +111,7 @@ export function ClientDetailHubModal({
   const [isAssignPlanOpen, setIsAssignPlanOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [isAssigningPlan, setIsAssigningPlan] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const loadDetails = useCallback(async () => {
     if (!clientId) return;
@@ -130,6 +146,29 @@ export function ClientDetailHubModal({
   if (!isOpen || !clientId) return null;
 
   const currentSub = details?.tenant.subscriptions[0];
+  const currentPlanName = currentSub?.planVersion?.plan?.name || currentSub?.plan?.name || "No Active Plan";
+
+  const handleSendWelcomeEmail = async () => {
+    if (!details) return;
+    if (!details.tenant.subdomain) {
+      toast.error("Cannot send email: A valid domain must be set first.");
+      return;
+    }
+    setIsSendingEmail(true);
+    try {
+      const res = await api.post<{ message: string }>(
+        `/clients/${details.id}/send-welcome-email`,
+        {}
+      );
+      toast.success(res.message || "Welcome email sent successfully.");
+      loadDetails();
+      onUpdated();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to send welcome email");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   // Action handlers
   const handleAddBranch = async (e: React.FormEvent) => {
@@ -248,6 +287,12 @@ export function ClientDetailHubModal({
     }
   };
 
+  const activeBranchLimit = currentSub?.planVersion?.branchLimit ?? 1;
+  const activeUserLimit = currentSub?.planVersion?.userLimit ?? 5;
+  const isBranchLimitReached = details ? details.tenant.branches.length >= activeBranchLimit : false;
+  const isUserLimitReached = details ? details.tenant.users.length >= activeUserLimit : false;
+  const isSubExpired = currentSub?.endsAt ? new Date() > new Date(currentSub.endsAt) : false;
+
   return (
     <Modal
       isOpen={isOpen}
@@ -261,46 +306,80 @@ export function ClientDetailHubModal({
       ) : (
         <div className="space-y-5">
           {/* Subdomain & Status Header */}
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-secondary p-4 border border-border-main">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-surface-secondary p-4 border border-border-main">
             <div>
               <p className="text-xs uppercase tracking-wider font-semibold text-text-tertiary">
                 Tenant Subdomain
               </p>
               <div className="flex items-center gap-2 mt-0.5">
-                <a
-                  href={
-                    details.tenant.subdomain.startsWith("http://") || details.tenant.subdomain.startsWith("https://")
-                      ? details.tenant.subdomain
-                      : `https://${
-                          details.tenant.subdomain.includes(".")
-                            ? details.tenant.subdomain
-                            : `${details.tenant.subdomain}.pms.com`
-                        }`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-sm font-bold text-pawn-gold hover:underline flex items-center gap-1 transition-colors"
-                >
-                  <span>
-                    {details.tenant.subdomain.includes(".")
-                      ? details.tenant.subdomain
-                      : `${details.tenant.subdomain}.pms.com`}
+                {details.tenant.subdomain ? (
+                  <a
+                    href={
+                      details.tenant.subdomain.startsWith("http://") || details.tenant.subdomain.startsWith("https://")
+                        ? details.tenant.subdomain
+                        : `https://${
+                            details.tenant.subdomain.includes(".")
+                              ? details.tenant.subdomain
+                              : `${details.tenant.subdomain}.pms.com`
+                          }`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-sm font-bold text-pawn-gold hover:underline flex items-center gap-1 transition-colors"
+                  >
+                    <span>
+                      {details.tenant.subdomain.includes(".")
+                        ? details.tenant.subdomain
+                        : `${details.tenant.subdomain}.pms.com`}
+                    </span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-md border border-amber-400/20">
+                    No domain assigned yet
                   </span>
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                )}
                 <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500 capitalize">
                   {details.tenant.status}
                 </span>
               </div>
             </div>
 
-            <div className="text-right">
-              <p className="text-xs uppercase tracking-wider font-semibold text-text-tertiary">
-                Active Tier
-              </p>
-              <p className="text-sm font-bold text-text-primary">
-                {currentSub ? currentSub.plan.name : "No Active Plan"}
-              </p>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-wider font-semibold text-text-tertiary">
+                  Active Tier
+                </p>
+                <p className="text-sm font-bold text-text-primary">
+                  {currentPlanName}
+                </p>
+              </div>
+
+              {details.tenant.subdomain && (
+                <div>
+                  {!details.welcomeEmailSentAt ? (
+                    <button
+                      onClick={handleSendWelcomeEmail}
+                      disabled={isSendingEmail}
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-zinc-950 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+                      title="Send initial Superadmin login credentials email"
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                      {isSendingEmail ? "Sending..." : "Send Email"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSendWelcomeEmail}
+                      disabled={isSendingEmail}
+                      className="flex items-center gap-1.5 rounded-lg border border-border-main bg-surface px-3.5 py-2 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-hover active:scale-[0.98] disabled:opacity-50"
+                      title={`Welcome email sent ${new Date(details.welcomeEmailSentAt).toLocaleString()}`}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-brand-gold" />
+                      {isSendingEmail ? "Sending..." : "Resend Email"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -340,8 +419,20 @@ export function ClientDetailHubModal({
                   <p className="text-xs font-semibold uppercase text-text-tertiary">Contact Info</p>
                   <p className="font-semibold text-text-primary">{details.contactName}</p>
                   <p className="text-text-secondary">{details.contactEmail}</p>
-                  {details.contactPhone && (
-                    <p className="text-xs text-text-tertiary font-mono">{details.contactPhone}</p>
+                  {details.mobileNumber && (
+                    <p className="text-xs text-text-tertiary flex items-center gap-1.5 font-mono">
+                      <Smartphone className="h-3.5 w-3.5 text-brand-gold" /> Mobile: {details.mobileNumber}
+                    </p>
+                  )}
+                  {details.telephoneNumber && (
+                    <p className="text-xs text-text-tertiary flex items-center gap-1.5 font-mono">
+                      <Phone className="h-3.5 w-3.5 text-brand-gold" /> Tel: {details.telephoneNumber}
+                    </p>
+                  )}
+                  {!details.mobileNumber && !details.telephoneNumber && details.contactPhone && (
+                    <p className="text-xs text-text-tertiary flex items-center gap-1.5 font-mono">
+                      <Phone className="h-3.5 w-3.5 text-brand-gold" /> {details.contactPhone}
+                    </p>
                   )}
                   {details.billingAddress && (
                     <p className="text-xs text-text-tertiary border-t border-border-main pt-2 mt-2">
@@ -403,13 +494,15 @@ export function ClientDetailHubModal({
               {currentSub ? (
                 <div className="rounded-xl border border-border-main bg-surface p-4 flex justify-between items-center">
                   <div>
-                    <p className="font-bold text-text-primary">{currentSub.plan.name}</p>
+                    <p className="font-bold text-text-primary">
+                      {currentSub.planVersion?.plan?.name || currentSub.plan?.name || "Standard Plan"}
+                    </p>
                     <p className="text-xs text-text-tertiary">
                       Started: {new Date(currentSub.startedAt).toLocaleDateString()}
                     </p>
                   </div>
                   <p className="text-xl font-bold text-text-primary">
-                    ${Number(currentSub.plan.priceMonthly).toLocaleString()}
+                    ₱{Number(currentSub.planVersion?.monthlyPrice || currentSub.plan?.priceMonthly || 0).toLocaleString()}
                     <span className="text-xs font-normal text-text-tertiary">/mo</span>
                   </p>
                 </div>
@@ -476,10 +569,25 @@ export function ClientDetailHubModal({
           {activeTab === "branches" && (
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-text-primary">Physical Branch Locations</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-text-primary">Physical Branch Locations</h4>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+                    isBranchLimitReached ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-surface-secondary text-text-tertiary"
+                  }`}>
+                    {details.tenant.branches.length} / {activeBranchLimit} Branches Used
+                  </span>
+                </div>
                 <button
                   onClick={() => setIsAddBranchOpen(true)}
-                  className="flex items-center gap-1 rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-semibold text-zinc-900 hover:opacity-90"
+                  disabled={isBranchLimitReached || isSubExpired}
+                  title={
+                    isSubExpired
+                      ? "Subscription has expired"
+                      : isBranchLimitReached
+                      ? `Branch limit (${activeBranchLimit}) reached for current plan`
+                      : "Add Branch"
+                  }
+                  className="flex items-center gap-1 rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-semibold text-zinc-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="h-3.5 w-3.5" /> Add Branch
                 </button>
@@ -529,10 +637,25 @@ export function ClientDetailHubModal({
           {activeTab === "staff" && (
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-text-primary">Tenant Staff Users</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-text-primary">Tenant Staff Users</h4>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+                    isUserLimitReached ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-surface-secondary text-text-tertiary"
+                  }`}>
+                    {details.tenant.users.length} / {activeUserLimit} Users Used
+                  </span>
+                </div>
                 <button
                   onClick={() => setIsAddStaffOpen(true)}
-                  className="flex items-center gap-1 rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-semibold text-zinc-900 hover:opacity-90"
+                  disabled={isUserLimitReached || isSubExpired}
+                  title={
+                    isSubExpired
+                      ? "Subscription has expired"
+                      : isUserLimitReached
+                      ? `Staff user limit (${activeUserLimit}) reached for current plan`
+                      : "Invite Staff User"
+                  }
+                  className="flex items-center gap-1 rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-semibold text-zinc-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="h-3.5 w-3.5" /> Invite Staff User
                 </button>

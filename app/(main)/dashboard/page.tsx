@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Building2,
   Users,
@@ -13,7 +15,20 @@ import {
   TrendingUp,
   Clock,
   ShieldAlert,
+  Plus,
+  FileText,
+  ClipboardList,
+  ArrowRight,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 interface DashboardStats {
   overview: {
@@ -36,9 +51,17 @@ interface DashboardStats {
   }[];
 }
 
+interface GrowthData {
+  tenantSignups: { month: string; count: number }[];
+  newSubscriptions: { month: string; count: number }[];
+}
+
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [growth, setGrowth] = useState<GrowthData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingGrowth, setIsLoadingGrowth] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -54,6 +77,21 @@ export default function DashboardPage() {
       }
     }
     loadStats();
+  }, []);
+
+  useEffect(() => {
+    async function loadGrowth() {
+      try {
+        const data = await api.get<GrowthData>("/analytics/growth");
+        setGrowth(data);
+      } catch (err) {
+        // Analytics growth data is optional — don't show error toast
+        console.error("Failed to load growth analytics:", err);
+      } finally {
+        setIsLoadingGrowth(false);
+      }
+    }
+    loadGrowth();
   }, []);
 
   const overviewCards = [
@@ -95,11 +133,46 @@ export default function DashboardPage() {
     },
   ];
 
+  const quickActions = [
+    {
+      label: "Add Client",
+      description: "Register a new client company",
+      icon: Plus,
+      href: "/clients",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20",
+    },
+    {
+      label: "Manage Subscriptions",
+      description: "Assign or modify plans",
+      icon: CreditCard,
+      href: "/subscriptions",
+      color: "text-sky-500",
+      bg: "bg-sky-500/10 border-sky-500/20 hover:bg-sky-500/20",
+    },
+    {
+      label: "Generate Invoices",
+      description: "Create monthly billing statements",
+      icon: FileText,
+      href: "/billing",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20",
+    },
+    {
+      label: "View Audit Logs",
+      description: "Review system activity trail",
+      icon: ClipboardList,
+      href: "/audit-logs",
+      color: "text-purple-500",
+      bg: "bg-purple-500/10 border-purple-500/20 hover:bg-purple-500/20",
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Admin Overview"
-        description="Real-time multi-tenant platform statistics and SaaS insights."
+        description="Real-time multi-tenant platform statistics, analytics, and quick actions."
       />
 
       {error && (
@@ -140,6 +213,84 @@ export default function DashboardPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Quick Actions */}
+      <div>
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-text-tertiary">
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.label}
+                onClick={() => router.push(action.href)}
+                className={`group flex items-center gap-4 rounded-xl border p-4 text-left transition-all ${action.bg}`}
+              >
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface ${action.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-text-primary">{action.label}</p>
+                  <p className="text-xs text-text-tertiary truncate">{action.description}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Analytics Charts (merged from /analytics) */}
+      <div>
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-text-tertiary">
+          Platform Growth
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-xl border border-border-main bg-surface p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-medium text-text-primary">Tenant Signups (Last 6 Months)</h3>
+            {isLoadingGrowth ? (
+              <div className="flex h-56 items-center justify-center text-text-muted">Loading...</div>
+            ) : !growth?.tenantSignups?.length ? (
+              <div className="flex h-56 items-center justify-center text-text-muted">No signup data yet.</div>
+            ) : (
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={growth.tenantSignups}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="month" fontSize={12} />
+                    <YAxis fontSize={12} allowDecimals={false} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="count" stroke="#d4af37" strokeWidth={2} dot />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border-main bg-surface p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-medium text-text-primary">New Subscriptions (Last 6 Months)</h3>
+            {isLoadingGrowth ? (
+              <div className="flex h-56 items-center justify-center text-text-muted">Loading...</div>
+            ) : !growth?.newSubscriptions?.length ? (
+              <div className="flex h-56 items-center justify-center text-text-muted">No subscription data yet.</div>
+            ) : (
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={growth.newSubscriptions}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="month" fontSize={12} />
+                    <YAxis fontSize={12} allowDecimals={false} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={2} dot />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Two Column Layout: Subscriptions Breakdown & Recent Tenants */}
