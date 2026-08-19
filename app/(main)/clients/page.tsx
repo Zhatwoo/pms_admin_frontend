@@ -6,7 +6,19 @@ import { Modal } from "@/components/ui/modal";
 import { ClientDetailHubModal } from "@/components/ui/client-detail-hub-modal";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { Search, Eye, Edit2, Trash2, Building2, ExternalLink } from "lucide-react";
+import {
+  Search,
+  Eye,
+  Edit2,
+  Trash2,
+  Building2,
+  ExternalLink,
+  Mail,
+  RefreshCw,
+  Smartphone,
+  Phone,
+  Sparkles,
+} from "lucide-react";
 
 interface Client {
   id: string;
@@ -14,19 +26,29 @@ interface Client {
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;
+  mobileNumber: string | null;
+  telephoneNumber: string | null;
   billingAddress: string | null;
+  welcomeEmailSentAt: string | null;
+  welcomeEmailCount: number;
   tenant: {
     id: string;
     name: string;
-    subdomain: string;
+    subdomain: string | null;
     status: string;
     _count?: { branches: number; users: number; customers: number };
+    subscriptions?: {
+      id: string;
+      status: string;
+      planVersion: { plan: { id: string; name: string } };
+    }[];
   };
 }
 
-interface TenantOption {
+interface SubscriptionPlanOption {
   id: string;
   name: string;
+  slug: string;
 }
 
 export default function ClientsPage() {
@@ -39,6 +61,7 @@ export default function ClientsPage() {
   const [selectedHubClientId, setSelectedHubClientId] = useState<string | null>(null);
   const [deleteClientTarget, setDeleteClientTarget] = useState<Client | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [sendingEmailClientId, setSendingEmailClientId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -63,6 +86,26 @@ export default function ClientsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleSendWelcomeEmail = async (client: Client) => {
+    if (!client.tenant.subdomain) {
+      toast.error("Cannot send email: Client has no domain assigned yet. Please edit and set a domain first.");
+      return;
+    }
+    setSendingEmailClientId(client.id);
+    try {
+      const res = await api.post<{ message: string }>(
+        `/clients/${client.id}/send-welcome-email`,
+        {}
+      );
+      toast.success(res.message || "Welcome email sent successfully.");
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to send welcome email");
+    } finally {
+      setSendingEmailClientId(null);
+    }
+  };
 
   const handleDeleteClient = async () => {
     if (!deleteClientTarget) return;
@@ -109,13 +152,13 @@ export default function ClientsPage() {
 
       <div className="overflow-hidden rounded-xl border border-border-main bg-surface shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] text-left text-sm">
+          <table className="w-full min-w-[950px] text-left text-sm">
             <thead className="border-b border-border-main bg-surface-secondary text-text-secondary">
               <tr>
-                <th className="px-6 py-4 font-semibold uppercase tracking-wider">Company</th>
+                <th className="px-6 py-4 font-semibold uppercase tracking-wider">Company & Plan</th>
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider">Tenant Subdomain</th>
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider">Contact Person</th>
-                <th className="px-6 py-4 font-semibold uppercase tracking-wider">Contact Details</th>
+                <th className="px-6 py-4 font-semibold uppercase tracking-wider">Phone Numbers</th>
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -133,71 +176,137 @@ export default function ClientsPage() {
                   </td>
                 </tr>
               ) : (
-                clients.map((client) => (
-                  <tr key={client.id} className="transition-colors hover:bg-surface-hover group">
-                    <td className="px-6 py-4 font-semibold text-text-primary">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-brand-gold" />
-                        <span>{client.companyName}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">
-                      <a
-                        href={
-                          client.tenant.subdomain.startsWith("http://") || client.tenant.subdomain.startsWith("https://")
-                            ? client.tenant.subdomain
-                            : `https://${
-                                client.tenant.subdomain.includes(".")
-                                  ? client.tenant.subdomain
-                                  : `${client.tenant.subdomain}.pms.com`
-                              }`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-md bg-badge-muted-bg px-2.5 py-1 text-xs font-mono font-semibold text-pawn-gold hover:underline transition-colors"
-                        title={`Open https://${client.tenant.subdomain}`}
-                      >
-                        <span>
-                          {client.tenant.subdomain.includes(".")
-                            ? client.tenant.subdomain
-                            : `${client.tenant.subdomain}.pms.com`}
-                        </span>
-                        <ExternalLink className="h-3 w-3 text-text-tertiary" />
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">{client.contactName}</td>
-                    <td className="px-6 py-4 text-text-tertiary">
-                      <p className="text-xs text-text-primary font-medium">{client.contactEmail}</p>
-                      {client.contactPhone && (
-                        <p className="text-xs text-text-tertiary">{client.contactPhone}</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setSelectedHubClientId(client.id)}
-                          className="flex items-center gap-1 rounded-md bg-brand-gold/10 px-2.5 py-1 text-xs font-semibold text-brand-gold hover:bg-brand-gold/20 transition-colors"
-                        >
-                          <Eye className="h-3.5 w-3.5" /> View Hub
-                        </button>
-                        <button
-                          onClick={() => setEditClient(client)}
-                          className="p-1 text-text-tertiary hover:text-text-primary transition-colors"
-                          title="Edit Info"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteClientTarget(client)}
-                          className="p-1 text-rose-400 hover:text-rose-600 transition-colors"
-                          title="Delete Client"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                clients.map((client) => {
+                  const planName = client.tenant.subscriptions?.[0]?.planVersion?.plan?.name;
+                  return (
+                    <tr key={client.id} className="transition-colors hover:bg-surface-hover group">
+                      <td className="px-6 py-4 font-semibold text-text-primary">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-brand-gold" />
+                            <span>{client.companyName}</span>
+                          </div>
+                          {planName ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-brand-gold/10 px-2 py-0.5 text-[11px] font-semibold text-brand-gold border border-brand-gold/20">
+                              <Sparkles className="h-3 w-3" />
+                              {planName}
+                            </span>
+                          ) : (
+                            <span className="inline-block rounded bg-badge-muted-bg px-2 py-0.5 text-[11px] font-medium text-text-tertiary">
+                              No Plan Assigned
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {client.tenant.subdomain ? (
+                          <a
+                            href={
+                              client.tenant.subdomain.startsWith("http://") || client.tenant.subdomain.startsWith("https://")
+                                ? client.tenant.subdomain
+                                : `https://${
+                                    client.tenant.subdomain.includes(".")
+                                      ? client.tenant.subdomain
+                                      : `${client.tenant.subdomain}.pms.com`
+                                  }`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-badge-muted-bg px-2.5 py-1 text-xs font-mono font-semibold text-pawn-gold hover:underline transition-colors"
+                            title={`Open https://${client.tenant.subdomain}`}
+                          >
+                            <span>
+                              {client.tenant.subdomain.includes(".")
+                                ? client.tenant.subdomain
+                                : `${client.tenant.subdomain}.pms.com`}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-text-tertiary" />
+                          </a>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-400/10 px-2.5 py-1 text-xs font-semibold text-amber-400 border border-amber-400/20">
+                            No domain yet
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        <p className="font-semibold text-text-primary">{client.contactName}</p>
+                        <p className="text-xs text-text-tertiary">{client.contactEmail}</p>
+                      </td>
+                      <td className="px-6 py-4 text-text-tertiary">
+                        {client.mobileNumber && (
+                          <p className="text-xs font-mono text-text-primary flex items-center gap-1">
+                            <Smartphone className="h-3 w-3 text-brand-gold" />
+                            {client.mobileNumber}
+                          </p>
+                        )}
+                        {client.telephoneNumber && (
+                          <p className="text-xs font-mono text-text-secondary flex items-center gap-1">
+                            <Phone className="h-3 w-3 text-text-muted" />
+                            {client.telephoneNumber}
+                          </p>
+                        )}
+                        {!client.mobileNumber && !client.telephoneNumber && client.contactPhone && (
+                          <p className="text-xs font-mono text-text-tertiary">{client.contactPhone}</p>
+                        )}
+                        {!client.mobileNumber && !client.telephoneNumber && !client.contactPhone && (
+                          <span className="text-xs text-text-muted italic">N/A</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {client.tenant.subdomain ? (
+                            !client.welcomeEmailSentAt ? (
+                              <button
+                                onClick={() => handleSendWelcomeEmail(client)}
+                                disabled={sendingEmailClientId === client.id}
+                                className="flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors border border-emerald-500/20 disabled:opacity-50"
+                                title="Send credentials email"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
+                                {sendingEmailClientId === client.id ? "Sending..." : "Send Email"}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleSendWelcomeEmail(client)}
+                                disabled={sendingEmailClientId === client.id}
+                                className="flex items-center gap-1 rounded-md bg-blue-500/15 px-2.5 py-1 text-xs font-semibold text-blue-400 hover:bg-blue-500/25 transition-colors border border-blue-500/20 disabled:opacity-50"
+                                title={`Welcome email sent ${new Date(client.welcomeEmailSentAt).toLocaleString()}`}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                {sendingEmailClientId === client.id ? "Sending..." : "Resend Email"}
+                              </button>
+                            )
+                          ) : (
+                            <span className="text-[11px] text-amber-400/80 italic font-medium px-2 py-0.5 rounded bg-amber-400/5">
+                              Incomplete Info
+                            </span>
+                          )}
+
+                          <button
+                            onClick={() => setSelectedHubClientId(client.id)}
+                            className="flex items-center gap-1 rounded-md bg-brand-gold/10 px-2.5 py-1 text-xs font-semibold text-brand-gold hover:bg-brand-gold/20 transition-colors"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> View Hub
+                          </button>
+                          <button
+                            onClick={() => setEditClient(client)}
+                            className="p-1 text-text-tertiary hover:text-text-primary transition-colors"
+                            title="Edit Info"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteClientTarget(client)}
+                            className="p-1 text-rose-400 hover:text-rose-600 transition-colors"
+                            title="Delete Client"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -279,54 +388,88 @@ function ClientFormModal({
   onSaved: () => void;
   existing?: Client;
 }) {
-  const [companyName, setCompanyName] = useState(existing?.companyName ?? "");
-  const [subdomain, setSubdomain] = useState(existing?.tenant.subdomain ?? "");
-  const [contactName, setContactName] = useState(existing?.contactName ?? "");
-  const [contactEmail, setContactEmail] = useState(existing?.contactEmail ?? "");
-  const [contactPhone, setContactPhone] = useState(existing?.contactPhone ?? "");
-  const [billingAddress, setBillingAddress] = useState(existing?.billingAddress ?? "");
+  const [companyName, setCompanyName] = useState("");
+  const [subdomain, setSubdomain] = useState("");
+  const [noDomain, setNoDomain] = useState(false);
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [phoneType, setPhoneType] = useState<"mobile" | "telephone">("mobile");
+  const [phoneValue, setPhoneValue] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [planId, setPlanId] = useState("");
+  const [plans, setPlans] = useState<SubscriptionPlanOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    // Load available plans
+    api
+      .get<SubscriptionPlanOption[]>("/subscriptions/plans")
+      .then((data) => setPlans(data))
+      .catch(() => setPlans([]));
+
     if (existing) {
       setCompanyName(existing.companyName);
-      setSubdomain(existing.tenant.subdomain);
+      const sub = existing.tenant.subdomain ?? "";
+      setSubdomain(sub);
+      setNoDomain(!sub);
       setContactName(existing.contactName);
       setContactEmail(existing.contactEmail);
-      setContactPhone(existing.contactPhone ?? "");
+      if (existing.telephoneNumber && !existing.mobileNumber) {
+        setPhoneType("telephone");
+        setPhoneValue(existing.telephoneNumber);
+      } else {
+        setPhoneType("mobile");
+        const mob = existing.mobileNumber ?? existing.contactPhone ?? "";
+        setPhoneValue(mob ? (mob.startsWith("09") ? mob : "09" + mob.replace(/\D/g, "")) : "09");
+      }
       setBillingAddress(existing.billingAddress ?? "");
+      setPlanId(existing.tenant.subscriptions?.[0]?.planVersion?.plan?.id ?? "");
     } else {
       setCompanyName("");
       setSubdomain("");
+      setNoDomain(false);
       setContactName("");
       setContactEmail("");
-      setContactPhone("");
+      setPhoneType("mobile");
+      setPhoneValue("09");
       setBillingAddress("");
+      setPlanId("");
     }
   }, [isOpen, existing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    const mobileNumber = phoneType === "mobile" ? phoneValue : undefined;
+    const telephoneNumber = phoneType === "telephone" ? phoneValue : undefined;
+
     try {
       if (existing) {
         await api.put(`/clients/tenant/${existing.tenant.id}`, {
           companyName,
+          subdomain: noDomain ? undefined : subdomain,
+          noDomain,
           contactName,
           contactEmail,
-          contactPhone: contactPhone || undefined,
+          mobileNumber: mobileNumber || undefined,
+          telephoneNumber: telephoneNumber || undefined,
           billingAddress: billingAddress || undefined,
+          planId: planId || undefined,
         });
         toast.success(`Client "${companyName}" updated.`);
       } else {
         await api.post("/clients", {
           companyName,
-          subdomain,
+          subdomain: noDomain ? undefined : subdomain,
+          noDomain,
           contactName,
           contactEmail,
-          contactPhone: contactPhone || undefined,
+          mobileNumber: mobileNumber || undefined,
+          telephoneNumber: telephoneNumber || undefined,
           billingAddress: billingAddress || undefined,
+          planId: planId || undefined,
         });
         toast.success(`Client profile "${companyName}" created.`);
       }
@@ -337,6 +480,18 @@ function ClientFormModal({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleMobileInput = (val: string) => {
+    let digits = val.replace(/\D/g, "");
+    if (!digits.startsWith("09")) {
+      if (digits.startsWith("9")) {
+        digits = "0" + digits;
+      } else {
+        digits = "09" + digits;
+      }
+    }
+    setPhoneValue(digits.slice(0, 11));
   };
 
   return (
@@ -353,16 +508,47 @@ function ClientFormModal({
               className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
             />
           </div>
+
           <div className="grid gap-2">
-            <label className="text-sm font-medium text-text-secondary">Subdomain / Tenant URL</label>
-            <input
-              required
-              disabled={!!existing}
-              value={subdomain}
-              onChange={(e) => setSubdomain(e.target.value)}
-              placeholder="goldengate.pms.com"
-              className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold disabled:opacity-60 font-mono text-xs"
-            />
+            <label className="text-sm font-medium text-text-secondary">Subscription Plan</label>
+            <select
+              value={planId}
+              onChange={(e) => setPlanId(e.target.value)}
+              className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+            >
+              <option value="">-- Select Plan --</option>
+              {plans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-text-secondary">Subdomain / Tenant URL</label>
+          <input
+            required={!noDomain}
+            disabled={noDomain}
+            value={subdomain}
+            onChange={(e) => setSubdomain(e.target.value)}
+            placeholder={noDomain ? "No domain assigned yet (Admin can edit later)" : "goldengate"}
+            className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold disabled:opacity-50 font-mono text-xs"
+          />
+          <div className="flex items-center">
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-brand-gold font-medium select-none">
+              <input
+                type="checkbox"
+                checked={noDomain}
+                onChange={(e) => {
+                  setNoDomain(e.target.checked);
+                  if (e.target.checked) setSubdomain("");
+                }}
+                className="rounded border-input-border bg-input-bg text-brand-gold focus:ring-brand-gold"
+              />
+              No domain yet
+            </label>
           </div>
         </div>
 
@@ -377,28 +563,72 @@ function ClientFormModal({
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="grid gap-2">
-            <label className="text-sm font-medium text-text-secondary">Contact Email</label>
-            <input
-              required
-              type="email"
-              value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
-              placeholder="jane@goldengatepawn.com"
-              className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
-            />
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-text-secondary">Contact Email</label>
+          <input
+            required
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            placeholder="jane@goldengatepawn.com"
+            className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+          />
+        </div>
+
+        <div className="grid gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-text-secondary">Contact Number</label>
+            <div className="flex items-center gap-4 text-xs font-medium">
+              <label className="flex items-center gap-1.5 cursor-pointer text-text-secondary select-none">
+                <input
+                  type="radio"
+                  name="phoneType"
+                  value="mobile"
+                  checked={phoneType === "mobile"}
+                  onChange={() => {
+                    setPhoneType("mobile");
+                    setPhoneValue("09");
+                  }}
+                  className="accent-brand-gold focus:ring-brand-gold"
+                />
+                Mobile
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer text-text-secondary select-none">
+                <input
+                  type="radio"
+                  name="phoneType"
+                  value="telephone"
+                  checked={phoneType === "telephone"}
+                  onChange={() => {
+                    setPhoneType("telephone");
+                    setPhoneValue("");
+                  }}
+                  className="accent-brand-gold focus:ring-brand-gold"
+                />
+                Telephone
+              </label>
+            </div>
           </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium text-text-secondary">Contact Number / Phone</label>
+
+          {phoneType === "mobile" ? (
             <input
               type="tel"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              placeholder="+1 (555) 000-0000"
-              className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold"
+              value={phoneValue}
+              onChange={(e) => handleMobileInput(e.target.value)}
+              placeholder="09xxxxxxxxx"
+              maxLength={11}
+              className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold font-mono"
             />
-          </div>
+          ) : (
+            <input
+              type="tel"
+              value={phoneValue}
+              onChange={(e) => setPhoneValue(e.target.value.slice(0, 15))}
+              placeholder=""
+              maxLength={15}
+              className="w-full rounded-lg border border-input-border bg-input-bg px-4 py-2 text-sm text-text-primary outline-none focus:border-pawn-gold font-mono"
+            />
+          )}
         </div>
 
         <div className="grid gap-2">
